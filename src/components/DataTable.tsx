@@ -1,4 +1,13 @@
 import type { ReactNode } from 'react';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 
 export interface DataTableColumn<TRow> {
   key: string;
@@ -15,10 +24,11 @@ interface DataTableProps<TRow> {
 }
 
 /**
- * Minimal, dependency-free table. Deliberately not TanStack Table yet —
- * this scaffold's only list pages are simple flat lists; TanStack Table is
- * reserved (per role brief) for the heavier Trial Balance / Ledger reports
- * with sorting/filtering, built in a later phase.
+ * MUI `Table` wrapper with built-in loading/empty rows.
+ *
+ * Still not TanStack Table — reserved (per role brief) for the heavier
+ * Trial Balance / Ledger reports with sorting/filtering/pagination, built
+ * in a later phase. This one stays a simple flat-list renderer.
  */
 export function DataTable<TRow>({
   columns,
@@ -28,35 +38,44 @@ export function DataTable<TRow>({
   emptyMessage = 'داده‌ای برای نمایش وجود ندارد.',
 }: DataTableProps<TRow>) {
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key} scope="col">
-              {col.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {isLoading ? (
-          <tr>
-            <td colSpan={columns.length}>در حال بارگذاری...</td>
-          </tr>
-        ) : rows.length === 0 ? (
-          <tr>
-            <td colSpan={columns.length}>{emptyMessage}</td>
-          </tr>
-        ) : (
-          rows.map((row) => (
-            <tr key={getRowKey(row)}>
-              {columns.map((col) => (
-                <td key={col.key}>{col.render(row)}</td>
-              ))}
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+    <TableContainer component={Paper} variant="outlined">
+      <Table>
+        <TableHead>
+          <TableRow>
+            {columns.map((col) => (
+              <TableCell key={col.key} scope="col">
+                {col.header}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} align="center" sx={{ py: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                  <CircularProgress size={20} />
+                  <span>در حال بارگذاری...</span>
+                </Box>
+              </TableCell>
+            </TableRow>
+          ) : rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columns.length} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow key={getRowKey(row)} hover>
+                {columns.map((col) => (
+                  <TableCell key={col.key}>{col.render(row)}</TableCell>
+                ))}
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }

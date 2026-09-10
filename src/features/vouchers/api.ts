@@ -1,5 +1,8 @@
-import { createResourceApi, type ListParams } from '../../lib/api/createResourceApi';
+import { createResourceApi, type CreateResponse, type ListParams } from '../../lib/api/createResourceApi';
+import { apiClient } from '../../lib/api/client';
+import type { PagedResult } from '../../types/pagedResult';
 import type { VoucherHeadDto } from '../../types/voucherHead';
+import type { VoucherDetailDto } from '../../types/voucherDetail';
 
 /**
  * ⚠️ No `vahedCode` here on purpose — GET /api/voucher-heads does not (and
@@ -10,6 +13,72 @@ export interface VoucherHeadListParams extends ListParams {
   year?: string;
 }
 
-export const voucherHeadsApi = createResourceApi<VoucherHeadDto, Partial<VoucherHeadDto>, Partial<VoucherHeadDto>, VoucherHeadListParams>(
-  'voucher-heads',
-);
+/**
+ * Exact wire shape of `CreateVoucherHeadCommand` MINUS `vahedCode` (server-assigned,
+ * `[JsonIgnore]`) and MINUS `initialDetails` — this feature deliberately never uses
+ * `initialDetails` because `CreateVoucherHeadDetailInput` has no `tafsiliLinks` field (see
+ * the "critical contract finding" in the task brief / completion report): every line is
+ * always created afterwards via a separate `POST /api/voucher-details` call instead.
+ *
+ * See backend/src/Accounting.Application/Vouchers/Commands/CreateVoucherHead/CreateVoucherHeadCommand.cs
+ */
+export interface CreateVoucherHeadPayload {
+  docNum: string;
+  dateDoc: string;
+  docLife: boolean | null;
+  headDesc: string | null;
+  apendix: string | null;
+  systemTypeId: string | null;
+  flagState: number | null;
+  year: string;
+  isAutomatic: boolean | null;
+  sndVahedCode: string | null;
+  parentHeadId: string | null;
+  attachFileName: string | null;
+  atfNum: string | null;
+}
+
+/**
+ * Exact wire shape of `CreateVoucherDetailCommand` MINUS `vahedCode` (server-assigned,
+ * `[JsonIgnore]`). See
+ * backend/src/Accounting.Application/Vouchers/Commands/CreateVoucherDetail/CreateVoucherDetailCommand.cs
+ */
+export interface CreateVoucherDetailPayload {
+  voucherHeadId: string;
+  accountId: string | null;
+  receiptId: string | null;
+  checkId: string | null;
+  lowLevelCodeId: string | null;
+  etebarId: string | null;
+  description: string | null;
+  radif: number | null;
+  debtor: number | null;
+  creditor: number | null;
+  year: string | null;
+  tafsiliLinks: { tafsiliId: string; levelId: string }[] | null;
+}
+
+export const voucherHeadsApi = createResourceApi<
+  VoucherHeadDto,
+  CreateVoucherHeadPayload,
+  Partial<CreateVoucherHeadPayload>,
+  VoucherHeadListParams
+>('voucher-heads');
+
+/**
+ * Deliberately only `create`/`list` here, not the full `createResourceApi<...>` helper —
+ * this feature (voucher entry) never needs `getById`/`update`/`remove` on
+ * `voucher-details`, and `list` takes extra query params (`voucherHeadId`/`year`) that don't
+ * fit the generic helper's plain `ListParams`. A future feature needing the rest of the CRUD
+ * surface can still add it via `createResourceApi` without conflicting with this object.
+ */
+export const voucherDetailsApi = {
+  create(payload: CreateVoucherDetailPayload): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/voucher-details', payload).then((res) => res.data);
+  },
+  list(params: ListParams & { voucherHeadId?: string; year?: string }): Promise<PagedResult<VoucherDetailDto>> {
+    return apiClient
+      .get<PagedResult<VoucherDetailDto>>('/voucher-details', { params })
+      .then((res) => res.data);
+  },
+};

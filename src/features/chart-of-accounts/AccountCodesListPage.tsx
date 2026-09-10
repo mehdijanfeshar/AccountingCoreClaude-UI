@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link as RouterLink } from 'react-router-dom';
+import Button from '@mui/material/Button';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
@@ -13,6 +15,15 @@ const columns: DataTableColumn<AccountCodeDto>[] = [
   { key: 'accCode', header: 'کد حساب', render: (row) => row.accCode ?? '—' },
   { key: 'accCodeName', header: 'عنوان حساب', render: (row) => row.accCodeName ?? '—' },
   { key: 'id', header: 'شناسه', render: (row) => row.id },
+  {
+    key: 'action',
+    header: 'عملیات',
+    render: (row) => (
+      <Button size="small" component={RouterLink} to={`/base/account-codes/${row.id}/edit`}>
+        ویرایش
+      </Button>
+    ),
+  },
 ];
 
 /**
@@ -30,7 +41,15 @@ export function AccountCodesListPage() {
 
   return (
     <section>
-      <PageHeader title="کدینگ حسابداری" description="فهرست حساب‌ها (سطح گروه/کل/معین/تفصیلی به‌صورت یکجا)" />
+      <PageHeader
+        title="کدینگ حسابداری"
+        description="فهرست حساب‌ها (سطح گروه/کل/معین/تفصیلی به‌صورت یکجا)"
+        actions={
+          <Button variant="contained" component={RouterLink} to="/base/account-codes/new">
+            افزودن حساب
+          </Button>
+        }
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 

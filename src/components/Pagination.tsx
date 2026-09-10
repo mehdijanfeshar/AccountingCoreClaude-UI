@@ -1,3 +1,8 @@
+import MuiPagination from '@mui/material/Pagination';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { toPersianDigits } from '../lib/format/numbers';
+
 interface PaginationProps {
   pageNumber: number;
   pageSize: number;
@@ -5,24 +10,39 @@ interface PaginationProps {
   onPageChange: (pageNumber: number) => void;
 }
 
+/**
+ * Wraps MUI's numbered `Pagination` component. Kept 1-based `pageNumber` in
+ * the props (unchanged from the pre-MUI version) so callers didn't need to
+ * change — MUI's `Pagination` is itself 1-based, unlike `TablePagination`.
+ * No page-size control here: neither current API supports it yet.
+ */
 export function Pagination({ pageNumber, pageSize, totalCount, onPageChange }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
-    <nav className="pagination" aria-label="صفحه‌بندی">
-      <button type="button" disabled={pageNumber <= 1} onClick={() => onPageChange(pageNumber - 1)}>
-        قبلی
-      </button>
-      <span>
-        صفحه {pageNumber} از {totalPages} ({totalCount} مورد)
-      </span>
-      <button
-        type="button"
-        disabled={pageNumber >= totalPages}
-        onClick={() => onPageChange(pageNumber + 1)}
-      >
-        بعدی
-      </button>
-    </nav>
+    <Stack
+      component="nav"
+      aria-label="صفحه‌بندی"
+      direction="row"
+      sx={{
+        mt: 2,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 1,
+      }}
+    >
+      <Typography variant="body2" color="text.secondary">
+        صفحه {toPersianDigits(pageNumber)} از {toPersianDigits(totalPages)} ({toPersianDigits(totalCount)} مورد)
+      </Typography>
+      <MuiPagination
+        page={pageNumber}
+        count={totalPages}
+        onChange={(_event, page) => onPageChange(page)}
+        color="primary"
+        shape="rounded"
+        size="small"
+      />
+    </Stack>
   );
 }
