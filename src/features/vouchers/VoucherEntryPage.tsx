@@ -16,6 +16,8 @@ import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -214,6 +216,9 @@ export function VoucherEntryPage() {
   return (
     <section>
       <PageHeader
+        eyebrow="عملیات"
+        icon={<PostAddOutlinedIcon />}
+        accentColor="secondary"
         title="صدور سند (تفصیلی داینامیک)"
         description="سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند."
       />
@@ -236,7 +241,7 @@ export function VoucherEntryPage() {
       )}
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-        <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+        <Paper variant="outlined" sx={{ p: 3, mb: 3, borderTop: 4, borderTopColor: 'secondary.main' }}>
           <Grid container spacing={2}>
             {/*
               `docNum`/`year` are legacy numeric codes, not narrative text — a Persian-keyboard
@@ -391,7 +396,13 @@ export function VoucherEntryPage() {
           <Button variant="text" onClick={() => navigate('/operation/voucher-heads')}>
             انصراف
           </Button>
-          <Button type="submit" variant="contained" disabled={formState.isSubmitting}>
+          <Button
+            type="submit"
+            variant="contained"
+            color="secondary"
+            startIcon={<SaveOutlinedIcon />}
+            disabled={formState.isSubmitting}
+          >
             {formState.isSubmitting ? 'در حال ذخیره...' : 'ذخیره سند'}
           </Button>
         </Stack>

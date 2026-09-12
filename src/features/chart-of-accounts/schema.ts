@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AccountCodeWritePayload } from './api';
 import type { AccountCodeDto } from '../../types/accountCode';
-import { booleanToTriState, triStateToBoolean, type TriStateValue } from './TriStateToggle';
+import { booleanToTriState, triStateToBoolean, type TriStateValue } from '../../components/TriStateToggle';
 
 /**
  * UX-presentation validation only, mirroring `CreateAccountCodeCommandValidator` /

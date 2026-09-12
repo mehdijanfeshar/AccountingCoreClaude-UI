@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles';
+import { alpha, createTheme } from '@mui/material/styles';
 import { faIR } from '@mui/material/locale';
 
 /**
@@ -17,7 +17,7 @@ export const theme = createTheme(
       error: { main: '#c62828' },
       background: { default: '#f5f6f8', paper: '#ffffff' },
     },
-    shape: { borderRadius: 8 },
+    shape: { borderRadius: 10 },
     typography: {
       fontFamily: ['Vazirmatn', 'Tahoma', 'Segoe UI', 'system-ui', 'sans-serif'].join(','),
       h1: { fontSize: '1.5rem', fontWeight: 700 },
@@ -26,17 +26,42 @@ export const theme = createTheme(
     components: {
       MuiButton: {
         defaultProps: { disableElevation: true },
-        styleOverrides: { root: { borderRadius: 8 } },
+        styleOverrides: { root: { borderRadius: 8, fontWeight: 600 } },
       },
       MuiAppBar: {
         defaultProps: { color: 'inherit', elevation: 0 },
         styleOverrides: { root: { borderBottom: '1px solid rgba(0,0,0,0.08)' } },
       },
+      MuiPaper: {
+        styleOverrides: {
+          outlined: {
+            borderColor: 'rgba(16,24,40,0.08)',
+            boxShadow: '0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)',
+          },
+        },
+      },
       MuiTableCell: {
-        styleOverrides: { head: { fontWeight: 600, backgroundColor: '#f5f6f8' } },
+        styleOverrides: {
+          head: {
+            fontWeight: 700,
+            backgroundColor: alpha('#0b5ed7', 0.06),
+          },
+        },
       },
       MuiAlert: {
         styleOverrides: { root: { alignItems: 'center' } },
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            marginInline: 8,
+            marginBlock: 1,
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: { root: { fontWeight: 600 } },
       },
     },
   },

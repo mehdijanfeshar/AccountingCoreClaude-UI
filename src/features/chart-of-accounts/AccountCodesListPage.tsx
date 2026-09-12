@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import Button from '@mui/material/Button';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
@@ -42,10 +44,12 @@ export function AccountCodesListPage() {
   return (
     <section>
       <PageHeader
+        eyebrow="اطلاعات پایه"
+        icon={<AccountTreeOutlinedIcon />}
         title="کدینگ حسابداری"
         description="فهرست حساب‌ها (سطح گروه/کل/معین/تفصیلی به‌صورت یکجا)"
         actions={
-          <Button variant="contained" component={RouterLink} to="/base/account-codes/new">
+          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/account-codes/new">
             افزودن حساب
           </Button>
         }

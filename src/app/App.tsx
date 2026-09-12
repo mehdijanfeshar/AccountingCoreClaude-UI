@@ -4,6 +4,7 @@ import { queryClient } from './queryClient';
 import { routes } from './routes';
 import { AuthProvider } from '../lib/auth/AuthContext';
 import { SessionProvider } from '../lib/session/SessionContext';
+import { NotificationProvider } from '../lib/notifications/NotificationProvider';
 import { Layout } from '../components/Layout';
 
 function AppRoutes() {
@@ -16,9 +17,11 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SessionProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <NotificationProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </NotificationProvider>
         </SessionProvider>
       </AuthProvider>
     </QueryClientProvider>

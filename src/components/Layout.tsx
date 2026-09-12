@@ -7,93 +7,64 @@ import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
 import ListSubheader from '@mui/material/ListSubheader';
 import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
+import Stack from '@mui/material/Stack';
 import MenuIcon from '@mui/icons-material/Menu';
+import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
 import { useSession } from '../lib/session/SessionContext';
+import { NAV_GROUPS, type NavAccentColor, type NavItem } from '../lib/navConfig';
 
-/**
- * Three top-level groups, carried over from the old Angular app's page
- * structure (pages/base, pages/operation, pages/report). Routes not built
- * yet are rendered as disabled "به‌زودی" (coming soon) entries rather than
- * dead links.
- *
- * Adding a new page = adding one `{ label, to }` entry to the relevant
- * group below (or turning an existing label-only placeholder into one).
- */
-interface NavItem {
-  label: string;
-  to?: string;
-}
+const DRAWER_WIDTH = 260;
 
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
-  {
-    title: 'اطلاعات پایه',
-    items: [
-      { label: 'کدینگ حسابداری', to: '/base/account-codes' },
-      { label: 'گروه تفصیلی' },
-      { label: 'بانک' },
-      { label: 'هزینه' },
-      { label: 'تنخواه' },
-      { label: 'ویژگی' },
-      { label: 'کارگاه' },
-      { label: 'سال مالی' },
-    ],
-  },
-  {
-    title: 'عملیات',
-    items: [
-      { label: 'اسناد حسابداری', to: '/operation/voucher-heads' },
-      { label: 'صدور سند (تفصیلی داینامیک)', to: '/operation/vouchers/new' },
-      { label: 'دریافت و پرداخت' },
-      { label: 'کارتابل' },
-      { label: 'دسته‌چک' },
-    ],
-  },
-  {
-    title: 'گزارش‌ها',
-    items: [
-      { label: 'تراز آزمایشی' },
-      { label: 'دفتر کل' },
-      { label: 'دفتر روزنامه' },
-      { label: 'مرور حساب‌ها' },
-      { label: 'ترازنامه' },
-      { label: 'گزارش ماتریسی' },
-    ],
-  },
-];
-
-const DRAWER_WIDTH = 240;
-
-function NavListItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function NavListItem({ item, color, onNavigate }: { item: NavItem; color: NavAccentColor; onNavigate?: () => void }) {
   const location = useLocation();
 
   if (!item.to) {
     return (
       <ListItemButton disabled sx={{ pr: 4 }}>
+        <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
         <ListItemText primary={item.label} secondary="(به‌زودی)" />
       </ListItemButton>
     );
   }
 
+  const selected = location.pathname === item.to;
+
   return (
     <ListItemButton
       component={Link}
       to={item.to}
-      selected={location.pathname === item.to}
+      selected={selected}
       onClick={onNavigate}
-      sx={{ pr: 4 }}
+      sx={{
+        pr: 4,
+        '&.Mui-selected': {
+          bgcolor: (theme) => alpha(theme.palette[color].main, 0.12),
+          '&:hover': { bgcolor: (theme) => alpha(theme.palette[color].main, 0.18) },
+        },
+      }}
     >
-      <ListItemText primary={item.label} />
+      <ListItemIcon
+        sx={{ minWidth: 36, color: selected ? `${color}.main` : 'text.secondary' }}
+      >
+        {item.icon}
+      </ListItemIcon>
+      <ListItemText
+        primary={item.label}
+        slotProps={{ primary: { sx: { fontWeight: selected ? 700 : 500 } } }}
+      />
     </ListItemButton>
   );
 }
@@ -103,9 +74,20 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     <List component="nav" aria-label="منوی اصلی" disablePadding>
       {NAV_GROUPS.map((group) => (
         <Fragment key={group.title}>
-          <ListSubheader component="div">{group.title}</ListSubheader>
+          <ListSubheader component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                color: `${group.color}.main`,
+                lineHeight: 0,
+              }}
+            >
+              {group.icon}
+            </Box>
+            {group.title}
+          </ListSubheader>
           {group.items.map((item) => (
-            <NavListItem key={item.label} item={item} onNavigate={onNavigate} />
+            <NavListItem key={item.label} item={item} color={group.color} onNavigate={onNavigate} />
           ))}
         </Fragment>
       ))}
@@ -120,8 +102,13 @@ function DevTokenBar() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (draft.trim()) {
-      setToken(draft.trim());
+    const trimmed = draft.trim();
+    if (trimmed) {
+      // The api client always prepends "Bearer " itself (see lib/api/client.ts),
+      // so strip one if the user pasted it along with the token to avoid a
+      // doubled-up "Bearer Bearer <token>" header.
+      const value = trimmed.replace(/^Bearer\s+/i, '');
+      setToken(value);
       setDraft('');
     }
   }
@@ -148,7 +135,7 @@ function DevTokenBar() {
       <TextField
         type="password"
         autoComplete="off"
-        placeholder="Bearer token"
+        placeholder="توکن (بدون Bearer)"
         size="small"
         variant="standard"
         value={draft}
@@ -198,6 +185,13 @@ export function Layout({ children }: { children: ReactNode }) {
       </a>
 
       <AppBar position="sticky">
+        <Box
+          sx={{
+            height: 3,
+            backgroundImage: (theme) =>
+              `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          }}
+        />
         <Toolbar sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
           {isSmallScreen && (
             <IconButton
@@ -208,14 +202,29 @@ export function Layout({ children }: { children: ReactNode }) {
               <MenuIcon />
             </IconButton>
           )}
-          <Typography
+          <Stack
             component={Link}
             to="/"
-            variant="h6"
-            sx={{ textDecoration: 'none', color: 'inherit', fontWeight: 700 }}
+            direction="row"
+            spacing={1.25}
+            sx={{ alignItems: 'center', textDecoration: 'none', color: 'inherit' }}
           >
-            سیستم حسابداری
-          </Typography>
+            <Avatar
+              variant="rounded"
+              sx={{
+                width: 34,
+                height: 34,
+                bgcolor: 'primary.main',
+                backgroundImage: (theme) =>
+                  `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              }}
+            >
+              <CalculateOutlinedIcon fontSize="small" />
+            </Avatar>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              سیستم حسابداری
+            </Typography>
+          </Stack>
           <Box sx={{ flexGrow: 1 }} />
           <YearSelector />
           <DevTokenBar />

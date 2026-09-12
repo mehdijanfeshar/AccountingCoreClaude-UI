@@ -8,9 +8,11 @@ import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
+import { FormCard } from '../../components/FormCard';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { ApiError } from '../../lib/api/apiError';
@@ -23,7 +25,7 @@ import {
   emptyAccountCodeFormValues,
   type AccountCodeFormValues,
 } from './schema';
-import { TriStateToggle, type TriStateValue } from './TriStateToggle';
+import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import type { AccountCodeDto } from '../../types/accountCode';
 
 /** Handles both `/base/account-codes/new` and `/base/account-codes/:id/edit`. */
@@ -127,6 +129,8 @@ export function AccountCodeFormPage() {
   return (
     <section>
       <PageHeader
+        eyebrow="اطلاعات پایه"
+        icon={<AccountTreeOutlinedIcon />}
         title={isEdit ? 'ویرایش کدینگ حساب' : 'کدینگ حساب جدید'}
         description="اطلاعات حساب را وارد کنید. سطوح تفصیلی این حساب پس از ذخیره، در فرم صدور سند به‌صورت داینامیک نمایش داده می‌شود."
       />
@@ -137,7 +141,7 @@ export function AccountCodeFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <Paper component="form" variant="outlined" sx={{ p: 3 }} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <FormCard onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
           {/*
             `accCode`/`moInforClose` are legacy coding-tree codes, not narrative text — a
@@ -263,13 +267,13 @@ export function AccountCodeFormPage() {
               <Button variant="text" onClick={() => navigate('/base/account-codes')}>
                 انصراف
               </Button>
-              <Button type="submit" variant="contained" disabled={pending}>
+              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
                 {pending ? 'در حال ذخیره...' : 'ذخیره'}
               </Button>
             </Stack>
           </Grid>
         </Grid>
-      </Paper>
+      </FormCard>
 
       <AccountCodePickerDialog
         open={pickerOpen}

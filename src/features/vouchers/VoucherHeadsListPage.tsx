@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import Button from '@mui/material/Button';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
@@ -43,10 +45,13 @@ export function VoucherHeadsListPage() {
   return (
     <section>
       <PageHeader
+        eyebrow="عملیات"
+        icon={<DescriptionOutlinedIcon />}
+        accentColor="secondary"
         title="اسناد حسابداری"
         description="فهرست سرسند اسناد بر اساس سال مالی انتخاب‌شده در نوار بالا"
         actions={
-          <Button variant="contained" component={RouterLink} to="/operation/vouchers/new">
+          <Button variant="contained" color="secondary" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/vouchers/new">
             صدور سند جدید
           </Button>
         }

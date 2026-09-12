@@ -8,6 +8,7 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 
 export interface DataTableColumn<TRow> {
   key: string;
@@ -61,8 +62,11 @@ export function DataTable<TRow>({
             </TableRow>
           ) : rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                {emptyMessage}
+              <TableCell colSpan={columns.length} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                  <InboxOutlinedIcon sx={{ fontSize: 36, opacity: 0.4 }} />
+                  <span>{emptyMessage}</span>
+                </Box>
               </TableCell>
             </TableRow>
           ) : (
