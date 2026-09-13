@@ -22,6 +22,13 @@ interface AccountCodePickerDialogProps {
   onSelect: (account: AccountCodeDto) => void;
   /** Excludes a row from being selectable (e.g. an account cannot be its own parent). */
   excludeId?: string;
+  /**
+   * Optional extra restriction on which fetched rows are selectable (e.g. by `accCode.length` to
+   * scope the picker to one کدینگ level — see `AccountCodeLevelTab.tsx`). Applied client-side on
+   * top of whatever page is currently loaded, same honesty caveat as the free-text filter below:
+   * it narrows the CURRENT page's rows, it does not ask the server for a different page.
+   */
+  filterRows?: (account: AccountCodeDto) => boolean;
 }
 
 /**
@@ -41,6 +48,7 @@ export function AccountCodePickerDialog({
   onClose,
   onSelect,
   excludeId,
+  filterRows,
 }: AccountCodePickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageFilter, setPageFilter] = useState('');
@@ -54,7 +62,10 @@ export function AccountCodePickerDialog({
 
   const rows = useMemo(() => {
     const items = query.data?.items ?? [];
-    const filtered = items.filter((row) => row.id !== excludeId);
+    let filtered = items.filter((row) => row.id !== excludeId);
+    if (filterRows) {
+      filtered = filtered.filter(filterRows);
+    }
     if (!pageFilter.trim()) return filtered;
     const needle = pageFilter.trim().toLowerCase();
     return filtered.filter(
@@ -62,7 +73,7 @@ export function AccountCodePickerDialog({
         (row.accCode ?? '').toLowerCase().includes(needle) ||
         (row.accCodeName ?? '').toLowerCase().includes(needle),
     );
-  }, [query.data, excludeId, pageFilter]);
+  }, [query.data, excludeId, filterRows, pageFilter]);
 
   const columns: DataTableColumn<AccountCodeDto>[] = [
     { key: 'accCode', header: 'کد حساب', render: (row) => row.accCode ?? '—' },

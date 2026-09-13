@@ -1,6 +1,6 @@
 import type { RouteObject } from 'react-router-dom';
 import { HomePage } from './HomePage';
-import { AccountCodesListPage } from '../features/chart-of-accounts/AccountCodesListPage';
+import { AccountCodingPage } from './AccountCodingPage';
 import { AccountCodeFormPage } from '../features/chart-of-accounts/AccountCodeFormPage';
 import { TafsilGroupsListPage } from '../features/tafsil-groups/TafsilGroupsListPage';
 import { TafsilGroupFormPage } from '../features/tafsil-groups/TafsilGroupFormPage';
@@ -20,7 +20,7 @@ import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
 export const routes: RouteObject[] = [
   { path: '/', element: <HomePage /> },
 
-  { path: '/base/account-codes', element: <AccountCodesListPage /> },
+  { path: '/base/account-codes', element: <AccountCodingPage /> },
   { path: '/base/account-codes/new', element: <AccountCodeFormPage /> },
   { path: '/base/account-codes/:id/edit', element: <AccountCodeFormPage /> },
 

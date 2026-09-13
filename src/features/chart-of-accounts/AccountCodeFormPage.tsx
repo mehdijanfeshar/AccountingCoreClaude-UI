@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Grid from '@mui/material/Grid';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -16,8 +14,8 @@ import { FormCard } from '../../components/FormCard';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { ApiError } from '../../lib/api/apiError';
-import { toLatinDigits } from '../../lib/format/numbers';
 import { accountCodesApi } from './api';
+import { AccountCodeFormFields } from './AccountCodeFormFields';
 import {
   accountCodeDtoToFormValues,
   accountCodeFormSchema,
@@ -25,7 +23,6 @@ import {
   emptyAccountCodeFormValues,
   type AccountCodeFormValues,
 } from './schema';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import type { AccountCodeDto } from '../../types/accountCode';
 
 /** Handles both `/base/account-codes/new` and `/base/account-codes/:id/edit`. */
@@ -142,137 +139,25 @@ export function AccountCodeFormPage() {
       )}
 
       <FormCard onSubmit={handleSubmit(onSubmit)}>
-        <Grid container spacing={3}>
-          {/*
-            `accCode`/`moInforClose` are legacy coding-tree codes, not narrative text — a
-            Persian-keyboard user typing them will produce Persian digit glyphs (۰-۹) in the
-            raw DOM value. `setValueAs: toLatinDigits` converts them at the point RHF reads
-            the field (submit time), per the hard rule in `src/lib/format/numbers.ts` (only
-            Latin digits may reach the API). `accCodeName` is intentionally left untouched
-            (free-text title, not a code).
-          */}
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              {...register('accCode', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
-              label="کد حساب"
-              fullWidth
-              required
-              slotProps={{ htmlInput: { maxLength: 6 } }}
-              error={!!errors.accCode}
-              helperText={errors.accCode?.message}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              {...register('accCodeName')}
-              label="عنوان حساب"
-              fullWidth
-              required
-              slotProps={{ htmlInput: { maxLength: 200 } }}
-              error={!!errors.accCodeName}
-              helperText={errors.accCodeName?.message}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="حساب والد (کد - عنوان)"
-              fullWidth
-              value={parentLabel ?? ''}
-              placeholder="بدون حساب والد (سطح گروه)"
-              slotProps={{ input: { readOnly: true } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-              انتخاب حساب والد
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => {
-                setValue('parentId', null, { shouldDirty: true });
-                setValue('parentLabel', null, { shouldDirty: true });
-              }}
-            >
-              پاک کردن
-            </Button>
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <TextField
-              {...register('moInforClose', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
-              label="moInforClose"
-              fullWidth
-              slotProps={{ htmlInput: { maxLength: 6 } }}
-              error={!!errors.moInforClose}
-              helperText={errors.moInforClose?.message}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <Controller
-              control={control}
-              name="typeCode"
-              render={({ field }) => (
-                <TriStateToggle
-                  label="typeCode (نوع کد)"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <Controller
-              control={control}
-              name="typeActivity"
-              render={({ field }) => (
-                <TriStateToggle
-                  label="typeActivity (نوع فعالیت)"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <Controller
-              control={control}
-              name="typeAccCode"
-              render={({ field }) => (
-                <TriStateToggle
-                  label="typeAccCode (نوع کد حساب)"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <Controller
-              control={control}
-              name="typeAction"
-              render={({ field }) => (
-                <TriStateToggle
-                  label="typeAction (نوع عملیات)"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-              <Button variant="text" onClick={() => navigate('/base/account-codes')}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره...' : 'ذخیره'}
-              </Button>
-            </Stack>
-          </Grid>
-        </Grid>
+        <AccountCodeFormFields
+          control={control}
+          register={register}
+          errors={errors}
+          parentLabel={parentLabel ?? null}
+          onPickParent={() => setPickerOpen(true)}
+          onClearParent={() => {
+            setValue('parentId', null, { shouldDirty: true });
+            setValue('parentLabel', null, { shouldDirty: true });
+          }}
+        />
+        <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
+          <Button variant="text" onClick={() => navigate('/base/account-codes')}>
+            انصراف
+          </Button>
+          <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
+            {pending ? 'در حال ذخیره...' : 'ذخیره'}
+          </Button>
+        </Stack>
       </FormCard>
 
       <AccountCodePickerDialog
