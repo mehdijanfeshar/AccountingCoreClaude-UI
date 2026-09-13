@@ -18,6 +18,9 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
+import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
@@ -289,7 +292,10 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                 label="کد تفصیلی"
                 fullWidth
                 required
-                slotProps={{ htmlInput: { maxLength: 15 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 15 },
+                  input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                }}
                 error={!!errors.tafsiliCode}
                 helperText={errors.tafsiliCode?.message}
               />
@@ -300,7 +306,16 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                 label="عنوان تفصیلی"
                 fullWidth
                 required
-                slotProps={{ htmlInput: { maxLength: 200 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 200 },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <DriveFileRenameOutlineOutlinedIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
                 error={!!errors.tafsiliName}
                 helperText={errors.tafsiliName?.message}
               />
@@ -313,7 +328,10 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                 fullWidth
                 multiline
                 minRows={2}
-                slotProps={{ htmlInput: { maxLength: 200 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 200 },
+                  input: { startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                }}
                 error={!!errors.tafsilDesc}
                 helperText={errors.tafsilDesc?.message}
               />

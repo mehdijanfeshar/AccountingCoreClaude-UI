@@ -2,7 +2,10 @@ import { Controller, type Control, type FieldErrors, type UseFormRegister } from
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { toLatinDigits } from '../../lib/format/numbers';
@@ -60,7 +63,10 @@ export function AccountCodeFormFields({
           label="کد حساب"
           fullWidth
           required
-          slotProps={{ htmlInput: { maxLength: 6 } }}
+          slotProps={{
+            htmlInput: { maxLength: 6 },
+            input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+          }}
           error={!!errors.accCode}
           helperText={errors.accCode?.message ?? codeLengthHint}
         />
@@ -71,7 +77,16 @@ export function AccountCodeFormFields({
           label="عنوان حساب"
           fullWidth
           required
-          slotProps={{ htmlInput: { maxLength: 200 } }}
+          slotProps={{
+            htmlInput: { maxLength: 200 },
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <DriveFileRenameOutlineOutlinedIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            },
+          }}
           error={!!errors.accCodeName}
           helperText={errors.accCodeName?.message}
         />

@@ -3,16 +3,25 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
+import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { AmountField } from '../../components/AmountField';
@@ -112,12 +121,7 @@ export function RevolvingFundFormPage() {
   const accountCodeLabel = watch('accountCodeLabel');
 
   if (isEdit && (existingQuery.isLoading || (accountCodeId !== null && existingAccountCodeQuery.isLoading))) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -129,7 +133,12 @@ export function RevolvingFundFormPage() {
 
   return (
     <section>
-      <PageHeader eyebrow="اطلاعات پایه" icon={<SavingsOutlinedIcon />} title={isEdit ? 'ویرایش تنخواه' : 'تنخواه جدید'} />
+      <PageHeader
+        eyebrow="اطلاعات پایه"
+        icon={<SavingsOutlinedIcon />}
+        title={isEdit ? 'ویرایش تنخواه' : 'تنخواه جدید'}
+        description="تنخواه‌های در دسترس هر سال مالی و اتصال اختیاری آن‌ها به یک حساب معین."
+      />
 
       {duplicateMessage ? (
         <ErrorBanner error={new Error(duplicateMessage)} />
@@ -137,15 +146,22 @@ export function RevolvingFundFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<SavingsOutlinedIcon />}>
         <Grid container spacing={3}>
+          <Grid size={12}>
+            <FormSectionLabel label="اطلاعات اصلی" />
+          </Grid>
+
           <Grid size={{ xs: 12, sm: 3 }}>
             <TextField
               {...register('code', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="کد تنخواه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 2 } }}
+              slotProps={{
+                htmlInput: { maxLength: 2 },
+                input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.code}
               helperText={errors.code?.message}
             />
@@ -156,7 +172,16 @@ export function RevolvingFundFormPage() {
               label="عنوان تنخواه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 200 } }}
+              slotProps={{
+                htmlInput: { maxLength: 200 },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DriveFileRenameOutlineOutlinedIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
               error={!!errors.name}
               helperText={errors.name?.message}
             />
@@ -166,7 +191,10 @@ export function RevolvingFundFormPage() {
               {...register('year', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="سال مالی"
               fullWidth
-              slotProps={{ htmlInput: { maxLength: 4 } }}
+              slotProps={{
+                htmlInput: { maxLength: 4 },
+                input: { startAdornment: <InputAdornment position="start"><CalendarMonthOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.year}
               helperText={errors.year?.message}
             />
@@ -179,41 +207,47 @@ export function RevolvingFundFormPage() {
               fullWidth
               multiline
               minRows={2}
-              slotProps={{ htmlInput: { maxLength: 100 } }}
+              slotProps={{
+                htmlInput: { maxLength: 100 },
+                input: { startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.description}
               helperText={errors.description?.message}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
-            <AmountField control={control} name="defaultAmount" label="مبلغ پیش‌فرض" />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="حساب معین (کد - عنوان)"
-              fullWidth
-              value={accountCodeLabel ?? ''}
-              placeholder="بدون حساب معین مرتبط"
-              slotProps={{ input: { readOnly: true } }}
+            <AmountField
+              control={control}
+              name="defaultAmount"
+              label="مبلغ پیش‌فرض"
+              icon={<PaidOutlinedIcon fontSize="small" color="action" />}
             />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-              انتخاب حساب معین
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => {
-                setValue('accountCodeId', null, { shouldDirty: true });
-                setValue('accountCodeLabel', null, { shouldDirty: true });
-              }}
-            >
-              پاک کردن
-            </Button>
           </Grid>
 
           <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <FormSectionLabel label="ارتباط با کدینگ حسابداری" />
+          </Grid>
+          <LinkedEntityPickerField
+            icon={<AccountTreeOutlinedIcon fontSize="small" color="action" />}
+            label="حساب معین (کد - عنوان)"
+            value={accountCodeLabel}
+            placeholder="بدون حساب معین مرتبط"
+            pickButtonLabel="انتخاب حساب معین"
+            onPick={() => setPickerOpen(true)}
+            onClear={() => {
+              setValue('accountCodeId', null, { shouldDirty: true });
+              setValue('accountCodeLabel', null, { shouldDirty: true });
+            }}
+          />
+
+          <Grid size={12}>
+            <RecordMetaFooter
+              createdDate={existingQuery.data?.createdDate}
+              updatedDate={existingQuery.data?.updatedDate}
+              addUserId={existingQuery.data?.addUserId}
+              changeUserId={existingQuery.data?.changeUserId}
+            />
+            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
               <Button variant="text" onClick={() => navigate('/base/revolving-funds')}>
                 انصراف
               </Button>

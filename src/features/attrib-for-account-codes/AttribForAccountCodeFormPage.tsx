@@ -7,14 +7,21 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
@@ -114,12 +121,7 @@ export function AttribForAccountCodeFormPage() {
   const accountCodeLabel = watch('accountCodeLabel');
 
   if (isEdit && (existingQuery.isLoading || (accountCodeId !== null && existingAccountCodeQuery.isLoading))) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -146,33 +148,36 @@ export function AttribForAccountCodeFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<TuneOutlinedIcon />}>
         <Grid container spacing={3}>
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="حساب معین (کد - عنوان)"
-              fullWidth
-              required
-              value={accountCodeLabel ?? ''}
-              placeholder="حسابی انتخاب نشده"
-              error={!!errors.accountCodeId}
-              helperText={errors.accountCodeId?.message}
-              slotProps={{ input: { readOnly: true } }}
-            />
+          <Grid size={12}>
+            <FormSectionLabel label="ارتباط با کدینگ حسابداری" />
           </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center' }}>
-            <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-              انتخاب حساب معین
-            </Button>
-          </Grid>
+          <LinkedEntityPickerField
+            icon={<AccountTreeOutlinedIcon fontSize="small" color="action" />}
+            label="حساب معین (کد - عنوان)"
+            value={accountCodeLabel}
+            required
+            error={!!errors.accountCodeId}
+            helperText={errors.accountCodeId?.message}
+            placeholder="حسابی انتخاب نشده"
+            pickButtonLabel="انتخاب حساب معین"
+            onPick={() => setPickerOpen(true)}
+          />
 
+          <Grid size={12}>
+            <FormSectionLabel label="اطلاعات اصلی" />
+          </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               {...register('year', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="سال مالی"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 4 } }}
+              slotProps={{
+                htmlInput: { maxLength: 4 },
+                input: { startAdornment: <InputAdornment position="start"><CalendarMonthOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.year}
               helperText={errors.year?.message}
             />
@@ -184,61 +189,81 @@ export function AttribForAccountCodeFormPage() {
               fullWidth
               required
               inputMode="numeric"
-              slotProps={{ htmlInput: { maxLength: 3 } }}
+              slotProps={{
+                htmlInput: { maxLength: 3 },
+                input: { startAdornment: <InputAdornment position="start"><StraightenOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.lenAtr}
               helperText={errors.lenAtr?.message}
             />
           </Grid>
 
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Controller
-              control={control}
-              name="controlId"
-              render={({ field }) => (
-                <TriStateToggle label="ControlId" value={field.value as TriStateValue} onChange={field.onChange} />
-              )}
+          <Grid size={12}>
+            <FormSectionLabel
+              label="ویژگی‌های تکمیلی"
+              caption="معنای دقیق این فیلدها در بک‌اند مستند نشده — نام انگلیسی فیلد در کنار هر برچسب آمده."
             />
           </Grid>
-
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Controller
-              control={control}
-              name="attribBoxNo"
-              render={({ field }) => (
-                <FormControlLabel
-                  control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                  label="AttribBoxNo"
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Controller
-              control={control}
-              name="flag"
-              render={({ field }) => (
-                <FormControlLabel
-                  control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                  label="Flag"
-                />
-              )}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Controller
-              control={control}
-              name="attribSum"
-              render={({ field }) => (
-                <FormControlLabel
-                  control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                  label="AttribSum"
-                />
-              )}
-            />
+          <Grid size={12}>
+            <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Controller
+                    control={control}
+                    name="controlId"
+                    render={({ field }) => (
+                      <TriStateToggle label="ControlId" value={field.value as TriStateValue} onChange={field.onChange} />
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Controller
+                    control={control}
+                    name="attribBoxNo"
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                        label="AttribBoxNo"
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Controller
+                    control={control}
+                    name="flag"
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                        label="Flag"
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <Controller
+                    control={control}
+                    name="attribSum"
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                        label="AttribSum"
+                      />
+                    )}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
           </Grid>
 
           <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <RecordMetaFooter
+              createdDate={existingQuery.data?.createdDate}
+              updatedDate={existingQuery.data?.updatedDate}
+              addUserId={existingQuery.data?.addUserId}
+              changeUserId={existingQuery.data?.changeUserId}
+            />
+            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
               <Button variant="text" onClick={() => navigate('/base/attrib-for-account-codes')}>
                 انصراف
               </Button>

@@ -9,6 +9,7 @@ import persian_fa from 'react-date-object/locales/persian_fa';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -32,6 +33,10 @@ import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -336,7 +341,10 @@ export function VoucherEntryPage() {
                 fullWidth
                 required
                 disabled={!!createdHeadId}
-                slotProps={{ htmlInput: { maxLength: 6 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 6 },
+                  input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                }}
                 error={!!formState.errors.docNum}
                 helperText={formState.errors.docNum?.message}
               />
@@ -372,7 +380,10 @@ export function VoucherEntryPage() {
                           fieldState.error?.message ??
                           'فرمت YYYYMMDD (فرض — رجوع به «تصمیمات باز» در گزارش تحویل)'
                         }
-                        slotProps={{ htmlInput: { readOnly: true } }}
+                        slotProps={{
+                          htmlInput: { readOnly: true },
+                          input: { startAdornment: <InputAdornment position="start"><EventOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                        }}
                       />
                     )}
                   />
@@ -386,7 +397,10 @@ export function VoucherEntryPage() {
                 fullWidth
                 required
                 disabled={!!createdHeadId}
-                slotProps={{ htmlInput: { maxLength: 4 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 4 },
+                  input: { startAdornment: <InputAdornment position="start"><CalendarMonthOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                }}
                 error={!!formState.errors.year}
                 helperText={formState.errors.year?.message}
               />
@@ -397,7 +411,10 @@ export function VoucherEntryPage() {
                 label="شرح سند"
                 fullWidth
                 disabled={!!createdHeadId}
-                slotProps={{ htmlInput: { maxLength: 250 } }}
+                slotProps={{
+                  htmlInput: { maxLength: 250 },
+                  input: { startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                }}
                 error={!!formState.errors.headDesc}
                 helperText={formState.errors.headDesc?.message}
               />

@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import { formatThousands, normalizeNumericInput } from '../lib/format/numbers';
 
 interface AmountFieldProps<TFieldValues extends FieldValues> {
@@ -9,6 +11,7 @@ interface AmountFieldProps<TFieldValues extends FieldValues> {
   required?: boolean;
   helperText?: string;
   disabled?: boolean;
+  icon?: ReactNode;
 }
 
 /**
@@ -28,6 +31,7 @@ export function AmountField<TFieldValues extends FieldValues>({
   required,
   helperText,
   disabled,
+  icon,
 }: AmountFieldProps<TFieldValues>) {
   return (
     <Controller
@@ -46,6 +50,7 @@ export function AmountField<TFieldValues extends FieldValues>({
           inputRef={field.ref}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? helperText}
+          slotProps={icon ? { input: { startAdornment: <InputAdornment position="start">{icon}</InputAdornment> } } : undefined}
         />
       )}
     />

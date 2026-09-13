@@ -3,18 +3,25 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { VahedInfoPickerDialog } from '../../components/VahedInfoPickerDialog';
@@ -132,12 +139,7 @@ export function WorkShopFormPage() {
     (accountCodeId !== null && existingAccountCodeQuery.isLoading) || (branchId !== null && existingBranchQuery.isLoading);
 
   if (isEdit && (existingQuery.isLoading || stillResolvingLinkedRows)) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -149,7 +151,12 @@ export function WorkShopFormPage() {
 
   return (
     <section>
-      <PageHeader eyebrow="اطلاعات پایه" icon={<FactoryOutlinedIcon />} title={isEdit ? 'ویرایش کارگاه' : 'کارگاه جدید'} />
+      <PageHeader
+        eyebrow="اطلاعات پایه"
+        icon={<FactoryOutlinedIcon />}
+        title={isEdit ? 'ویرایش کارگاه' : 'کارگاه جدید'}
+        description="کارگاه‌های تولیدی/خدماتی و اتصال آن‌ها به حساب معین و واحد سازمانی مربوطه."
+      />
 
       {duplicateMessage ? (
         <ErrorBanner error={new Error(duplicateMessage)} />
@@ -157,15 +164,22 @@ export function WorkShopFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<FactoryOutlinedIcon />}>
         <Grid container spacing={3}>
+          <Grid size={12}>
+            <FormSectionLabel label="اطلاعات اصلی" />
+          </Grid>
+
           <Grid size={{ xs: 12, sm: 3 }}>
             <TextField
               {...register('workShopCode', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="کد کارگاه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 10 } }}
+              slotProps={{
+                htmlInput: { maxLength: 10 },
+                input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.workShopCode}
               helperText={errors.workShopCode?.message}
             />
@@ -176,7 +190,16 @@ export function WorkShopFormPage() {
               label="نام کارگاه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 100 } }}
+              slotProps={{
+                htmlInput: { maxLength: 100 },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DriveFileRenameOutlineOutlinedIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
               error={!!errors.workShopName}
               helperText={errors.workShopName?.message}
             />
@@ -194,50 +217,42 @@ export function WorkShopFormPage() {
             />
           </Grid>
 
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="حساب معین (کد - عنوان)"
-              fullWidth
-              required
-              value={accountCodeLabel ?? ''}
-              placeholder="حسابی انتخاب نشده"
-              error={!!errors.accountCodeId}
-              helperText={errors.accountCodeId?.message}
-              slotProps={{ input: { readOnly: true } }}
-            />
+          <Grid size={12}>
+            <FormSectionLabel label="ارتباط با سازمان" />
           </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center' }}>
-            <Button variant="outlined" onClick={() => setAccountPickerOpen(true)}>
-              انتخاب حساب معین
-            </Button>
-          </Grid>
+          <LinkedEntityPickerField
+            icon={<AccountTreeOutlinedIcon fontSize="small" color="action" />}
+            label="حساب معین (کد - عنوان)"
+            value={accountCodeLabel}
+            required
+            error={!!errors.accountCodeId}
+            helperText={errors.accountCodeId?.message}
+            placeholder="حسابی انتخاب نشده"
+            pickButtonLabel="انتخاب حساب معین"
+            onPick={() => setAccountPickerOpen(true)}
+          />
 
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="واحد سازمانی (کد - عنوان)"
-              fullWidth
-              value={branchLabel ?? ''}
-              placeholder="بدون واحد سازمانی مرتبط"
-              slotProps={{ input: { readOnly: true } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={() => setBranchPickerOpen(true)}>
-              انتخاب واحد
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => {
-                setValue('branchId', null, { shouldDirty: true });
-                setValue('branchLabel', null, { shouldDirty: true });
-              }}
-            >
-              پاک کردن
-            </Button>
-          </Grid>
+          <LinkedEntityPickerField
+            icon={<ApartmentOutlinedIcon fontSize="small" color="action" />}
+            label="واحد سازمانی (کد - عنوان)"
+            value={branchLabel}
+            placeholder="بدون واحد سازمانی مرتبط"
+            pickButtonLabel="انتخاب واحد"
+            onPick={() => setBranchPickerOpen(true)}
+            onClear={() => {
+              setValue('branchId', null, { shouldDirty: true });
+              setValue('branchLabel', null, { shouldDirty: true });
+            }}
+          />
 
           <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <RecordMetaFooter
+              createdDate={existingQuery.data?.createdDate}
+              updatedDate={existingQuery.data?.updatedDate}
+              addUserId={existingQuery.data?.addUserId}
+              changeUserId={existingQuery.data?.changeUserId}
+            />
+            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
               <Button variant="text" onClick={() => navigate('/base/work-shops')}>
                 انصراف
               </Button>

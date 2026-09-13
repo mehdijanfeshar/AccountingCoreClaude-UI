@@ -3,14 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { ApiError } from '../../lib/api/apiError';
@@ -104,12 +104,7 @@ export function AccountCodeFormPage() {
   const parentLabel = watch('parentLabel');
 
   if (isEdit && (existingQuery.isLoading || (parentId !== null && existingParentQuery.isLoading))) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -138,7 +133,7 @@ export function AccountCodeFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<AccountTreeOutlinedIcon />}>
         <AccountCodeFormFields
           control={control}
           register={register}
@@ -149,6 +144,12 @@ export function AccountCodeFormPage() {
             setValue('parentId', null, { shouldDirty: true });
             setValue('parentLabel', null, { shouldDirty: true });
           }}
+        />
+        <RecordMetaFooter
+          createdDate={existingQuery.data?.createdDate}
+          updatedDate={existingQuery.data?.updatedDate}
+          addUserId={existingQuery.data?.addUserId}
+          changeUserId={existingQuery.data?.changeUserId}
         />
         <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
           <Button variant="text" onClick={() => navigate('/base/account-codes')}>

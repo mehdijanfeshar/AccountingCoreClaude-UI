@@ -3,16 +3,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
@@ -86,12 +90,7 @@ export function TafsilGroupFormPage() {
   }
 
   if (isEdit && existingQuery.isLoading) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -107,6 +106,7 @@ export function TafsilGroupFormPage() {
         eyebrow="اطلاعات پایه"
         icon={<CategoryOutlinedIcon />}
         title={isEdit ? 'ویرایش گروه تفصیلی' : 'گروه تفصیلی جدید'}
+        description="گروه‌های تفصیلی، حساب‌های تفصیلی مشابه را برای گزارش‌گیری و ارتباط با معین‌ها دسته‌بندی می‌کنند."
       />
 
       {duplicateCodeMessage ? (
@@ -115,15 +115,22 @@ export function TafsilGroupFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<CategoryOutlinedIcon />}>
         <Grid container spacing={3}>
+          <Grid size={12}>
+            <FormSectionLabel label="اطلاعات اصلی" />
+          </Grid>
+
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               {...register('tafsilGroupCode', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="کد گروه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 3 } }}
+              slotProps={{
+                htmlInput: { maxLength: 3 },
+                input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.tafsilGroupCode}
               helperText={errors.tafsilGroupCode?.message}
             />
@@ -134,29 +141,45 @@ export function TafsilGroupFormPage() {
               label="عنوان گروه"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 200 } }}
+              slotProps={{
+                htmlInput: { maxLength: 200 },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DriveFileRenameOutlineOutlinedIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
               error={!!errors.tafsilGroupName}
               helperText={errors.tafsilGroupName?.message}
             />
           </Grid>
 
+          <Grid size={12}>
+            <FormSectionLabel
+              label="ویژگی‌های تکمیلی"
+              caption="معنای دقیق این فیلد در بک‌اند مستند نشده — فعلاً به‌صورت سه‌حالته نمایش داده می‌شود."
+            />
+          </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <Controller
               control={control}
               name="personType"
               render={({ field }) => (
-                <TriStateToggle
-                  label="نوع شخص (PersonType)"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                  helperText="معنای دقیق این فیلد در بک‌اند مستند نشده؛ فقط بولین سه‌حالته خام است."
-                />
+                <TriStateToggle label="نوع شخص (PersonType)" value={field.value as TriStateValue} onChange={field.onChange} />
               )}
             />
           </Grid>
 
           <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <RecordMetaFooter
+              createdDate={existingQuery.data?.createdDate}
+              updatedDate={existingQuery.data?.updatedDate}
+              addUserId={existingQuery.data?.addUserId}
+              changeUserId={existingQuery.data?.changeUserId}
+            />
+            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
               <Button variant="text" onClick={() => navigate('/base/tafsil-groups')}>
                 انصراف
               </Button>

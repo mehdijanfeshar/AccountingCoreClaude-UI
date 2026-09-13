@@ -6,16 +6,26 @@ import { useForm, Controller } from 'react-hook-form';
 import DatePicker from 'react-multi-date-picker';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
+import NumbersOutlinedIcon from '@mui/icons-material/NumbersOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
+import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
+import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { AmountField } from '../../components/AmountField';
@@ -112,12 +122,7 @@ export function BankAccountFormPage() {
   const accountCodeLabel = watch('accountCodeLabel');
 
   if (isEdit && (existingQuery.isLoading || (accountCodeId !== null && existingAccountCodeQuery.isLoading))) {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 4 }}>
-        <CircularProgress size={20} />
-        <span>در حال بارگذاری...</span>
-      </Box>
-    );
+    return <FormLoadingSkeleton />;
   }
 
   if (isEdit && existingQuery.isError) {
@@ -133,6 +138,7 @@ export function BankAccountFormPage() {
         eyebrow="اطلاعات پایه"
         icon={<AccountBalanceOutlinedIcon />}
         title={isEdit ? 'ویرایش حساب بانکی' : 'حساب بانکی جدید'}
+        description="مشخصات حساب بانکی و اتصال اختیاری آن به یک حساب معین در کدینگ حسابداری."
       />
 
       {duplicateMessage ? (
@@ -141,15 +147,22 @@ export function BankAccountFormPage() {
         submitError !== null && <ErrorBanner error={submitError} />
       )}
 
-      <FormCard onSubmit={handleSubmit(onSubmit)}>
+      <FormCard onSubmit={handleSubmit(onSubmit)} watermarkIcon={<AccountBalanceOutlinedIcon />}>
         <Grid container spacing={3}>
+          <Grid size={12}>
+            <FormSectionLabel label="مشخصات حساب" />
+          </Grid>
+
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               {...register('accountNumber', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="شماره حساب"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 15 } }}
+              slotProps={{
+                htmlInput: { maxLength: 15 },
+                input: { startAdornment: <InputAdornment position="start"><NumbersOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.accountNumber}
               helperText={errors.accountNumber?.message}
             />
@@ -160,7 +173,10 @@ export function BankAccountFormPage() {
               label="صاحب حساب"
               fullWidth
               required
-              slotProps={{ htmlInput: { maxLength: 80 } }}
+              slotProps={{
+                htmlInput: { maxLength: 80 },
+                input: { startAdornment: <InputAdornment position="start"><PersonOutlineOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.accountHolder}
               helperText={errors.accountHolder?.message}
             />
@@ -171,7 +187,10 @@ export function BankAccountFormPage() {
               {...register('cardNumber', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="شماره کارت"
               fullWidth
-              slotProps={{ htmlInput: { maxLength: 16 } }}
+              slotProps={{
+                htmlInput: { maxLength: 16 },
+                input: { startAdornment: <InputAdornment position="start"><CreditCardOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.cardNumber}
               helperText={errors.cardNumber?.message}
             />
@@ -181,14 +200,22 @@ export function BankAccountFormPage() {
               {...register('shebaNumber', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="شماره شبا"
               fullWidth
-              slotProps={{ htmlInput: { maxLength: 50 } }}
+              slotProps={{
+                htmlInput: { maxLength: 50 },
+                input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+              }}
               error={!!errors.shebaNumber}
               helperText={errors.shebaNumber?.message}
             />
           </Grid>
 
           <Grid size={{ xs: 12, sm: 6 }}>
-            <AmountField control={control} name="firstAmount" label="مانده اولیه" />
+            <AmountField
+              control={control}
+              name="firstAmount"
+              label="مانده اولیه"
+              icon={<PaidOutlinedIcon fontSize="small" color="action" />}
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
@@ -211,7 +238,10 @@ export function BankAccountFormPage() {
                       inputRef={field.ref}
                       error={!!fieldState.error}
                       helperText={fieldState.error?.message}
-                      slotProps={{ htmlInput: { readOnly: true } }}
+                      slotProps={{
+                        htmlInput: { readOnly: true },
+                        input: { startAdornment: <InputAdornment position="start"><EventOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
+                      }}
                     />
                   )}
                 />
@@ -219,32 +249,30 @@ export function BankAccountFormPage() {
             />
           </Grid>
 
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label="حساب معین (کد - عنوان)"
-              fullWidth
-              value={accountCodeLabel ?? ''}
-              placeholder="بدون حساب معین مرتبط"
-              slotProps={{ input: { readOnly: true } }}
-            />
+          <Grid size={12}>
+            <FormSectionLabel label="ارتباط با کدینگ حسابداری" />
           </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={() => setPickerOpen(true)}>
-              انتخاب حساب معین
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => {
-                setValue('accountCodeId', null, { shouldDirty: true });
-                setValue('accountCodeLabel', null, { shouldDirty: true });
-              }}
-            >
-              پاک کردن
-            </Button>
-          </Grid>
+          <LinkedEntityPickerField
+            icon={<AccountTreeOutlinedIcon fontSize="small" color="action" />}
+            label="حساب معین (کد - عنوان)"
+            value={accountCodeLabel}
+            placeholder="بدون حساب معین مرتبط"
+            pickButtonLabel="انتخاب حساب معین"
+            onPick={() => setPickerOpen(true)}
+            onClear={() => {
+              setValue('accountCodeId', null, { shouldDirty: true });
+              setValue('accountCodeLabel', null, { shouldDirty: true });
+            }}
+          />
 
           <Grid size={12}>
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+            <RecordMetaFooter
+              createdDate={existingQuery.data?.createdDate}
+              updatedDate={existingQuery.data?.updatedDate}
+              addUserId={existingQuery.data?.addUserId}
+              changeUserId={existingQuery.data?.changeUserId}
+            />
+            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
               <Button variant="text" onClick={() => navigate('/base/bank-accounts')}>
                 انصراف
               </Button>
