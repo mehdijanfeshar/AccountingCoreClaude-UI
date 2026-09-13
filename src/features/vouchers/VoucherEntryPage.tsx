@@ -10,6 +10,8 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
@@ -28,6 +30,8 @@ import FormatListNumberedOutlinedIcon from '@mui/icons-material/FormatListNumber
 import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -89,6 +93,7 @@ export function VoucherEntryPage() {
   const [lineStatus, setLineStatus] = useState<Record<string, LineSubmissionState>>({});
   const [lineErrorMessages, setLineErrorMessages] = useState<Record<string, string>>({});
   const [globalError, setGlobalError] = useState<unknown>(null);
+  const [highlightedRowKey, setHighlightedRowKey] = useState<string | null>(null);
 
   const createHeadMutation = useMutation({
     mutationFn: (payload: CreateVoucherHeadPayload) => voucherHeadsApi.create(payload),
@@ -96,6 +101,28 @@ export function VoucherEntryPage() {
 
   function handleActiveLevelsChange(rowKey: string, levels: TafsiliLevelDto[]) {
     activeLevelsRef.current = { ...activeLevelsRef.current, [rowKey]: levels };
+  }
+
+  function handleEditRow(rowKey: string) {
+    setHighlightedRowKey(rowKey);
+    document.getElementById(`voucher-line-${rowKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => setHighlightedRowKey((current) => (current === rowKey ? null : current)), 1600);
+  }
+
+  function handleRemoveRowByKey(rowKey: string) {
+    const index = fields.findIndex((f) => f.key === rowKey);
+    if (index === -1) return;
+    remove(index);
+    setLineStatus((prev) => {
+      const next = { ...prev };
+      delete next[rowKey];
+      return next;
+    });
+    setLineErrorMessages((prev) => {
+      const next = { ...prev };
+      delete next[rowKey];
+      return next;
+    });
   }
 
   function buildDetailPayload(headId: string, line: VoucherLineFormValue, year: string): CreateVoucherDetailPayload {
@@ -218,6 +245,31 @@ export function VoucherEntryPage() {
         if (status === 'error') return <Chip size="small" color="error" label={lineErrorMessages[row.key] ?? 'خطا'} />;
         return <Chip size="small" variant="outlined" label="ثبت‌نشده" />;
       },
+    },
+    {
+      key: 'action',
+      header: 'عملیات',
+      render: (row) => (
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="ویرایش (رفتن به ردیف)">
+            <IconButton size="small" onClick={() => handleEditRow(row.key)}>
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="حذف ردیف">
+            <span>
+              <IconButton
+                size="small"
+                color="error"
+                disabled={(watchedLines?.length ?? 0) <= 1}
+                onClick={() => handleRemoveRowByKey(row.key)}
+              >
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+      ),
     },
   ];
 
@@ -394,6 +446,7 @@ export function VoucherEntryPage() {
             canRemove={fields.length > 1}
             onRemove={() => remove(index)}
             onActiveLevelsChange={handleActiveLevelsChange}
+            highlighted={highlightedRowKey === field.key}
           />
         ))}
 

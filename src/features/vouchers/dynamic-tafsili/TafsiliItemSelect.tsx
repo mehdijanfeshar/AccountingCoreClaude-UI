@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTafsiliLevelItems } from './useTafsiliLevelItems';
+import { ApiError } from '../../../lib/api/apiError';
 import type { TafsiliLevelDto, TafsiliLookupItemDto } from '../../../types/tafsili';
 
 export interface TafsiliSelection {
@@ -69,6 +70,12 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
 
   const hasMore = query.data ? accumulated.length < query.data.totalCount : false;
 
+  const fetchErrorMessage = query.isError
+    ? query.error instanceof ApiError
+      ? (query.error.detail ?? query.error.title)
+      : 'دریافت فهرست تفصیلی با خطا مواجه شد.'
+    : null;
+
   const selectedOption = useMemo<TafsiliLookupItemDto | null>(() => {
     if (!value) return null;
     return { id: value.tafsiliId, tafsiliCode: null, tafsiliName: null, label: value.label };
@@ -99,15 +106,15 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
           setInputValue(selected.label);
           setTypedQuery('');
         }}
-        noOptionsText="موردی یافت نشد"
+        noOptionsText={fetchErrorMessage ?? 'موردی یافت نشد'}
         loadingText="در حال جستجو..."
         renderInput={(params) => (
           <TextField
             {...params}
             label={`${level.levelName} (تفصیلی سطح ${level.code})`}
             required
-            error={!!error}
-            helperText={error}
+            error={!!error || !!fetchErrorMessage}
+            helperText={fetchErrorMessage ?? error}
             slotProps={{
               input: {
                 ...params.slotProps.input,

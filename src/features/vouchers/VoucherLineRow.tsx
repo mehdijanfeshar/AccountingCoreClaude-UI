@@ -19,6 +19,7 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { AmountField } from '../../components/AmountField';
+import { ErrorBanner } from '../../components/ErrorBanner';
 import { useTafsiliLevels } from './dynamic-tafsili/useTafsiliLevels';
 import { TafsiliItemSelect, type TafsiliSelection } from './dynamic-tafsili/TafsiliItemSelect';
 import type { AccountCodeDto } from '../../types/accountCode';
@@ -32,6 +33,8 @@ interface VoucherLineRowProps {
   onRemove: () => void;
   onActiveLevelsChange: (rowKey: string, levels: TafsiliLevelDto[]) => void;
   canRemove: boolean;
+  /** Briefly highlighted when jumped to from the "ویرایش" action in the summary table below. */
+  highlighted?: boolean;
 }
 
 /**
@@ -47,7 +50,15 @@ interface VoucherLineRowProps {
  * Selecting a different معین clears every previously selected تفصیلی value for this row
  * (never shows a stale field from the old معین) — see the `onSelectAccount` handler below.
  */
-export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsChange, canRemove }: VoucherLineRowProps) {
+export function VoucherLineRow({
+  form,
+  index,
+  rowKey,
+  onRemove,
+  onActiveLevelsChange,
+  canRemove,
+  highlighted = false,
+}: VoucherLineRowProps) {
   const { control, setValue, formState } = form;
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,7 +68,7 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
   const tafsili = useWatch({ control, name: `lines.${index}.tafsili` }) ?? {};
   const tafsiliLabels = useWatch({ control, name: `lines.${index}.tafsiliLabels` }) ?? {};
 
-  const { inlineLevels, modalLevels, allLevels, isLoading } = useTafsiliLevels(accountId || null);
+  const { inlineLevels, modalLevels, allLevels, isLoading, error: levelsError } = useTafsiliLevels(accountId || null);
 
   useEffect(() => {
     onActiveLevelsChange(rowKey, allLevels);
@@ -103,8 +114,16 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
 
   return (
     <Paper
+      id={`voucher-line-${rowKey}`}
       variant="outlined"
-      sx={{ p: 2, mb: 2, borderInlineStart: (theme) => `4px solid ${theme.palette.secondary.main}` }}
+      sx={{
+        p: 2,
+        mb: 2,
+        scrollMarginTop: 96,
+        borderInlineStart: (theme) => `4px solid ${theme.palette.secondary.main}`,
+        transition: 'box-shadow 0.3s ease',
+        boxShadow: highlighted ? (theme) => `0 0 0 3px ${theme.palette.secondary.main}` : 'none',
+      }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
         <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
@@ -152,6 +171,20 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
           <Grid size={12}>
             <Typography variant="caption" color="text.secondary">
               در حال دریافت سطوح تفصیلی این حساب...
+            </Typography>
+          </Grid>
+        )}
+
+        {accountId && !isLoading && !!levelsError && (
+          <Grid size={12}>
+            <ErrorBanner error={levelsError} />
+          </Grid>
+        )}
+
+        {accountId && !isLoading && !levelsError && allLevels.length === 0 && (
+          <Grid size={12}>
+            <Typography variant="caption" color="text.secondary">
+              برای این حساب معین هیچ سطح تفصیلی‌ای تعریف نشده است.
             </Typography>
           </Grid>
         )}
