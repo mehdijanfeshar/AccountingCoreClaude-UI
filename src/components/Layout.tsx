@@ -1,11 +1,11 @@
-import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
+import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
-import ListSubheader from '@mui/material/ListSubheader';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
@@ -15,11 +15,14 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
 import Stack from '@mui/material/Stack';
 import MenuIcon from '@mui/icons-material/Menu';
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
@@ -28,15 +31,40 @@ import { NAV_GROUPS, type NavAccentColor, type NavItem } from '../lib/navConfig'
 
 const DRAWER_WIDTH = 260;
 
+/** Persists which nav groups the user has collapsed, so the sidebar remembers it across visits. */
+const NAV_COLLAPSE_STORAGE_KEY = 'accounting.nav.collapsedGroups';
+
+function readCollapsedGroups(): Record<string, boolean> {
+  try {
+    const raw = window.localStorage.getItem(NAV_COLLAPSE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeCollapsedGroups(value: Record<string, boolean>) {
+  try {
+    window.localStorage.setItem(NAV_COLLAPSE_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function NavListItem({ item, color, onNavigate }: { item: NavItem; color: NavAccentColor; onNavigate?: () => void }) {
   const location = useLocation();
 
   if (!item.to) {
     return (
-      <ListItemButton disabled sx={{ pr: 4 }}>
-        <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-        <ListItemText primary={item.label} secondary="(به‌زودی)" />
-      </ListItemButton>
+      <Tooltip title="این بخش هنوز پیاده‌سازی نشده است" placement="left">
+        <span>
+          <ListItemButton disabled sx={{ pr: 4 }}>
+            <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.label} />
+            <Chip label="به‌زودی" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+          </ListItemButton>
+        </span>
+      </Tooltip>
     );
   }
 
@@ -70,27 +98,58 @@ function NavListItem({ item, color, onNavigate }: { item: NavItem; color: NavAcc
 }
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsedGroups);
+
+  // Whichever group holds the currently active route is always forced open — a collapsed
+  // group must never hide the page the user is actually on.
+  useEffect(() => {
+    const activeGroup = NAV_GROUPS.find((group) => group.items.some((item) => item.to === location.pathname));
+    if (activeGroup && collapsed[activeGroup.title]) {
+      setCollapsed((prev) => {
+        const next = { ...prev, [activeGroup.title]: false };
+        writeCollapsedGroups(next);
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  function toggleGroup(title: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      writeCollapsedGroups(next);
+      return next;
+    });
+  }
+
   return (
     <List component="nav" aria-label="منوی اصلی" disablePadding>
-      {NAV_GROUPS.map((group) => (
-        <Fragment key={group.title}>
-          <ListSubheader component="div" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                color: `${group.color}.main`,
-                lineHeight: 0,
-              }}
-            >
-              {group.icon}
-            </Box>
-            {group.title}
-          </ListSubheader>
-          {group.items.map((item) => (
-            <NavListItem key={item.label} item={item} color={group.color} onNavigate={onNavigate} />
-          ))}
-        </Fragment>
-      ))}
+      {NAV_GROUPS.map((group, groupIndex) => {
+        const isOpen = !collapsed[group.title];
+        return (
+          <Fragment key={group.title}>
+            {groupIndex > 0 && <Divider sx={{ my: 0.5 }} />}
+            <ListItemButton onClick={() => toggleGroup(group.title)} sx={{ py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 36, color: `${group.color}.main` }}>{group.icon}</ListItemIcon>
+              <ListItemText
+                primary={group.title}
+                slotProps={{
+                  primary: {
+                    sx: { fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: 0.3 },
+                  },
+                }}
+              />
+              {isOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </ListItemButton>
+            <Collapse in={isOpen} timeout="auto" unmountOnExit>
+              {group.items.map((item) => (
+                <NavListItem key={item.label} item={item} color={group.color} onNavigate={onNavigate} />
+              ))}
+            </Collapse>
+          </Fragment>
+        );
+      })}
     </List>
   );
 }

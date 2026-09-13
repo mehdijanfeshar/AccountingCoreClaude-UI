@@ -15,9 +15,19 @@ import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
+import Stepper from '@mui/material/Stepper';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+import Typography from '@mui/material/Typography';
+import Avatar from '@mui/material/Avatar';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import FormatListNumberedOutlinedIcon from '@mui/icons-material/FormatListNumberedOutlined';
+import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -223,6 +233,15 @@ export function VoucherEntryPage() {
         description="سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند."
       />
 
+      <Stepper activeStep={createdHeadId ? 1 : 0} sx={{ mb: 3 }}>
+        <Step completed={!!createdHeadId}>
+          <StepLabel>سرسند سند</StepLabel>
+        </Step>
+        <Step>
+          <StepLabel>ردیف‌ها و ثبت نهایی</StepLabel>
+        </Step>
+      </Stepper>
+
       {globalError !== null && <ErrorBanner error={globalError} />}
 
       {createdHeadId && (
@@ -241,6 +260,12 @@ export function VoucherEntryPage() {
       )}
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+          <DescriptionOutlinedIcon fontSize="small" color="secondary" />
+          <Typography variant="h2" component="h2">
+            اطلاعات سرسند
+          </Typography>
+        </Stack>
         <Paper variant="outlined" sx={{ p: 3, mb: 3, borderTop: 4, borderTopColor: 'secondary.main' }}>
           <Grid container spacing={2}>
             {/*
@@ -341,12 +366,16 @@ export function VoucherEntryPage() {
           </Grid>
         </Paper>
 
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box component="span" sx={{ fontWeight: 700 }}>
-            ردیف‌های سند
-          </Box>
+        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <FormatListNumberedOutlinedIcon fontSize="small" color="secondary" />
+            <Typography variant="h2" component="h2">
+              ردیف‌های سند
+            </Typography>
+          </Stack>
           <Button
             variant="outlined"
+            color="secondary"
             startIcon={<AddCircleOutlineIcon />}
             onClick={() => append(createEmptyVoucherLine())}
           >
@@ -368,6 +397,12 @@ export function VoucherEntryPage() {
           />
         ))}
 
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+          <FormatListNumberedOutlinedIcon fontSize="small" color="secondary" />
+          <Typography variant="h2" component="h2">
+            خلاصه ردیف‌ها
+          </Typography>
+        </Stack>
         <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
           <DataTable
             columns={summaryColumns}
@@ -377,15 +412,59 @@ export function VoucherEntryPage() {
           />
         </Paper>
 
-        <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap' }}>
-          <Chip label={`جمع بدهکار: ${formatThousands(totals.debtor)}`} color="primary" variant="outlined" />
-          <Chip label={`جمع بستانکار: ${formatThousands(totals.creditor)}`} color="primary" variant="outlined" />
-          <Chip
-            label={`اختلاف: ${formatThousands(totals.difference)}`}
-            color={totals.difference === 0 ? 'success' : 'warning'}
-            variant="outlined"
-          />
-        </Stack>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 3,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 2,
+            justifyContent: 'space-between',
+          }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Avatar variant="rounded" sx={{ bgcolor: 'error.main', opacity: 0.85, width: 40, height: 40 }}>
+              <TrendingDownOutlinedIcon fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                جمع بدهکار
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.debtor)}</Typography>
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Avatar variant="rounded" sx={{ bgcolor: 'success.main', opacity: 0.85, width: 40, height: 40 }}>
+              <TrendingUpOutlinedIcon fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                جمع بستانکار
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.creditor)}</Typography>
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: totals.difference === 0 ? 'success.main' : 'warning.main',
+                opacity: 0.85,
+                width: 40,
+                height: 40,
+              }}
+            >
+              <BalanceOutlinedIcon fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                اختلاف (تراز)
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.difference)}</Typography>
+            </Box>
+          </Stack>
+        </Paper>
         {totals.difference !== 0 && (
           <Alert severity="info" sx={{ mb: 3 }}>
             سند تراز نیست (بدهکار ≠ بستانکار)، اما طبق تصمیم معماری پروژه این تراز اجباری نیست و ثبت مسدود نمی‌شود.

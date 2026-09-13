@@ -7,16 +7,20 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
+import { AmountField } from '../../components/AmountField';
 import { useTafsiliLevels } from './dynamic-tafsili/useTafsiliLevels';
 import { TafsiliItemSelect, type TafsiliSelection } from './dynamic-tafsili/TafsiliItemSelect';
-import { normalizeNumericInput } from '../../lib/format/numbers';
 import type { AccountCodeDto } from '../../types/accountCode';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
@@ -98,7 +102,27 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+    <Paper
+      variant="outlined"
+      sx={{ p: 2, mb: 2, borderInlineStart: (theme) => `4px solid ${theme.palette.secondary.main}` }}
+    >
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+          <Avatar sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: 'secondary.main' }}>{index + 1}</Avatar>
+          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+            ردیف {index + 1}
+          </Typography>
+        </Stack>
+        <Tooltip title="حذف ردیف">
+          <span>
+            <IconButton aria-label="حذف ردیف" size="small" color="error" onClick={onRemove} disabled={!canRemove}>
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Stack>
+      <Divider sx={{ mb: 2 }} />
+
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, sm: 5 }}>
           <TextField
@@ -113,14 +137,15 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 3 }} sx={{ display: 'flex', alignItems: 'center' }}>
-          <Button variant="outlined" size="small" onClick={() => setAccountPickerOpen(true)}>
+          <Button
+            variant="outlined"
+            size="small"
+            color="secondary"
+            startIcon={<SearchOutlinedIcon />}
+            onClick={() => setAccountPickerOpen(true)}
+          >
             انتخاب معین
           </Button>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <IconButton aria-label="حذف ردیف" color="error" onClick={onRemove} disabled={!canRemove}>
-            <DeleteOutlineIcon />
-          </IconButton>
         </Grid>
 
         {accountId && isLoading && (
@@ -181,34 +206,10 @@ export function VoucherLineRow({ form, index, rowKey, onRemove, onActiveLevelsCh
           />
         </Grid>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Controller
-            control={control}
-            name={`lines.${index}.debtor`}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="بدهکار"
-                fullWidth
-                inputMode="decimal"
-                onChange={(e) => field.onChange(normalizeNumericInput(e.target.value))}
-              />
-            )}
-          />
+          <AmountField control={control} name={`lines.${index}.debtor`} label="بدهکار" />
         </Grid>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Controller
-            control={control}
-            name={`lines.${index}.creditor`}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="بستانکار"
-                fullWidth
-                inputMode="decimal"
-                onChange={(e) => field.onChange(normalizeNumericInput(e.target.value))}
-              />
-            )}
-          />
+          <AmountField control={control} name={`lines.${index}.creditor`} label="بستانکار" />
         </Grid>
       </Grid>
 
