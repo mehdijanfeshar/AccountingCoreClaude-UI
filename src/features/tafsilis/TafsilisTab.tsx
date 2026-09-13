@@ -12,6 +12,11 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Autocomplete from '@mui/material/Autocomplete';
 import Chip from '@mui/material/Chip';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormHelperText from '@mui/material/FormHelperText';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
@@ -21,6 +26,7 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
+import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
@@ -357,6 +363,37 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                     }
                     renderInput={(params) => <TextField {...params} label="گروه‌های تفصیلی" />}
                   />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller
+                control={control}
+                name="tafsilGroupLinkVahedType"
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel id="tafsil-group-link-vahed-type-label">دامنهٔ دیده‌شدن این گروه‌ها</InputLabel>
+                    <Select
+                      {...field}
+                      labelId="tafsil-group-link-vahed-type-label"
+                      label="دامنهٔ دیده‌شدن این گروه‌ها"
+                      startAdornment={
+                        <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                          <PublicOutlinedIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      }
+                    >
+                      <MenuItem value="">فقط واحد خودم (پیش‌فرض)</MenuItem>
+                      <MenuItem value="1">بیمه</MenuItem>
+                      <MenuItem value="2">درمان</MenuItem>
+                      <MenuItem value="3">همه واحدها (عمومی)</MenuItem>
+                    </Select>
+                    <FormHelperText>
+                      کدام واحدهای دیگر بتوانند این تفصیلی را — از طریق گروه‌های بالا — در فرم صدور سند خود ببینند. فقط
+                      روی گروه‌های تازه‌اضافه‌شده اثر می‌کند؛ گروه‌های قبلاً ثبت‌شده تغییر نمی‌کنند.
+                    </FormHelperText>
+                  </FormControl>
                 )}
               />
             </Grid>

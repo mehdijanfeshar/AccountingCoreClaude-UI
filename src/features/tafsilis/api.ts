@@ -18,6 +18,14 @@ export interface TafsiliWritePayload {
   owner: boolean | null;
   vahedType: boolean | null;
   tafsilGroupIds: string[];
+  /**
+   * Visibility scope (`Accounting.Domain.ValueObjects.VahedCategory`: 1=بیمه, 2=درمان, 3=همه)
+   * stamped onto every NEWLY-created `TB_TAFSIL_LINK_TAFSILGROUP` row for `tafsilGroupIds`.
+   * `null` (default) means "only my own unit" — see `CreateTafsiliCommand.TafsilGroupLinkVahedType`
+   * XML doc (phase 24) for why this exists: without it, تفصیلی items added via this form were
+   * invisible to every other unit's voucher-entry تفصیلی lookup.
+   */
+  tafsilGroupLinkVahedType: number | null;
 }
 
 export const tafsilisApi = createResourceApi<TafsiliDto, TafsiliWritePayload, TafsiliWritePayload>('tafsilis');
