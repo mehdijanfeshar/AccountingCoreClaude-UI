@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { tafsiliApi } from '../../chart-of-accounts/api';
+import { tafsiliApi } from '../../features/chart-of-accounts/api';
 
 const PAGE_SIZE = 20;
 

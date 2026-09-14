@@ -22,6 +22,8 @@ interface DataTableProps<TRow> {
   getRowKey: (row: TRow) => string;
   isLoading?: boolean;
   emptyMessage?: string;
+  /** Optional call-to-action rendered under `emptyMessage` — e.g. an "افزودن اولین ..." button. */
+  emptyAction?: ReactNode;
 }
 
 /**
@@ -37,6 +39,7 @@ export function DataTable<TRow>({
   getRowKey,
   isLoading,
   emptyMessage = 'داده‌ای برای نمایش وجود ندارد.',
+  emptyAction,
 }: DataTableProps<TRow>) {
   return (
     <TableContainer component={Paper} variant="outlined">
@@ -66,6 +69,7 @@ export function DataTable<TRow>({
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                   <InboxOutlinedIcon sx={{ fontSize: 36, opacity: 0.4 }} />
                   <span>{emptyMessage}</span>
+                  {emptyAction && <Box sx={{ mt: 1 }}>{emptyAction}</Box>}
                 </Box>
               </TableCell>
             </TableRow>

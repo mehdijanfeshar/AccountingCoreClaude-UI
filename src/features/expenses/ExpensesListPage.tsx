@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -17,6 +15,9 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { formatThousands } from '../../lib/format/numbers';
 import { expensesApi } from './api';
 import type { ExpenseDto } from '../../types/expense';
@@ -60,7 +61,7 @@ export function ExpensesListPage() {
   }, [query.data, filter]);
 
   const columns: DataTableColumn<ExpenseDto>[] = [
-    { key: 'expenseCode', header: 'کد هزینه', render: (row) => row.expenseCode ?? '—' },
+    { key: 'expenseCode', header: 'کد هزینه', render: (row) => <MonoCode value={row.expenseCode} /> },
     { key: 'expenseName', header: 'عنوان هزینه', render: (row) => row.expenseName ?? '—' },
     { key: 'description', header: 'توضیحات', render: (row) => row.description ?? '—' },
     {
@@ -74,12 +75,12 @@ export function ExpensesListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/base/expenses/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/expenses/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -102,15 +103,12 @@ export function ExpensesListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -121,7 +119,18 @@ export function ExpensesListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ هزینه‌ای یافت نشد."
+            emptyMessage={filter.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز هزینه‌ای ثبت نشده است.'}
+            emptyAction={
+              filter.trim() ? (
+                <Button size="small" variant="text" onClick={() => setFilter('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/expenses/new">
+                  افزودن هزینه
+                </Button>
+              )
+            }
           />
           {query.data && (
             <Pagination

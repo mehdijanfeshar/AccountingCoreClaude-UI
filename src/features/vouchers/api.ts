@@ -11,6 +11,14 @@ import type { VoucherDetailDto } from '../../types/voucherDetail';
  */
 export interface VoucherHeadListParams extends ListParams {
   year?: string;
+  /** Inclusive DOC_NUM range. Compared numerically server-side despite being a string column. */
+  docNumFrom?: string;
+  docNumTo?: string;
+  /** Inclusive DATE_DOC range, Legacy `YYYYMMDD` strings. */
+  dateDocFrom?: string;
+  dateDocTo?: string;
+  /** نوع سند — `TB_SYSTYPE.ID`, see `sysTypesApi`. */
+  systemTypeId?: string;
 }
 
 /**

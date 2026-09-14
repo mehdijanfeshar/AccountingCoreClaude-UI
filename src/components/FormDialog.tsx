@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import { alpha } from '@mui/material/styles';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import type { NavAccentColor } from '../lib/navConfig';
 
@@ -26,9 +27,9 @@ interface FormDialogProps {
 
 /**
  * Shared dialog shell for every add/edit form rendered as a Dialog (کدینگ حسابداری تب‌ها و
- * مشابه): icon + title + subtitle header with a close button, a divider, content, and a
- * divider-separated actions bar — replaces each feature hand-rolling its own
- * DialogTitle/DialogContent/button-row layout so all coding forms look and behave the same.
+ * مشابه): accent strip, tinted header with icon + title + subtitle and a close button, the form
+ * body, then a tinted action bar. Matches `FormCard`'s treatment so a record edited in a dialog
+ * and the same record edited on its own page read as the same product.
  */
 export function FormDialog({
   open,
@@ -43,11 +44,26 @@ export function FormDialog({
   children,
 }: FormDialogProps) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth aria-label={title}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={maxWidth}
+      fullWidth
+      aria-label={title}
+      slotProps={{ paper: { sx: { overflow: 'hidden' } } }}
+    >
+      <Box sx={{ height: 3, bgcolor: `${accentColor}.main` }} />
       <Stack
         direction="row"
         spacing={1.5}
-        sx={{ alignItems: 'center', justifyContent: 'space-between', pl: 1.5, pr: 3, py: 2 }}
+        sx={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pl: 1.5,
+          pr: 3,
+          py: 2,
+          bgcolor: (theme) => alpha(theme.palette[accentColor].main, 0.04),
+        }}
       >
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
           {icon && (
@@ -57,7 +73,7 @@ export function FormDialog({
                 width: 40,
                 height: 40,
                 flexShrink: 0,
-                bgcolor: (theme) => `${theme.palette[accentColor].main}1a`,
+                bgcolor: (theme) => alpha(theme.palette[accentColor].main, 0.12),
                 color: `${accentColor}.main`,
               }}
             >
@@ -83,7 +99,7 @@ export function FormDialog({
       <Box component="form" onSubmit={onSubmit} noValidate>
         <DialogContent sx={{ pt: 3 }}>{children}</DialogContent>
         <Divider />
-        <DialogActions sx={{ px: 3, py: 2 }}>{actions}</DialogActions>
+        <DialogActions sx={{ px: 3, py: 2, bgcolor: 'action.hover' }}>{actions}</DialogActions>
       </Box>
     </Dialog>
   );

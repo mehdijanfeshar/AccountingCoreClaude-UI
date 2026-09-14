@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -17,6 +15,9 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { formatThousands } from '../../lib/format/numbers';
 import { revolvingFundsApi } from './api';
 import type { RevolvingFundDto } from '../../types/revolvingFund';
@@ -58,7 +59,7 @@ export function RevolvingFundsListPage() {
   }, [query.data, filter]);
 
   const columns: DataTableColumn<RevolvingFundDto>[] = [
-    { key: 'code', header: 'کد', render: (row) => row.code ?? '—' },
+    { key: 'code', header: 'کد', render: (row) => <MonoCode value={row.code} /> },
     { key: 'name', header: 'عنوان', render: (row) => row.name ?? '—' },
     { key: 'year', header: 'سال مالی', render: (row) => row.year ?? '—' },
     {
@@ -72,12 +73,12 @@ export function RevolvingFundsListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/base/revolving-funds/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/revolving-funds/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -100,15 +101,12 @@ export function RevolvingFundsListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -119,7 +117,18 @@ export function RevolvingFundsListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ تنخواهی یافت نشد."
+            emptyMessage={filter.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز تنخواهی ثبت نشده است.'}
+            emptyAction={
+              filter.trim() ? (
+                <Button size="small" variant="text" onClick={() => setFilter('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/revolving-funds/new">
+                  افزودن تنخواه
+                </Button>
+              )
+            }
           />
           {query.data && (
             <Pagination

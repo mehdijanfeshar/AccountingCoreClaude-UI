@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { tafsiliApi } from '../../chart-of-accounts/api';
-import type { TafsiliLevelDto } from '../../../types/tafsili';
+import { tafsiliApi } from '../../features/chart-of-accounts/api';
+import type { TafsiliLevelDto } from '../../types/tafsili';
 
 /**
  * Dynamic detail-account ("تفصیلی") field mechanism used by the voucher entry form.

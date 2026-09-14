@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
@@ -21,6 +20,7 @@ import { FormCard } from '../../components/FormCard';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
@@ -199,13 +199,10 @@ export function AttribForAccountCodeFormPage() {
           </Grid>
 
           <Grid size={12}>
-            <FormSectionLabel
-              label="ویژگی‌های تکمیلی"
+            <FormAdvancedSection
+              label="ویژگی‌های تکمیلی (اختیاری)"
               caption="معنای دقیق این فیلدها در بک‌اند مستند نشده — نام انگلیسی فیلد در کنار هر برچسب آمده."
-            />
-          </Grid>
-          <Grid size={12}>
-            <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+            >
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 3 }}>
                   <Controller
@@ -253,7 +250,7 @@ export function AttribForAccountCodeFormPage() {
                   />
                 </Grid>
               </Grid>
-            </Box>
+            </FormAdvancedSection>
           </Grid>
 
           <Grid size={12}>

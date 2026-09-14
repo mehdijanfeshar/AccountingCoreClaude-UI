@@ -20,4 +20,6 @@ export interface BankAccountDto {
   addUserId: string | null;
   changeUserId: string | null;
   isDeleted: boolean | null;
+  /** Active TB_ACCOUNT_LINK_TAFSILI rows; always present, empty when the account has none. */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }

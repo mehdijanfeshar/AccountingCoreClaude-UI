@@ -6,8 +6,8 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTafsiliLevelItems } from './useTafsiliLevelItems';
-import { ApiError } from '../../../lib/api/apiError';
-import type { TafsiliLevelDto, TafsiliLookupItemDto } from '../../../types/tafsili';
+import { ApiError } from '../../lib/api/apiError';
+import type { TafsiliLevelDto, TafsiliLookupItemDto } from '../../types/tafsili';
 
 export interface TafsiliSelection {
   levelId: string;

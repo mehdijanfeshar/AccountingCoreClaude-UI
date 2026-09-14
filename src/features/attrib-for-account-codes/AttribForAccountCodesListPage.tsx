@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
@@ -18,6 +16,7 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ListToolbar } from '../../components/ListToolbar';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { attribForAccountCodesApi } from './api';
 import type { AttribForAccountCodeDto } from '../../types/attribForAccountCode';
@@ -72,12 +71,12 @@ export function AttribForAccountCodesListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/base/attrib-for-account-codes/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/attrib-for-account-codes/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -105,15 +104,12 @@ export function AttribForAccountCodesListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه (سال مالی)"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه (سال مالی)"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -124,7 +120,18 @@ export function AttribForAccountCodesListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ ویژگی‌ای یافت نشد."
+            emptyMessage={filter.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز ویژگی‌ای ثبت نشده است.'}
+            emptyAction={
+              filter.trim() ? (
+                <Button size="small" variant="text" onClick={() => setFilter('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/attrib-for-account-codes/new">
+                  افزودن ویژگی
+                </Button>
+              )
+            }
           />
           {query.data && (
             <Pagination

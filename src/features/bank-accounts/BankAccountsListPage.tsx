@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -17,6 +15,9 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { formatThousands } from '../../lib/format/numbers';
 import { bankAccountsApi } from './api';
 import type { BankAccountDto } from '../../types/bankAccount';
@@ -60,7 +61,7 @@ export function BankAccountsListPage() {
   }, [query.data, filter]);
 
   const columns: DataTableColumn<BankAccountDto>[] = [
-    { key: 'accountNumber', header: 'شماره حساب', render: (row) => row.accountNumber ?? '—' },
+    { key: 'accountNumber', header: 'شماره حساب', render: (row) => <MonoCode value={row.accountNumber} /> },
     { key: 'accountHolder', header: 'صاحب حساب', render: (row) => row.accountHolder ?? '—' },
     { key: 'shebaNumber', header: 'شماره شبا', render: (row) => row.shebaNumber ?? '—' },
     {
@@ -74,12 +75,12 @@ export function BankAccountsListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/base/bank-accounts/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/bank-accounts/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -102,15 +103,12 @@ export function BankAccountsListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -121,7 +119,18 @@ export function BankAccountsListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ حساب بانکی‌ای یافت نشد."
+            emptyMessage={filter.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز حساب بانکی‌ای ثبت نشده است.'}
+            emptyAction={
+              filter.trim() ? (
+                <Button size="small" variant="text" onClick={() => setFilter('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/bank-accounts/new">
+                  افزودن حساب بانکی
+                </Button>
+              )
+            }
           />
           {query.data && (
             <Pagination

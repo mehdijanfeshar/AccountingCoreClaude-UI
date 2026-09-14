@@ -27,7 +27,8 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
 import { useSession } from '../lib/session/SessionContext';
-import { NAV_GROUPS, type NavAccentColor, type NavItem } from '../lib/navConfig';
+import { NAV_GROUPS, type NavItem } from '../lib/navConfig';
+import { SHELL } from '../theme';
 
 const DRAWER_WIDTH = 260;
 
@@ -51,17 +52,22 @@ function writeCollapsedGroups(value: Record<string, boolean>) {
   }
 }
 
-function NavListItem({ item, color, onNavigate }: { item: NavItem; color: NavAccentColor; onNavigate?: () => void }) {
+function NavListItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const location = useLocation();
 
   if (!item.to) {
     return (
       <Tooltip title="این بخش هنوز پیاده‌سازی نشده است" placement="left">
         <span>
-          <ListItemButton disabled sx={{ pr: 4 }}>
-            <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-            <Chip label="به‌زودی" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+          <ListItemButton disabled sx={{ pr: 4, opacity: 0.45, '&.Mui-disabled': { opacity: 0.45 } }}>
+            <ListItemIcon sx={{ minWidth: 36, color: SHELL.muted }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.label} slotProps={{ primary: { sx: { color: SHELL.text } } }} />
+            <Chip
+              label="به‌زودی"
+              size="small"
+              variant="outlined"
+              sx={{ height: 20, fontSize: '0.65rem', color: SHELL.muted, borderColor: alpha(SHELL.text, 0.25) }}
+            />
           </ListItemButton>
         </span>
       </Tooltip>
@@ -78,21 +84,30 @@ function NavListItem({ item, color, onNavigate }: { item: NavItem; color: NavAcc
       onClick={onNavigate}
       sx={{
         pr: 4,
+        position: 'relative',
+        color: selected ? '#FFFFFF' : SHELL.text,
+        '&:hover': { bgcolor: alpha('#FFFFFF', 0.06) },
         '&.Mui-selected': {
-          bgcolor: (theme) => alpha(theme.palette[color].main, 0.12),
-          '&:hover': { bgcolor: (theme) => alpha(theme.palette[color].main, 0.18) },
+          bgcolor: alpha('#FFFFFF', 0.1),
+          '&:hover': { bgcolor: alpha('#FFFFFF', 0.14) },
+          // Gold rail on the inline-start edge — the one accent that marks "you are here".
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            insetInlineStart: 0,
+            top: 8,
+            bottom: 8,
+            width: 3,
+            borderRadius: 3,
+            backgroundColor: (theme) => theme.palette.secondary.light,
+          },
         },
       }}
     >
-      <ListItemIcon
-        sx={{ minWidth: 36, color: selected ? `${color}.main` : 'text.secondary' }}
-      >
+      <ListItemIcon sx={{ minWidth: 36, color: selected ? 'secondary.light' : SHELL.muted }}>
         {item.icon}
       </ListItemIcon>
-      <ListItemText
-        primary={item.label}
-        slotProps={{ primary: { sx: { fontWeight: selected ? 700 : 500 } } }}
-      />
+      <ListItemText primary={item.label} slotProps={{ primary: { sx: { fontWeight: selected ? 700 : 500 } } }} />
     </ListItemButton>
   );
 }
@@ -129,22 +144,23 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
         const isOpen = !collapsed[group.title];
         return (
           <Fragment key={group.title}>
-            {groupIndex > 0 && <Divider sx={{ my: 0.5 }} />}
-            <ListItemButton onClick={() => toggleGroup(group.title)} sx={{ py: 1 }}>
-              <ListItemIcon sx={{ minWidth: 36, color: `${group.color}.main` }}>{group.icon}</ListItemIcon>
+            {groupIndex > 0 && <Divider sx={{ my: 1, borderColor: alpha('#FFFFFF', 0.08) }} />}
+            <ListItemButton
+              onClick={() => toggleGroup(group.title)}
+              sx={{ py: 0.75, color: SHELL.muted, '&:hover': { bgcolor: alpha('#FFFFFF', 0.05) } }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>{group.icon}</ListItemIcon>
               <ListItemText
                 primary={group.title}
                 slotProps={{
-                  primary: {
-                    sx: { fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: 0.3 },
-                  },
+                  primary: { sx: { fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.08em' } },
                 }}
               />
               {isOpen ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
             </ListItemButton>
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
               {group.items.map((item) => (
-                <NavListItem key={item.label} item={item} color={group.color} onNavigate={onNavigate} />
+                <NavListItem key={item.label} item={item} onNavigate={onNavigate} />
               ))}
             </Collapse>
           </Fragment>
@@ -248,7 +264,7 @@ export function Layout({ children }: { children: ReactNode }) {
           sx={{
             height: 3,
             backgroundImage: (theme) =>
-              `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              `linear-gradient(90deg, ${SHELL.main}, ${theme.palette.primary.main} 55%, ${theme.palette.secondary.main})`,
           }}
         />
         <Toolbar sx={{ gap: 2, flexWrap: 'wrap', py: 1 }}>
@@ -271,18 +287,23 @@ export function Layout({ children }: { children: ReactNode }) {
             <Avatar
               variant="rounded"
               sx={{
-                width: 34,
-                height: 34,
-                bgcolor: 'primary.main',
-                backgroundImage: (theme) =>
-                  `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                width: 36,
+                height: 36,
+                bgcolor: SHELL.main,
+                color: 'secondary.light',
+                boxShadow: (theme) => `inset 0 0 0 1px ${alpha(theme.palette.secondary.light, 0.35)}`,
               }}
             >
               <CalculateOutlinedIcon fontSize="small" />
             </Avatar>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              سیستم حسابداری
-            </Typography>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                سیستم حسابداری
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                تأمین اجتماعی
+              </Typography>
+            </Box>
           </Stack>
           <Box sx={{ flexGrow: 1 }} />
           <YearSelector />
@@ -308,7 +329,15 @@ export function Layout({ children }: { children: ReactNode }) {
             open={mobileOpen}
             onClose={() => setMobileOpen(false)}
             ModalProps={{ keepMounted: true }}
-            sx={{ '& .MuiDrawer-paper': { width: DRAWER_WIDTH } }}
+            sx={{
+              '& .MuiDrawer-paper': {
+                width: DRAWER_WIDTH,
+                backgroundColor: SHELL.main,
+                color: SHELL.text,
+                backgroundImage: 'none',
+                borderInlineStart: 0,
+              },
+            }}
           >
             <Toolbar />
             <NavList onNavigate={() => setMobileOpen(false)} />
@@ -319,7 +348,15 @@ export function Layout({ children }: { children: ReactNode }) {
             sx={{
               width: DRAWER_WIDTH,
               flexShrink: 0,
-              '& .MuiDrawer-paper': { width: DRAWER_WIDTH, position: 'relative' },
+              '& .MuiDrawer-paper': {
+                width: DRAWER_WIDTH,
+                position: 'relative',
+                backgroundColor: SHELL.main,
+                color: SHELL.text,
+                backgroundImage: 'none',
+                borderInlineStart: 0,
+                paddingBlock: 8,
+              },
             }}
           >
             <NavList />

@@ -20,6 +20,9 @@ export const bankAccountFormSchema = z.object({
   accountCodeId: z.string().nullable(),
   accountCodeLabel: z.string().nullable().optional(),
   accountOpeningDate: z.string().trim().max(8, 'حداکثر ۸ کاراکتر است').optional().or(z.literal('')),
+  // Driven by TafsiliLevelFields from the selected معین's active levels; no syntactic rule to
+  // apply here beyond shape (the backend validates ids, and requiredness is a known open item).
+  tafsiliLinks: z.array(z.object({ levelId: z.string(), tafsiliId: z.string(), label: z.string().optional() })),
 });
 
 export type BankAccountFormValues = z.infer<typeof bankAccountFormSchema>;
@@ -33,6 +36,7 @@ export const emptyBankAccountFormValues: BankAccountFormValues = {
   accountCodeId: null,
   accountCodeLabel: null,
   accountOpeningDate: '',
+  tafsiliLinks: [],
 };
 
 export function bankAccountDtoToFormValues(dto: BankAccountDto, accountCodeLabel: string | null): BankAccountFormValues {
@@ -45,6 +49,8 @@ export function bankAccountDtoToFormValues(dto: BankAccountDto, accountCodeLabel
     accountCodeId: dto.accountCodeId,
     accountCodeLabel,
     accountOpeningDate: dto.accountOpeningDate ?? '',
+    // Labels are resolved lazily by TafsiliLevelFields — the DTO carries ids only.
+    tafsiliLinks: dto.tafsiliLinks.map((link) => ({ levelId: link.levelId, tafsiliId: link.tafsiliId })),
   };
 }
 
@@ -66,5 +72,6 @@ export function bankAccountFormValuesToPayload(values: BankAccountFormValues): B
     accountCodeId: values.accountCodeId,
     checkFile: null,
     accountOpeningDate: values.accountOpeningDate?.trim() ? values.accountOpeningDate.trim() : null,
+    tafsiliLinks: values.tafsiliLinks.map((link) => ({ tafsiliId: link.tafsiliId, levelId: link.levelId })),
   };
 }

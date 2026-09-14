@@ -1,13 +1,20 @@
-import { useState, type SyntheticEvent } from 'react';
+import { useMemo, useState, type SyntheticEvent } from 'react';
 import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import CallSplitOutlinedIcon from '@mui/icons-material/CallSplitOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { AccountCodeLevelTab } from '../features/chart-of-accounts/AccountCodeLevelTab';
+import { useAllAccountCodes } from '../features/chart-of-accounts/useAllAccountCodes';
 import { TafsilisTab } from '../features/tafsilis/TafsilisTab';
 import { AccountTafsilGroupLinksTab } from '../features/account-tafsil-group-links/AccountTafsilGroupLinksTab';
+import { toPersianDigits } from '../lib/format/numbers';
 
 const TABS = ['group', 'kol', 'moin', 'tafsili', 'moinTafsiliLink'] as const;
 type TabKey = (typeof TABS)[number];
@@ -18,22 +25,82 @@ type TabKey = (typeof TABS)[number];
  * `useAllAccountCodes.ts` رجوع شود). تفصیلی و ارتباط معین-گروه‌تفصیلی، جدول‌های واقعاً جدا با
  * endpoint اختصاصی خودشان هستند.
  */
+/** Tab label with its icon and — once the shared account-code list has loaded — its row count. */
+function TabLabel({ text, count }: { text: string; count?: number }) {
+  return (
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <span>{text}</span>
+      {count !== undefined && (
+        <Chip
+          label={toPersianDigits(count)}
+          size="small"
+          sx={{ height: 20, minWidth: 28, fontSize: '0.7rem', bgcolor: 'action.selected' }}
+        />
+      )}
+    </Stack>
+  );
+}
+
 export function AccountCodingPage() {
   const [tab, setTab] = useState<TabKey>('group');
+  // Same cached query the گروه/کل/معین tabs already use — reading it here costs no extra request.
+  const { items, isLoading } = useAllAccountCodes();
+
+  const counts = useMemo(() => {
+    const byLength = { 2: 0, 4: 0, 6: 0 } as Record<number, number>;
+    items.forEach((row) => {
+      const length = (row.accCode ?? '').length;
+      if (length in byLength) byLength[length] += 1;
+    });
+    return byLength;
+  }, [items]);
 
   function handleChange(_event: SyntheticEvent, value: TabKey) {
     setTab(value);
   }
 
+  function levelCount(codeLength: number): number | undefined {
+    return isLoading ? undefined : counts[codeLength];
+  }
+
+  const tabIconSx = { mb: '0 !important', mr: 0, ml: 1 } as const;
+
   return (
     <Box>
-      <Tabs value={tab} onChange={handleChange} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Tab value="group" label="گروه" />
-        <Tab value="kol" label="کل" />
-        <Tab value="moin" label="معین" />
-        <Tab value="tafsili" label="تفصیلی" />
-        <Tab value="moinTafsiliLink" label="ارتباط معین با گروه تفصیلی" />
-      </Tabs>
+      <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
+        <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto">
+          <Tab
+            value="group"
+            iconPosition="start"
+            icon={<AccountTreeOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label={<TabLabel text="گروه" count={levelCount(2)} />}
+          />
+          <Tab
+            value="kol"
+            iconPosition="start"
+            icon={<CallSplitOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label={<TabLabel text="کل" count={levelCount(4)} />}
+          />
+          <Tab
+            value="moin"
+            iconPosition="start"
+            icon={<AccountBalanceWalletOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label={<TabLabel text="معین" count={levelCount(6)} />}
+          />
+          <Tab
+            value="tafsili"
+            iconPosition="start"
+            icon={<CategoryOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label={<TabLabel text="تفصیلی" />}
+          />
+          <Tab
+            value="moinTafsiliLink"
+            iconPosition="start"
+            icon={<LinkOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label={<TabLabel text="ارتباط معین با گروه تفصیلی" />}
+          />
+        </Tabs>
+      </Paper>
 
       {tab === 'group' && (
         <AccountCodeLevelTab
@@ -57,6 +124,7 @@ export function AccountCodingPage() {
           codeLengthHint="معمولاً ۴ رقم"
           parentCodeLength={2}
           parentFieldLabel="حساب گروه (کد - عنوان)"
+          parentColumnHeader="حساب گروه"
           addButtonLabel="افزودن کل"
           emptyMessage="هیچ حساب کلی یافت نشد."
         />
@@ -71,6 +139,7 @@ export function AccountCodingPage() {
           codeLengthHint="معمولاً ۶ رقم"
           parentCodeLength={4}
           parentFieldLabel="حساب کل (کد - عنوان)"
+          parentColumnHeader="حساب کل"
           addButtonLabel="افزودن معین"
           emptyMessage="هیچ حساب معینی یافت نشد."
         />

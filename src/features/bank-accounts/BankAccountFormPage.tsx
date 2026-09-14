@@ -26,6 +26,7 @@ import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
+import { TafsiliLevelFields } from '../../components/dynamic-tafsili/TafsiliLevelFields';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { AmountField } from '../../components/AmountField';
@@ -115,11 +116,20 @@ export function BankAccountFormPage() {
   }
 
   function handlePickAccountCode(account: AccountCodeDto) {
+    const previousId = watch('accountCodeId');
     setValue('accountCodeId', account.id, { shouldDirty: true });
     setValue('accountCodeLabel', `${account.accCode ?? ''} - ${account.accCodeName ?? ''}`, { shouldDirty: true });
+    // A تفصیلی only means anything relative to the معین whose level it was chosen under, so
+    // switching معین must drop the previous selections rather than silently keep ids that now
+    // belong to levels of a different account.
+    if (previousId && previousId !== account.id) {
+      setValue('tafsiliLinks', [], { shouldDirty: true });
+    }
   }
 
   const accountCodeLabel = watch('accountCodeLabel');
+  const accountCodeIdValue = watch('accountCodeId');
+  const tafsiliLinks = watch('tafsiliLinks');
 
   if (isEdit && (existingQuery.isLoading || (accountCodeId !== null && existingAccountCodeQuery.isLoading))) {
     return <FormLoadingSkeleton />;
@@ -262,7 +272,15 @@ export function BankAccountFormPage() {
             onClear={() => {
               setValue('accountCodeId', null, { shouldDirty: true });
               setValue('accountCodeLabel', null, { shouldDirty: true });
+              setValue('tafsiliLinks', [], { shouldDirty: true });
             }}
+          />
+
+          <TafsiliLevelFields
+            accountCodeId={accountCodeIdValue}
+            value={tafsiliLinks}
+            onChange={(links) => setValue('tafsiliLinks', links, { shouldDirty: true })}
+            sectionLabel="تفصیلی‌های این حساب"
           />
 
           <Grid size={12}>

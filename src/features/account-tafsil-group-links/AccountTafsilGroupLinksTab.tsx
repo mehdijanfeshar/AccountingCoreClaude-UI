@@ -27,10 +27,12 @@ import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
+import { ListToolbar } from '../../components/ListToolbar';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { levelTafsilsApi } from '../../lib/api/levelTafsilsApi';
 import { tafsilGroupsApi } from '../tafsil-groups/api';
 import { accountTafsilGroupLinksApi, type AccountTafsilGroupLinkWritePayload } from './api';
@@ -98,12 +100,21 @@ export function AccountTafsilGroupLinksTab() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" onClick={() => setEditingRow(row)}>
+            <IconButton
+              size="small"
+              onClick={() => setEditingRow(row)}
+              aria-label={`ویرایش ارتباط ${levelNameById.get(row.levelId) ?? ''} - ${groupNameById.get(row.tafsilGroupId) ?? ''}`}
+            >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+              aria-label={`حذف ارتباط ${levelNameById.get(row.levelId) ?? ''} - ${groupNameById.get(row.tafsilGroupId) ?? ''}`}
+            >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -167,11 +178,15 @@ export function AccountTafsilGroupLinksTab() {
 
       {selectedAccount && (
         <>
-          <Stack direction="row" sx={{ justifyContent: 'flex-end', mb: 2 }}>
+          <ListToolbar
+            summary={
+              linksQuery.data ? `${toPersianDigits(linksQuery.data.length)} ارتباط برای این معین` : ''
+            }
+          >
             <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={() => setEditingRow('new')}>
               افزودن ارتباط
             </Button>
-          </Stack>
+          </ListToolbar>
 
           {linksQuery.isError && <ErrorBanner error={linksQuery.error} />}
 
@@ -181,7 +196,12 @@ export function AccountTafsilGroupLinksTab() {
               rows={linksQuery.data ?? []}
               getRowKey={(row) => row.id}
               isLoading={linksQuery.isLoading}
-              emptyMessage="هیچ ارتباطی برای این معین ثبت نشده است."
+              emptyMessage="برای این معین هنوز ارتباطی ثبت نشده است."
+              emptyAction={
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} onClick={() => setEditingRow('new')}>
+                  افزودن اولین ارتباط
+                </Button>
+              }
             />
           )}
         </>

@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
+import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
@@ -17,7 +16,11 @@ import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { formatLegacyJalaliDate } from '../../lib/format/dates';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { payReciveHeadsApi } from './api';
 import type { PayReciveHeadDto } from '../../types/payReciveHead';
 
@@ -60,24 +63,33 @@ export function PayReciveHeadsListPage() {
   }, [query.data, filter]);
 
   const columns: DataTableColumn<PayReciveHeadDto>[] = [
-    { key: 'payReciveCode', header: 'شماره سند', render: (row) => row.payReciveCode ?? '—' },
-    { key: 'payReciveDate', header: 'تاریخ', render: (row) => row.payReciveDate ?? '—' },
+    { key: 'payReciveCode', header: 'شماره سند', render: (row) => <MonoCode value={row.payReciveCode} /> },
+    { key: 'payReciveDate', header: 'تاریخ', render: (row) => formatLegacyJalaliDate(row.payReciveDate) },
     { key: 'payReciveDescription', header: 'شرح', render: (row) => row.payReciveDescription ?? '—' },
-    { key: 'year', header: 'سال مالی', render: (row) => row.year ?? '—' },
+    { key: 'year', header: 'سال مالی', render: (row) => (row.year ? toPersianDigits(row.year) : '—') },
     {
       key: 'payReciveType',
-      header: 'نوع (PayReciveType)',
+      header: 'PayReciveType',
       render: (row) =>
         row.payReciveType === null ? (
-          '—'
+          <Typography variant="body2" color="text.disabled">
+            تعیین‌نشده
+          </Typography>
         ) : (
-          <Chip size="small" label={row.payReciveType ? 'true' : 'false'} />
+          <Chip size="small" variant="outlined" label={row.payReciveType ? 'بله' : 'خیر'} />
         ),
     },
     {
       key: 'voucherHeadId',
-      header: 'سند حسابداری مرتبط',
-      render: (row) => (row.voucherHeadId ? 'دارد' : '—'),
+      header: 'سند حسابداری',
+      render: (row) =>
+        row.voucherHeadId ? (
+          <Chip size="small" color="success" variant="outlined" label="صادر شده" />
+        ) : (
+          <Typography variant="body2" color="text.disabled">
+            صادر نشده
+          </Typography>
+        ),
     },
     {
       key: 'action',
@@ -85,12 +97,22 @@ export function PayReciveHeadsListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/operation/pay-recive-heads/${row.id}/edit`}>
+            <IconButton
+              size="small"
+              component={RouterLink}
+              to={`/operation/pay-recive-heads/${row.id}/edit`}
+              aria-label={`ویرایش سند ${row.payReciveCode}`}
+            >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+              aria-label={`حذف سند ${row.payReciveCode}`}
+            >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -118,15 +140,12 @@ export function PayReciveHeadsListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -137,7 +156,18 @@ export function PayReciveHeadsListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ سندی یافت نشد."
+            emptyMessage="هنوز سند دریافت و پرداختی ثبت نشده است."
+            emptyAction={
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AddOutlinedIcon />}
+                component={RouterLink}
+                to="/operation/pay-recive-heads/new"
+              >
+                افزودن اولین سند
+              </Button>
+            }
           />
           {query.data && (
             <Pagination

@@ -24,6 +24,11 @@ export interface BankAccountWritePayload {
   accountCodeId: string | null;
   checkFile: string | null;
   accountOpeningDate: string | null;
+  /**
+   * Full replacement set of تفصیلی assignments (TB_ACCOUNT_LINK_TAFSILI) — replace semantics:
+   * omitted links are soft-deleted server-side. See BankAccountTafsiliLinkInput on the backend.
+   */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }
 
 export const bankAccountsApi = createResourceApi<BankAccountDto, BankAccountWritePayload, BankAccountWritePayload>(

@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -16,7 +14,11 @@ import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { formatLegacyJalaliDate } from '../../lib/format/dates';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { bankAccountsApi } from '../bank-accounts/api';
 import { checkBooksApi } from './api';
 import type { CheckBookDto } from '../../types/checkBook';
@@ -84,9 +86,15 @@ export function CheckBooksListPage() {
     {
       key: 'range',
       header: 'بازه شماره چک',
-      render: (row) => `${row.fromCheckNumber} تا ${row.toCheckNumber}`,
+      render: (row) => (
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <MonoCode value={row.fromCheckNumber} />
+          <span>تا</span>
+          <MonoCode value={row.toCheckNumber} />
+        </Stack>
+      ),
     },
-    { key: 'checkBookDate', header: 'تاریخ صدور', render: (row) => row.checkBookDate ?? '—' },
+    { key: 'checkBookDate', header: 'تاریخ صدور', render: (row) => formatLegacyJalaliDate(row.checkBookDate) },
     { key: 'serial', header: 'سریال', render: (row) => row.serial ?? '—' },
     {
       key: 'action',
@@ -94,12 +102,22 @@ export function CheckBooksListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" component={RouterLink} to={`/operation/check-books/${row.id}/edit`}>
+            <IconButton
+              size="small"
+              component={RouterLink}
+              to={`/operation/check-books/${row.id}/edit`}
+              aria-label={`ویرایش دسته‌چک ${row.fromCheckNumber} تا ${row.toCheckNumber}`}
+            >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+              aria-label={`حذف دسته‌چک ${row.fromCheckNumber} تا ${row.toCheckNumber}`}
+            >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -122,15 +140,12 @@ export function CheckBooksListPage() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        searchLabel="جستجو در همین صفحه"
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -141,7 +156,18 @@ export function CheckBooksListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ دسته‌چکی یافت نشد."
+            emptyMessage="هنوز دسته‌چکی ثبت نشده است."
+            emptyAction={
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AddOutlinedIcon />}
+                component={RouterLink}
+                to="/operation/check-books/new"
+              >
+                افزودن اولین دسته‌چک
+              </Button>
+            }
           />
           {query.data && (
             <Pagination

@@ -1,5 +1,4 @@
 import { Controller, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -8,6 +7,7 @@ import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRen
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { toLatinDigits } from '../../lib/format/numbers';
 import type { AccountCodeFormValues } from './schema';
@@ -105,14 +105,10 @@ export function AccountCodeFormFields({
       )}
 
       <Grid size={12}>
-        <FormSectionLabel
-          label="ویژگی‌های تکمیلی"
+        <FormAdvancedSection
+          label="ویژگی‌های تکمیلی (اختیاری)"
           caption="معنای دقیق این ستون‌های قدیمی هنوز در بک‌اند تأیید نشده — فعلاً به‌صورت سه‌حالته (بله/خیر/تعیین‌نشده) نمایش داده می‌شوند."
-        />
-      </Grid>
-
-      <Grid size={12}>
-        <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+        >
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 3 }}>
               <TextField
@@ -178,7 +174,7 @@ export function AccountCodeFormFields({
               />
             </Grid>
           </Grid>
-        </Box>
+        </FormAdvancedSection>
       </Grid>
     </Grid>
   );

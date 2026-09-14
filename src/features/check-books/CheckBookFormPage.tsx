@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import DatePicker from 'react-multi-date-picker';
+import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
 import Stack from '@mui/material/Stack';
@@ -201,8 +202,15 @@ export function CheckBookFormPage() {
                 <DatePicker
                   calendar={persian}
                   locale={persian_fa}
-                  format="YYYYMMDD"
-                  value={field.value || undefined}
+                  // Display "۱۴۰۴/۰۶/۱۳" while the stored value stays the Legacy 8-char
+                  // `YYYYMMDD` Latin-digit string — hence the explicit DateObject on the way in
+                  // (it parses with its own `format`) and the explicit `.format('YYYYMMDD')` out.
+                  format="YYYY/MM/DD"
+                  value={
+                    field.value
+                      ? new DateObject({ date: field.value, format: 'YYYYMMDD', calendar: persian, locale: persian_fa })
+                      : undefined
+                  }
                   onChange={(date) => field.onChange(date ? toLatinDigits(date.format('YYYYMMDD')) : '')}
                   render={(value, openCalendar) => (
                     <TextField

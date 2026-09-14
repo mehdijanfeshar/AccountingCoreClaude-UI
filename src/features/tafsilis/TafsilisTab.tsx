@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
@@ -22,7 +21,6 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
@@ -33,12 +31,15 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
-import { toLatinDigits } from '../../lib/format/numbers';
+import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { tafsilGroupsApi } from '../tafsil-groups/api';
 import { tafsilisApi } from './api';
 import {
@@ -103,7 +104,11 @@ export function TafsilisTab() {
   }, [tafsilGroupOptions]);
 
   const columns: DataTableColumn<TafsiliDto>[] = [
-    { key: 'tafsiliCode', header: 'کد تفصیلی', render: (row) => row.tafsiliCode ?? '—' },
+    {
+      key: 'tafsiliCode',
+      header: 'کد تفصیلی',
+      render: (row) => <MonoCode value={row.tafsiliCode} />,
+    },
     { key: 'tafsiliName', header: 'عنوان تفصیلی', render: (row) => row.tafsiliName ?? '—' },
     {
       key: 'tafsilGroups',
@@ -125,12 +130,21 @@ export function TafsilisTab() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" onClick={() => setEditingRow(row)}>
+            <IconButton
+              size="small"
+              onClick={() => setEditingRow(row)}
+              aria-label={`ویرایش تفصیلی ${row.tafsiliName ?? row.tafsiliCode ?? ''}`}
+            >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+              aria-label={`حذف تفصیلی ${row.tafsiliName ?? row.tafsiliCode ?? ''}`}
+            >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -153,24 +167,11 @@ export function TafsilisTab() {
         }
       />
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در همین صفحه"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-      </Box>
+      <ListToolbar
+        search={filter}
+        onSearchChange={setFilter}
+        summary={query.data ? `${toPersianDigits(query.data.totalCount)} تفصیلی` : ''}
+      />
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -181,7 +182,18 @@ export function TafsilisTab() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هیچ تفصیلی‌ای یافت نشد."
+            emptyMessage={filter.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز تفصیلی‌ای ثبت نشده است.'}
+            emptyAction={
+              filter.trim() ? (
+                <Button size="small" variant="text" onClick={() => setFilter('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} onClick={() => setEditingRow('new')}>
+                  افزودن تفصیلی
+                </Button>
+              )
+            }
           />
           {query.data && (
             <Pagination
@@ -400,14 +412,10 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
             </Grid>
 
             <Grid size={12}>
-              <FormSectionLabel
-                label="ویژگی‌های تکمیلی"
+              <FormAdvancedSection
+                label="ویژگی‌های تکمیلی (اختیاری)"
                 caption="معنای دقیق این ستون‌ها هنوز در بک‌اند تأیید نشده — فعلاً به‌صورت سه‌حالته (بله/خیر/تعیین‌نشده) نمایش داده می‌شوند."
-              />
-            </Grid>
-
-            <Grid size={12}>
-              <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: 'action.hover' }}>
+              >
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 3 }}>
                     <Controller
@@ -463,7 +471,7 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                     />
                   </Grid>
                 </Grid>
-              </Box>
+              </FormAdvancedSection>
             </Grid>
           </Grid>
       <RecordMetaFooter

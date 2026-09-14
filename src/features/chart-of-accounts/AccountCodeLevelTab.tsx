@@ -3,10 +3,8 @@ import type { ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import InputAdornment from '@mui/material/InputAdornment';
+import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -15,17 +13,19 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
+import { ListToolbar } from '../../components/ListToolbar';
+import { MonoCode } from '../../components/MonoCode';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { accountCodesApi } from './api';
 import { AccountCodeFormFields } from './AccountCodeFormFields';
 import { useAllAccountCodes } from './useAllAccountCodes';
@@ -50,6 +50,8 @@ interface AccountCodeLevelTabProps {
   /** `null` for گروه (top level, no parent at all). */
   parentCodeLength: number | null;
   parentFieldLabel?: string;
+  /** Short header for the parent column (e.g. "حساب گروه") — the field label is too long for a cell header. */
+  parentColumnHeader?: string;
   addButtonLabel: string;
   emptyMessage: string;
 }
@@ -68,6 +70,7 @@ export function AccountCodeLevelTab({
   codeLengthHint,
   parentCodeLength,
   parentFieldLabel,
+  parentColumnHeader = 'حساب والد',
   addButtonLabel,
   emptyMessage,
 }: AccountCodeLevelTabProps) {
@@ -109,21 +112,65 @@ export function AccountCodeLevelTab({
     },
   });
 
+  // The parent row is already in `items` (one shared, fully-paged query) — resolving the label
+  // here costs no extra request, and without it a کل/معین row gives no clue where it sits in
+  // the tree.
+  const accountById = useMemo(() => new Map(items.map((row) => [row.id, row])), [items]);
+
   const columns: DataTableColumn<AccountCodeDto>[] = [
-    { key: 'accCode', header: 'کد', render: (row) => row.accCode ?? '—' },
+    {
+      key: 'accCode',
+      header: 'کد',
+      render: (row) => <MonoCode value={row.accCode} />,
+    },
     { key: 'accCodeName', header: 'عنوان', render: (row) => row.accCodeName ?? '—' },
+    ...(parentCodeLength !== null
+      ? [
+          {
+            key: 'parent',
+            header: parentColumnHeader,
+            render: (row: AccountCodeDto) => {
+              const parent = row.parentId ? accountById.get(row.parentId) : undefined;
+              if (!parent) {
+                return (
+                  <Typography variant="body2" color="text.disabled">
+                    تعیین‌نشده
+                  </Typography>
+                );
+              }
+              return (
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                  <MonoCode value={parent.accCode} muted />
+                  <Typography variant="body2" color="text.secondary" noWrap>
+                    {parent.accCodeName}
+                  </Typography>
+                </Stack>
+              );
+            },
+          },
+        ]
+      : []),
     {
       key: 'action',
       header: 'عملیات',
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" onClick={() => setEditingRow(row)}>
+            <IconButton
+              size="small"
+              onClick={() => setEditingRow(row)}
+              aria-label={`ویرایش ${row.accCodeName ?? row.accCode ?? ''}`}
+            >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(row)}>
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+              aria-label={`حذف ${row.accCodeName ?? row.accCode ?? ''}`}
+            >
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -152,27 +199,19 @@ export function AccountCodeLevelTab({
         </Alert>
       )}
 
-      <Box sx={{ mb: 2, maxWidth: 320 }}>
-        <TextField
-          fullWidth
-          size="small"
-          label="جستجو در کد یا عنوان"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPageNumber(1);
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-      </Box>
+      <ListToolbar
+        search={search}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPageNumber(1);
+        }}
+        searchLabel="جستجو در کد یا عنوان"
+        summary={
+          search.trim()
+            ? `${toPersianDigits(filteredRows.length)} نتیجه از ${toPersianDigits(levelRows.length)} ردیف`
+            : `${toPersianDigits(levelRows.length)} ردیف`
+        }
+      />
 
       {isError && <ErrorBanner error={error} />}
 
@@ -183,7 +222,18 @@ export function AccountCodeLevelTab({
             rows={pageRows}
             getRowKey={(row) => row.id}
             isLoading={isLoading}
-            emptyMessage={emptyMessage}
+            emptyMessage={search.trim() ? 'نتیجه‌ای برای این جستجو یافت نشد.' : emptyMessage}
+            emptyAction={
+              search.trim() ? (
+                <Button size="small" variant="text" onClick={() => setSearch('')}>
+                  پاک کردن جستجو
+                </Button>
+              ) : (
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} onClick={() => setEditingRow('new')}>
+                  {addButtonLabel}
+                </Button>
+              )
+            }
           />
           {filteredRows.length > 0 && (
             <Pagination
