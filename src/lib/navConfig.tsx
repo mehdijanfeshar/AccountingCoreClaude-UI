@@ -112,9 +112,19 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/operation/vouchers/new',
         icon: <PostAddOutlinedIcon fontSize="small" />,
       },
-      { label: 'دریافت و پرداخت', icon: <SwapHorizOutlinedIcon fontSize="small" /> },
+      {
+        label: 'دریافت و پرداخت',
+        description: 'فهرست سرسند اسناد دریافت و پرداخت',
+        to: '/operation/pay-recive-heads',
+        icon: <SwapHorizOutlinedIcon fontSize="small" />,
+      },
       { label: 'کارتابل', icon: <InboxOutlinedIcon fontSize="small" /> },
-      { label: 'دسته‌چک', icon: <BookOutlinedIcon fontSize="small" /> },
+      {
+        label: 'دسته‌چک',
+        description: 'دسته‌چک‌های صادرشده برای حساب‌های بانکی',
+        to: '/operation/check-books',
+        icon: <BookOutlinedIcon fontSize="small" />,
+      },
     ],
   },
   {

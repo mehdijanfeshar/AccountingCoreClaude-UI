@@ -16,6 +16,10 @@ import { WorkShopsListPage } from '../features/work-shops/WorkShopsListPage';
 import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
 import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
+import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
+import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
+import { CheckBooksListPage } from '../features/check-books/CheckBooksListPage';
+import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 
 export const routes: RouteObject[] = [
   { path: '/', element: <HomePage /> },
@@ -50,4 +54,12 @@ export const routes: RouteObject[] = [
 
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
+
+  { path: '/operation/pay-recive-heads', element: <PayReciveHeadsListPage /> },
+  { path: '/operation/pay-recive-heads/new', element: <PayReciveHeadFormPage /> },
+  { path: '/operation/pay-recive-heads/:id/edit', element: <PayReciveHeadFormPage /> },
+
+  { path: '/operation/check-books', element: <CheckBooksListPage /> },
+  { path: '/operation/check-books/new', element: <CheckBookFormPage /> },
+  { path: '/operation/check-books/:id/edit', element: <CheckBookFormPage /> },
 ];
