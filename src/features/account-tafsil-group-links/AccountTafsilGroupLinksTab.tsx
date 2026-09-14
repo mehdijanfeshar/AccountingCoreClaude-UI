@@ -1,26 +1,34 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
+import { alpha } from '@mui/material/styles';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Autocomplete from '@mui/material/Autocomplete';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { levelTafsilsApi } from '../../lib/api/levelTafsilsApi';
@@ -115,17 +123,47 @@ export function AccountTafsilGroupLinksTab() {
 
       <Paper
         variant="outlined"
-        sx={{ p: 2, mb: 3, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', borderRadius: 2 }}
+        sx={{
+          p: 2,
+          mb: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
+          borderRadius: 2,
+          bgcolor: selectedAccount ? (theme) => alpha(theme.palette.primary.main, 0.06) : 'background.paper',
+          borderColor: selectedAccount ? 'primary.main' : 'divider',
+          transition: 'background-color 150ms, border-color 150ms',
+        }}
       >
         <AccountBalanceWalletOutlinedIcon fontSize="small" color={selectedAccount ? 'primary' : 'action'} />
         <Typography sx={{ fontWeight: 700 }}>معین:</Typography>
         <Typography color={selectedAccount ? 'text.primary' : 'text.secondary'} sx={{ flexGrow: 1 }}>
-          {selectedAccount ? `${selectedAccount.accCode ?? ''} - ${selectedAccount.accCodeName ?? ''}` : 'انتخاب نشده'}
+          {selectedAccount ? `${selectedAccount.accCode ?? ''} - ${selectedAccount.accCodeName ?? ''}` : 'هنوز انتخاب نشده'}
         </Typography>
-        <Button variant="outlined" size="small" onClick={() => setPickerOpen(true)}>
+        <Button variant={selectedAccount ? 'outlined' : 'contained'} size="small" onClick={() => setPickerOpen(true)}>
           {selectedAccount ? 'تغییر معین' : 'انتخاب معین'}
         </Button>
       </Paper>
+
+      {!selectedAccount && (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1,
+            py: 6,
+            color: 'text.secondary',
+            border: '1px dashed',
+            borderColor: 'divider',
+            borderRadius: 2,
+          }}
+        >
+          <InfoOutlinedIcon sx={{ fontSize: 32, opacity: 0.5 }} />
+          <Typography variant="body2">برای مشاهده و مدیریت ارتباط‌های تفصیلی، ابتدا یک معین از بالا انتخاب کنید.</Typography>
+        </Box>
+      )}
 
       {selectedAccount && (
         <>
@@ -170,6 +208,7 @@ export function AccountTafsilGroupLinksTab() {
         <AccountTafsilGroupLinkFormDialog
           key={editingRow === 'new' ? 'new' : editingRow.id}
           accountCodeId={selectedAccount.id}
+          accountLabel={`${selectedAccount.accCode ?? ''} - ${selectedAccount.accCodeName ?? ''}`}
           existing={editingRow === 'new' ? null : editingRow}
           levelOptions={levelOptions}
           tafsilGroupOptions={tafsilGroupOptions}
@@ -182,6 +221,7 @@ export function AccountTafsilGroupLinksTab() {
 
 interface AccountTafsilGroupLinkFormDialogProps {
   accountCodeId: string;
+  accountLabel: string;
   existing: AccountTafsilGroupLinkDto | null;
   levelOptions: LevelTafsilDto[];
   tafsilGroupOptions: TafsilGroupDto[];
@@ -195,6 +235,7 @@ interface LinkFormValues {
 
 function AccountTafsilGroupLinkFormDialog({
   accountCodeId,
+  accountLabel,
   existing,
   levelOptions,
   tafsilGroupOptions,
@@ -203,14 +244,20 @@ function AccountTafsilGroupLinkFormDialog({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [submitError, setSubmitError] = useState<unknown>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const isEdit = existing !== null;
 
-  const { control, handleSubmit } = useForm<LinkFormValues>({
+  const { control, handleSubmit, watch } = useForm<LinkFormValues>({
     defaultValues: {
       levelId: existing?.levelId ?? '',
       tafsilGroupId: existing?.tafsilGroupId ?? '',
     },
   });
+
+  const levelId = watch('levelId');
+  const tafsilGroupId = watch('tafsilGroupId');
+  const levelMissing = attemptedSubmit && !levelId;
+  const groupMissing = attemptedSubmit && !tafsilGroupId;
 
   const createMutation = useMutation({
     mutationFn: (payload: AccountTafsilGroupLinkWritePayload) => accountTafsilGroupLinksApi.create(accountCodeId, payload),
@@ -222,10 +269,8 @@ function AccountTafsilGroupLinkFormDialog({
   const pending = isEdit ? updateMutation.isPending : createMutation.isPending;
 
   async function onSubmit(values: LinkFormValues) {
-    if (!values.levelId || !values.tafsilGroupId) {
-      setSubmitError(new Error('سطح تفصیلی و گروه تفصیلی هر دو الزامی است.'));
-      return;
-    }
+    setAttemptedSubmit(true);
+    if (!values.levelId || !values.tafsilGroupId) return;
     setSubmitError(null);
     try {
       const payload: AccountTafsilGroupLinkWritePayload = {
@@ -251,7 +296,7 @@ function AccountTafsilGroupLinkFormDialog({
       onClose={onClose}
       icon={<LinkOutlinedIcon />}
       title={isEdit ? 'ویرایش ارتباط' : 'ارتباط جدید'}
-      subtitle="سطح تفصیلی و گروه تفصیلی مجاز برای این معین را انتخاب کنید."
+      subtitle={`معین: ${accountLabel}`}
       maxWidth="sm"
       onSubmit={handleSubmit(onSubmit)}
       actions={
@@ -268,6 +313,10 @@ function AccountTafsilGroupLinkFormDialog({
       {submitError !== null && <ErrorBanner error={submitError} />}
       <Grid container spacing={3}>
         <Grid size={12}>
+          <FormSectionLabel label="انتخاب سطح و گروه تفصیلی" />
+        </Grid>
+
+        <Grid size={12}>
           <Controller
             control={control}
             name="levelId"
@@ -278,7 +327,26 @@ function AccountTafsilGroupLinkFormDialog({
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 value={levelOptions.find((l) => l.id === field.value) ?? null}
                 onChange={(_event, selected) => field.onChange(selected?.id ?? '')}
-                renderInput={(params) => <TextField {...params} label="سطح تفصیلی" required />}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="سطح تفصیلی"
+                    required
+                    error={levelMissing}
+                    helperText={levelMissing ? 'انتخاب سطح تفصیلی الزامی است.' : 'سطحی که این گروه تفصیلی روی آن مجاز خواهد بود.'}
+                    slotProps={{
+                      ...params.slotProps,
+                      input: {
+                        ...params.slotProps.input,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LayersOutlinedIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                )}
               />
             )}
           />
@@ -294,12 +362,42 @@ function AccountTafsilGroupLinkFormDialog({
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 value={tafsilGroupOptions.find((g) => g.id === field.value) ?? null}
                 onChange={(_event, selected) => field.onChange(selected?.id ?? '')}
-                renderInput={(params) => <TextField {...params} label="گروه تفصیلی" required />}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="گروه تفصیلی"
+                    required
+                    error={groupMissing}
+                    helperText={
+                      groupMissing
+                        ? 'انتخاب گروه تفصیلی الزامی است.'
+                        : 'تفصیلی‌های همین گروه، در فرم صدور سند برای این سطح انتخاب‌پذیر می‌شوند.'
+                    }
+                    slotProps={{
+                      ...params.slotProps,
+                      input: {
+                        ...params.slotProps.input,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CategoryOutlinedIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                )}
               />
             )}
           />
         </Grid>
       </Grid>
+
+      <RecordMetaFooter
+        createdDate={existing?.createdDate}
+        updatedDate={existing?.updatedDate}
+        addUserId={existing?.addUserId}
+        changeUserId={existing?.changeUserId}
+      />
     </FormDialog>
   );
 }

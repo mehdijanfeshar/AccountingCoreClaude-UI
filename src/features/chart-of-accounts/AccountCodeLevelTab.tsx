@@ -22,6 +22,7 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
@@ -344,6 +345,13 @@ function AccountCodeLevelFormDialog({
         showParentPicker={parentCodeLength !== null}
         parentFieldLabel={parentFieldLabel}
         codeLengthHint={codeLengthHint}
+      />
+
+      <RecordMetaFooter
+        createdDate={existing?.createdDate}
+        updatedDate={existing?.updatedDate}
+        addUserId={existing?.addUserId}
+        changeUserId={existing?.changeUserId}
       />
 
       {parentCodeLength !== null && (

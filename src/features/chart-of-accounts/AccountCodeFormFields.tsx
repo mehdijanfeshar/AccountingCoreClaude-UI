@@ -3,11 +3,12 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { toLatinDigits } from '../../lib/format/numbers';
 import type { AccountCodeFormValues } from './schema';
 
@@ -93,25 +94,14 @@ export function AccountCodeFormFields({
       </Grid>
 
       {showParentPicker && (
-        <>
-          <Grid size={{ xs: 12, sm: 8 }}>
-            <TextField
-              label={parentFieldLabel}
-              fullWidth
-              value={parentLabel ?? ''}
-              placeholder="بدون حساب والد"
-              slotProps={{ input: { readOnly: true } }}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={onPickParent}>
-              انتخاب
-            </Button>
-            <Button color="inherit" onClick={onClearParent}>
-              پاک کردن
-            </Button>
-          </Grid>
-        </>
+        <LinkedEntityPickerField
+          icon={<AccountTreeOutlinedIcon fontSize="small" color="action" />}
+          label={parentFieldLabel}
+          value={parentLabel}
+          placeholder="بدون حساب والد"
+          onPick={onPickParent}
+          onClear={onClearParent}
+        />
       )}
 
       <Grid size={12}>

@@ -34,6 +34,7 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
@@ -465,6 +466,12 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
               </Box>
             </Grid>
           </Grid>
+      <RecordMetaFooter
+        createdDate={existing?.createdDate}
+        updatedDate={existing?.updatedDate}
+        addUserId={existing?.addUserId}
+        changeUserId={existing?.changeUserId}
+      />
     </FormDialog>
   );
 }
