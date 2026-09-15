@@ -13,4 +13,6 @@ export interface ExpenseDto {
   addUserId: string | null;
   changeUserId: string | null;
   isDeleted: boolean | null;
+  /** Active تفصیلی assignments; always present, empty when there are none. */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }

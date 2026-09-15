@@ -14,6 +14,11 @@ export interface RevolvingFundWritePayload {
   defaultAmount: number | null;
   accountCodeId: string | null;
   year: string | null;
+  /**
+   * Full replacement set of تفصیلی assignments — replace semantics: links omitted here are
+   * soft-deleted server-side. Driven by the معین's active levels (see TafsiliLevelFields).
+   */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }
 
 export const revolvingFundsApi = createResourceApi<

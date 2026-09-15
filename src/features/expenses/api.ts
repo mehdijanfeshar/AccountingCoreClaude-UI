@@ -18,6 +18,11 @@ export interface ExpenseWritePayload {
   defaultAmount: number | null;
   expenseGroupId: string | null;
   accountCodeId: string | null;
+  /**
+   * Full replacement set of تفصیلی assignments — replace semantics: links omitted here are
+   * soft-deleted server-side. Driven by the معین's active levels (see TafsiliLevelFields).
+   */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }
 
 export const expensesApi = createResourceApi<ExpenseDto, ExpenseWritePayload, ExpenseWritePayload>('expenses');

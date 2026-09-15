@@ -15,6 +15,11 @@ export interface WorkShopWritePayload {
   workShopCode: string;
   isActive: boolean;
   checkFile: string | null;
+  /**
+   * Full replacement set of تفصیلی assignments — replace semantics: links omitted here are
+   * soft-deleted server-side. Driven by the معین's active levels (see TafsiliLevelFields).
+   */
+  tafsiliLinks: { tafsiliId: string; levelId: string }[];
 }
 
 export const workShopsApi = createResourceApi<WorkShopDto, WorkShopWritePayload, WorkShopWritePayload>('work-shops');

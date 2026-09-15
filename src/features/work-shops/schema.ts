@@ -11,6 +11,9 @@ export const workShopFormSchema = z.object({
   workShopName: z.string().trim().min(1, 'نام کارگاه الزامی است').max(100, 'حداکثر ۱۰۰ کاراکتر است'),
   workShopCode: z.string().trim().min(1, 'کد کارگاه الزامی است').max(10, 'حداکثر ۱۰ کاراکتر است'),
   isActive: z.boolean(),
+  // Driven by TafsiliLevelFields from the selected معین's active levels; nothing syntactic to
+  // validate here beyond shape (the backend validates the ids).
+  tafsiliLinks: z.array(z.object({ levelId: z.string(), tafsiliId: z.string(), label: z.string().optional() })),
 });
 
 export type WorkShopFormValues = z.infer<typeof workShopFormSchema>;
@@ -23,6 +26,7 @@ export const emptyWorkShopFormValues: WorkShopFormValues = {
   workShopName: '',
   workShopCode: '',
   isActive: true,
+  tafsiliLinks: [],
 };
 
 export function workShopDtoToFormValues(
@@ -38,6 +42,8 @@ export function workShopDtoToFormValues(
     workShopName: dto.workShopName ?? '',
     workShopCode: dto.workShopCode ?? '',
     isActive: dto.isActive,
+    // Labels are resolved lazily by TafsiliLevelFields — the DTO carries ids only.
+    tafsiliLinks: dto.tafsiliLinks.map((link) => ({ levelId: link.levelId, tafsiliId: link.tafsiliId })),
   };
 }
 
@@ -50,5 +56,6 @@ export function workShopFormValuesToPayload(values: WorkShopFormValues): WorkSho
     workShopCode: values.workShopCode.trim(),
     isActive: values.isActive,
     checkFile: null,
+    tafsiliLinks: values.tafsiliLinks.map((link) => ({ tafsiliId: link.tafsiliId, levelId: link.levelId })),
   };
 }

@@ -18,6 +18,9 @@ export const expenseFormSchema = z.object({
   defaultAmount: z.string().optional().or(z.literal('')),
   accountCodeId: z.string().nullable(),
   accountCodeLabel: z.string().nullable().optional(),
+  // Driven by TafsiliLevelFields from the selected معین's active levels; nothing syntactic to
+  // validate here beyond shape (the backend validates the ids).
+  tafsiliLinks: z.array(z.object({ levelId: z.string(), tafsiliId: z.string(), label: z.string().optional() })),
 });
 
 export type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
@@ -29,6 +32,7 @@ export const emptyExpenseFormValues: ExpenseFormValues = {
   defaultAmount: '',
   accountCodeId: null,
   accountCodeLabel: null,
+  tafsiliLinks: [],
 };
 
 export function expenseDtoToFormValues(dto: ExpenseDto, accountCodeLabel: string | null): ExpenseFormValues {
@@ -39,6 +43,8 @@ export function expenseDtoToFormValues(dto: ExpenseDto, accountCodeLabel: string
     defaultAmount: dto.defaultAmount != null ? String(dto.defaultAmount) : '',
     accountCodeId: dto.accountCodeId,
     accountCodeLabel,
+    // Labels are resolved lazily by TafsiliLevelFields — the DTO carries ids only.
+    tafsiliLinks: dto.tafsiliLinks.map((link) => ({ levelId: link.levelId, tafsiliId: link.tafsiliId })),
   };
 }
 
@@ -51,5 +57,6 @@ export function expenseFormValuesToPayload(values: ExpenseFormValues): ExpenseWr
     defaultAmount: values.defaultAmount ? Number(values.defaultAmount) : null,
     expenseGroupId: null,
     accountCodeId: values.accountCodeId,
+    tafsiliLinks: values.tafsiliLinks.map((link) => ({ tafsiliId: link.tafsiliId, levelId: link.levelId })),
   };
 }

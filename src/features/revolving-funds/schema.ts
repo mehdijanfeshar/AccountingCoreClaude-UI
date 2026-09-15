@@ -11,6 +11,9 @@ export const revolvingFundFormSchema = z.object({
   accountCodeId: z.string().nullable(),
   accountCodeLabel: z.string().nullable().optional(),
   year: z.string().trim().max(4, 'حداکثر ۴ کاراکتر است').optional().or(z.literal('')),
+  // Driven by TafsiliLevelFields from the selected معین's active levels; nothing syntactic to
+  // validate here beyond shape (the backend validates the ids).
+  tafsiliLinks: z.array(z.object({ levelId: z.string(), tafsiliId: z.string(), label: z.string().optional() })),
 });
 
 export type RevolvingFundFormValues = z.infer<typeof revolvingFundFormSchema>;
@@ -24,6 +27,7 @@ export function buildEmptyRevolvingFundFormValues(defaultYear: string): Revolvin
     accountCodeId: null,
     accountCodeLabel: null,
     year: defaultYear,
+    tafsiliLinks: [],
   };
 }
 
@@ -39,6 +43,8 @@ export function revolvingFundDtoToFormValues(
     accountCodeId: dto.accountCodeId,
     accountCodeLabel,
     year: dto.year ?? '',
+    // Labels are resolved lazily by TafsiliLevelFields — the DTO carries ids only.
+    tafsiliLinks: dto.tafsiliLinks.map((link) => ({ levelId: link.levelId, tafsiliId: link.tafsiliId })),
   };
 }
 
@@ -50,5 +56,6 @@ export function revolvingFundFormValuesToPayload(values: RevolvingFundFormValues
     defaultAmount: values.defaultAmount ? Number(values.defaultAmount) : null,
     accountCodeId: values.accountCodeId,
     year: values.year?.trim() ? values.year.trim() : null,
+    tafsiliLinks: values.tafsiliLinks.map((link) => ({ tafsiliId: link.tafsiliId, levelId: link.levelId })),
   };
 }
