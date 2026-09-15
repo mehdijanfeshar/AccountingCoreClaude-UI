@@ -25,3 +25,7 @@ pnpm-debug.log*
 # os
 Thumbs.db
 .DS_Store
+
+# Claude Code local state — the installed skill itself is versioned, these are not.
+.claude/scheduled_tasks.lock
+.claude/**/__pycache__/
