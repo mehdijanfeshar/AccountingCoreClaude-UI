@@ -1,16 +1,22 @@
 import { z } from 'zod';
 import type { TafsiliWritePayload } from './api';
 import type { TafsiliDto } from '../../types/tafsiliMaster';
-import { booleanToTriState, triStateToBoolean, type TriStateValue } from '../../components/TriStateToggle';
+import { enumFieldSchema } from '../../lib/validation/enumFieldSchema';
+import {
+  OWNER_VALUES,
+  PERSON_TYPE_VALUES,
+  TAFSILI_ACTIVE_STATE_VALUES,
+  VAHED_CATEGORY_VALUES,
+} from '../../types/legacyEnums';
 
 /**
  * UX-presentation validation only, mirroring `CreateTafsiliCommandValidator`.
  *
- * `isActive`/`personType`/`owner`/`vahedType` are all modeled as tri-state (not a plain Switch)
- * — `IsActive` specifically is documented backend-side as a `bool?` that may actually carry a
- * third raw value (candidate for the project's known bool/enum scaffolding bug: see
- * `GetTafsiliLevelItemsQuery` XML doc, "our ISACTIVE is a bool? that may hold the value 2"), so a
- * confident on/off Switch would misrepresent data this column might already contain.
+ * Phase 27: `isActive`/`personType`/`owner`/`vahedType` moved from a buggy `bool|null` wire
+ * shape to real nullable-integer enums (`TafsiliActiveState`/`PersonTypes`/`Owners`/
+ * `VahedCategory`) — each accepts `null` plus only the values documented in
+ * `../../types/legacyEnums.ts`, matching the backend's `.IsInEnum()` (no `.NotNull()`, so `null`
+ * stays valid).
  */
 /** `Accounting.Domain.ValueObjects.VahedCategory`: 1=بیمه, 2=درمان, 3=همه — '' means "تعیین نشده". */
 export const TAFSIL_GROUP_LINK_VAHED_TYPE_OPTIONS = ['', '1', '2', '3'] as const;
@@ -20,10 +26,10 @@ export const tafsiliFormSchema = z.object({
   tafsiliCode: z.string().trim().min(1, 'کد تفصیلی الزامی است').max(15, 'حداکثر ۱۵ کاراکتر است'),
   tafsiliName: z.string().trim().min(1, 'عنوان تفصیلی الزامی است').max(200, 'حداکثر ۲۰۰ کاراکتر است'),
   tafsilDesc: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
-  isActive: z.enum(['true', 'false', '']),
-  personType: z.enum(['true', 'false', '']),
-  owner: z.enum(['true', 'false', '']),
-  vahedType: z.enum(['true', 'false', '']),
+  isActive: enumFieldSchema(TAFSILI_ACTIVE_STATE_VALUES, 'وضعیت فعال بودن نامعتبر است'),
+  personType: enumFieldSchema(PERSON_TYPE_VALUES, 'نوع شخص نامعتبر است'),
+  owner: enumFieldSchema(OWNER_VALUES, 'مالکیت نامعتبر است'),
+  vahedType: enumFieldSchema(VAHED_CATEGORY_VALUES, 'نوع واحد نامعتبر است'),
   tafsilGroupIds: z.array(z.string()),
   tafsilGroupLinkVahedType: z.enum(TAFSIL_GROUP_LINK_VAHED_TYPE_OPTIONS),
 });
@@ -34,10 +40,10 @@ export const emptyTafsiliFormValues: TafsiliFormValues = {
   tafsiliCode: '',
   tafsiliName: '',
   tafsilDesc: '',
-  isActive: 'true',
-  personType: '',
-  owner: '',
-  vahedType: '',
+  isActive: 1,
+  personType: null,
+  owner: null,
+  vahedType: null,
   tafsilGroupIds: [],
   tafsilGroupLinkVahedType: '',
 };
@@ -47,10 +53,10 @@ export function tafsiliDtoToFormValues(dto: TafsiliDto): TafsiliFormValues {
     tafsiliCode: dto.tafsiliCode ?? '',
     tafsiliName: dto.tafsiliName ?? '',
     tafsilDesc: dto.tafsilDesc ?? '',
-    isActive: booleanToTriState(dto.isActive),
-    personType: booleanToTriState(dto.personType),
-    owner: booleanToTriState(dto.owner),
-    vahedType: booleanToTriState(dto.vahedType),
+    isActive: dto.isActive,
+    personType: dto.personType,
+    owner: dto.owner,
+    vahedType: dto.vahedType,
     tafsilGroupIds: dto.tafsilGroupIds,
     // Write-only: the API never reports back an existing link's own VAHEDTYPE (it can differ
     // per group and isn't retroactively changed by this form — see backend phase 24 docs), so
@@ -64,10 +70,10 @@ export function tafsiliFormValuesToPayload(values: TafsiliFormValues): TafsiliWr
     tafsiliCode: values.tafsiliCode.trim(),
     tafsiliName: values.tafsiliName.trim(),
     tafsilDesc: values.tafsilDesc?.trim() ? values.tafsilDesc.trim() : null,
-    isActive: triStateToBoolean(values.isActive as TriStateValue),
-    personType: triStateToBoolean(values.personType as TriStateValue),
-    owner: triStateToBoolean(values.owner as TriStateValue),
-    vahedType: triStateToBoolean(values.vahedType as TriStateValue),
+    isActive: values.isActive,
+    personType: values.personType,
+    owner: values.owner,
+    vahedType: values.vahedType,
     tafsilGroupIds: values.tafsilGroupIds,
     tafsilGroupLinkVahedType: values.tafsilGroupLinkVahedType ? Number(values.tafsilGroupLinkVahedType) : null,
   };

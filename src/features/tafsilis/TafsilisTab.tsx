@@ -36,7 +36,6 @@ import { MonoCode } from '../../components/MonoCode';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
@@ -51,6 +50,19 @@ import {
 } from './schema';
 import type { TafsiliDto } from '../../types/tafsiliMaster';
 import type { TafsilGroupDto } from '../../types/tafsilGroup';
+import {
+  OWNER_OPTIONS,
+  PERSON_TYPE_OPTIONS,
+  TAFSILI_ACTIVE_STATE_OPTIONS,
+  VAHED_CATEGORY_OPTIONS,
+} from '../../types/legacyEnums';
+
+/** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 const PAGE_SIZE = 20;
 
@@ -414,7 +426,7 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
             <Grid size={12}>
               <FormAdvancedSection
                 label="ویژگی‌های تکمیلی (اختیاری)"
-                caption="معنای دقیق این ستون‌ها هنوز در بک‌اند تأیید نشده — فعلاً به‌صورت سه‌حالته (بله/خیر/تعیین‌نشده) نمایش داده می‌شوند."
+                caption="این چهار فیلد اختیاری‌اند — گزینهٔ «انتخاب نشده» مقدار را روی نامشخص (null) نگه می‌دارد."
               >
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 3 }}>
@@ -422,11 +434,23 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       control={control}
                       name="isActive"
                       render={({ field }) => (
-                        <TriStateToggle
-                          label="IsActive (فعال)"
-                          value={field.value as TriStateValue}
-                          onChange={field.onChange}
-                        />
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="وضعیت فعال بودن"
+                          helperText={errors.isActive?.message ?? 'isActive'}
+                          error={!!errors.isActive}
+                          value={field.value ?? UNSET}
+                          onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                        >
+                          <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                          {TAFSILI_ACTIVE_STATE_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       )}
                     />
                   </Grid>
@@ -435,11 +459,23 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       control={control}
                       name="personType"
                       render={({ field }) => (
-                        <TriStateToggle
-                          label="PersonType"
-                          value={field.value as TriStateValue}
-                          onChange={field.onChange}
-                        />
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="نوع شخص"
+                          helperText={errors.personType?.message ?? 'personType'}
+                          error={!!errors.personType}
+                          value={field.value ?? UNSET}
+                          onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                        >
+                          <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                          {PERSON_TYPE_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       )}
                     />
                   </Grid>
@@ -448,12 +484,23 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       control={control}
                       name="owner"
                       render={({ field }) => (
-                        <TriStateToggle
-                          label="Owner"
-                          value={field.value as TriStateValue}
-                          onChange={field.onChange}
-                          helperText="کامنت بک‌اند: 2=setad 1=vahed"
-                        />
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="مالکیت"
+                          helperText={errors.owner?.message ?? 'owner'}
+                          error={!!errors.owner}
+                          value={field.value ?? UNSET}
+                          onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                        >
+                          <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                          {OWNER_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       )}
                     />
                   </Grid>
@@ -462,11 +509,23 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       control={control}
                       name="vahedType"
                       render={({ field }) => (
-                        <TriStateToggle
-                          label="VahedType"
-                          value={field.value as TriStateValue}
-                          onChange={field.onChange}
-                        />
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="نوع واحد"
+                          helperText={errors.vahedType?.message ?? 'vahedType'}
+                          error={!!errors.vahedType}
+                          value={field.value ?? UNSET}
+                          onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                        >
+                          <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                          {VAHED_CATEGORY_OPTIONS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                       )}
                     />
                   </Grid>

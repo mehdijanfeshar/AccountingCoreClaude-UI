@@ -9,11 +9,14 @@ import type { AttribForAccountCodeDto } from '../../types/attribForAccountCode';
  */
 export interface AttribForAccountCodeWritePayload {
   accountCodeId: string;
-  attribBoxNo: boolean;
-  flag: boolean;
+  // Plain box number (0..9), NOT an enum — see `../../types/attribForAccountCode.ts`.
+  attribBoxNo: number;
+  // Phase 27: real integer enums on the wire — see `../../types/legacyEnums.ts`.
+  // `flag`/`attribSum` are non-nullable on the backend; `controlId` is nullable.
+  flag: number;
   lenAtr: number;
-  attribSum: boolean;
-  controlId: boolean | null;
+  attribSum: number;
+  controlId: number | null;
   year: string;
 }
 

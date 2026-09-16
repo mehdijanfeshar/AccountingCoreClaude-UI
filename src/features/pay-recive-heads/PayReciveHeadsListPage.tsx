@@ -23,6 +23,7 @@ import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { payReciveHeadsApi } from './api';
 import type { PayReciveHeadDto } from '../../types/payReciveHead';
+import { getPayRecivTypeLabel } from '../../types/legacyEnums';
 
 const PAGE_SIZE = 20;
 
@@ -69,14 +70,14 @@ export function PayReciveHeadsListPage() {
     { key: 'year', header: 'سال مالی', render: (row) => (row.year ? toPersianDigits(row.year) : '—') },
     {
       key: 'payReciveType',
-      header: 'PayReciveType',
+      header: 'نوع سند',
       render: (row) =>
         row.payReciveType === null ? (
           <Typography variant="body2" color="text.disabled">
             تعیین‌نشده
           </Typography>
         ) : (
-          <Chip size="small" variant="outlined" label={row.payReciveType ? 'بله' : 'خیر'} />
+          <Chip size="small" variant="outlined" label={getPayRecivTypeLabel(row.payReciveType)} />
         ),
     },
     {

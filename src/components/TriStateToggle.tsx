@@ -15,13 +15,15 @@ interface TriStateToggleProps {
 }
 
 /**
- * ⚠️⚠️ Known temporary shape (CLAUDE.md open risk #2): `typeCode` / `typeActivity` /
- * `typeAccCode` / `typeAction` are REAL multi-valued enums in the Legacy schema, but a
- * known backend bug currently types them `bool|null` on the wire. Do NOT invent enum
- * options here — this three-state (بله / خیر / تعیین‌نشده) toggle is the only UI that
- * matches what the backend can actually accept today. When risk #2 is fixed server-side,
- * this component must be replaced with a real enum dropdown driven by the corrected
- * contract, not patched in place.
+ * Generic nullable-boolean (بله/خیر/تعیین‌نشده) toggle for genuinely two-state Legacy flag
+ * columns typed `bool|null` on the wire.
+ *
+ * ⚠️ NOT for `TB_ACCOUNTCODE.typeCode` / `typeActivity` / `typeAccCode` / `typeAction` — those
+ * four were REAL multi-valued enums that phase 25/26 fixed server-side (now nullable integers,
+ * see `features/chart-of-accounts/accountCodeEnums.ts`); `chart-of-accounts` no longer uses
+ * this component for them. Before reusing this toggle for any other column, confirm the field
+ * really is boolean and not another instance of the same `bool?`-instead-of-enum bug (open
+ * risk #2 in CLAUDE.md covered only these four; other columns have not all been audited).
  */
 export function TriStateToggle({ label, value, onChange, helperText }: TriStateToggleProps) {
   return (

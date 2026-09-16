@@ -10,6 +10,7 @@ import persian_fa from 'react-date-object/locales/persian_fa';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -26,7 +27,6 @@ import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { toLatinDigits } from '../../lib/format/numbers';
 import { voucherHeadsApi } from '../vouchers/api';
@@ -38,6 +38,14 @@ import {
   payReciveHeadFormValuesToPayload,
   type PayReciveHeadFormValues,
 } from './schema';
+import { PAY_RECIV_TYPE_OPTIONS } from '../../types/legacyEnums';
+
+/** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 /**
  * Handles both `/operation/pay-recive-heads/new` and `/operation/pay-recive-heads/:id/edit`.
@@ -230,12 +238,22 @@ export function PayReciveHeadFormPage() {
               control={control}
               name="payReciveType"
               render={({ field }) => (
-                <TriStateToggle
-                  label="PayReciveType"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                  helperText="در سیستم مرجع این ستون سه‌حالته است (۱پرداخت ۲دریافت ۳همه)؛ در بک‌اند فعلی به‌صورت بولین پیاده‌سازی شده و مقدار «همه» از این فرم قابل ثبت نیست."
-                />
+                <TextField
+                  select
+                  fullWidth
+                  label="نوع سند"
+                  helperText={errors.payReciveType?.message ?? 'payReciveType'}
+                  error={!!errors.payReciveType}
+                  value={field.value ?? UNSET}
+                  onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                >
+                  <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                  {PAY_RECIV_TYPE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
               )}
             />
           </Grid>

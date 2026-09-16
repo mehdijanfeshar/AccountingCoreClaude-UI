@@ -15,16 +15,18 @@ import type { PagedResult } from '../../types/pagedResult';
  * and backend/src/Accounting.Api/Controllers/AccountCodesController.cs (UpdateAccountCodeRequest).
  */
 export interface AccountCodeWritePayload {
-  typeCode: boolean | null;
+  // Phase 25/26: real nullable-integer enum on the wire — see `./accountCodeEnums.ts` for the
+  // value/label tables and `AccountCodeDto` (types/accountCode.ts) for the matching comment.
+  typeCode: number | null;
   parentId: string | null;
   accCode: string;
   accCodeName: string;
-  typeActivity: boolean | null;
+  typeActivity: number | null;
   sourceAndConsumeId: string | null;
   identyGroupsId: string | null;
-  typeAccCode: boolean | null;
+  typeAccCode: number | null;
   moInforClose: string | null;
-  typeAction: boolean | null;
+  typeAction: number | null;
 }
 
 export const accountCodesApi = createResourceApi<AccountCodeDto, AccountCodeWritePayload, AccountCodeWritePayload>(

@@ -11,8 +11,9 @@ export interface CheckBookDto {
   toCheckNumber: string;
   checkTypeId: string | null; // guid — TB_CHECK_TYPE
   vahedCode: string | null;
-  // TODO(backend risk #2): NUMBER(1) typed boolean|null by a known backend bug, unverified enum.
-  checkBookType: boolean | null;
+  // Phase 27: real nullable-integer enum on the wire (`CheckType`: 1=چک صوری, 2=چک واقعی) — was
+  // a buggy `bool|null`. Value/label table: `../types/legacyEnums.ts`.
+  checkBookType: number | null;
   serial: string | null;
   createdDate: string;
   updatedDate: string | null;

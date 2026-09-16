@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import type { CheckBookWritePayload } from './api';
 import type { CheckBookDto } from '../../types/checkBook';
-import { booleanToTriState, triStateToBoolean, type TriStateValue } from '../../components/TriStateToggle';
+import { enumFieldSchema } from '../../lib/validation/enumFieldSchema';
+import { CHECK_TYPE_VALUES } from '../../types/legacyEnums';
 
-/** UX-presentation validation only, mirroring `CreateCheckBookCommandValidator`. */
+/**
+ * UX-presentation validation only, mirroring `CreateCheckBookCommandValidator`.
+ *
+ * Phase 27: `checkBookType` moved from a buggy `bool|null` wire shape to a real nullable-integer
+ * enum (`CheckType`: 1=چک صوری, 2=چک واقعی — see `../../types/legacyEnums.ts`).
+ */
 export const checkBookFormSchema = z.object({
   accountId: z.string().min(1, 'انتخاب حساب بانکی الزامی است'),
   accountLabel: z.string().nullable().optional(),
@@ -24,7 +30,7 @@ export const checkBookFormSchema = z.object({
     .min(1, 'شماره آخرین برگه چک الزامی است')
     .max(14, 'حداکثر ۱۴ کاراکتر است'),
   checkTypeId: z.string().nullable(),
-  checkBookType: z.enum(['true', 'false', '']),
+  checkBookType: enumFieldSchema(CHECK_TYPE_VALUES, 'نوع دسته‌چک نامعتبر است'),
   serial: z.string().trim().max(20, 'حداکثر ۲۰ کاراکتر است').optional().or(z.literal('')),
 });
 
@@ -38,7 +44,7 @@ export const emptyCheckBookFormValues: CheckBookFormValues = {
   fromCheckNumber: '',
   toCheckNumber: '',
   checkTypeId: null,
-  checkBookType: '',
+  checkBookType: null,
   serial: '',
 };
 
@@ -51,7 +57,7 @@ export function checkBookDtoToFormValues(dto: CheckBookDto, accountLabel: string
     fromCheckNumber: dto.fromCheckNumber ?? '',
     toCheckNumber: dto.toCheckNumber ?? '',
     checkTypeId: dto.checkTypeId,
-    checkBookType: booleanToTriState(dto.checkBookType),
+    checkBookType: dto.checkBookType,
     serial: dto.serial ?? '',
   };
 }
@@ -64,7 +70,7 @@ export function checkBookFormValuesToPayload(values: CheckBookFormValues): Check
     fromCheckNumber: values.fromCheckNumber.trim(),
     toCheckNumber: values.toCheckNumber.trim(),
     checkTypeId: values.checkTypeId,
-    checkBookType: triStateToBoolean(values.checkBookType as TriStateValue),
+    checkBookType: values.checkBookType,
     serial: values.serial?.trim() ? values.serial.trim() : null,
   };
 }

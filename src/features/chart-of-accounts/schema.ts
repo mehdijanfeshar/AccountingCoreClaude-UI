@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AccountCodeWritePayload } from './api';
 import type { AccountCodeDto } from '../../types/accountCode';
-import { booleanToTriState, triStateToBoolean, type TriStateValue } from '../../components/TriStateToggle';
+import { TYPE_ACC_CODE_VALUES, TYPE_ACTION_VALUES, TYPE_ACTIVITY_VALUES, TYPE_CODE_VALUES } from './accountCodeEnums';
 
 /**
  * UX-presentation validation only, mirroring `CreateAccountCodeCommandValidator` /
@@ -9,7 +9,22 @@ import { booleanToTriState, triStateToBoolean, type TriStateValue } from '../../
  * rules and required-detail were deliberately discarded server-side and must NOT be
  * re-invented here). `parentId`/`sourceAndConsumeId`/`identyGroupsId` are plain nullable
  * guid strings — no format assertion beyond "picked from a real row via the picker dialog".
+ *
+ * `typeCode`/`typeActivity`/`typeAccCode`/`typeAction` (phase 25/26): each accepts `null` plus
+ * only the values documented in `accountCodeEnums.ts` — matching the backend's `.IsInEnum()`
+ * (no `.NotNull()`, so `null` stays valid). `typeActivity` deliberately accepts its *entire*
+ * 1..7 range regardless of this row's `typeCode` level: the reference project restricts group
+ * rows to 1..3, but our own Legacy data already violates that rule (see CLAUDE.md risk #13),
+ * and the backend validator intentionally does not enforce it either — the frontend must not
+ * be stricter than the contract.
  */
+function enumFieldSchema(allowedValues: readonly number[], message: string) {
+  return z
+    .number()
+    .refine((value) => allowedValues.includes(value), { message })
+    .nullable();
+}
+
 export const accountCodeFormSchema = z.object({
   accCode: z
     .string()
@@ -29,10 +44,10 @@ export const accountCodeFormSchema = z.object({
     .max(6, 'حداکثر ۶ کاراکتر است')
     .optional()
     .or(z.literal('')),
-  typeCode: z.enum(['true', 'false', '']),
-  typeActivity: z.enum(['true', 'false', '']),
-  typeAccCode: z.enum(['true', 'false', '']),
-  typeAction: z.enum(['true', 'false', '']),
+  typeCode: enumFieldSchema(TYPE_CODE_VALUES, 'سطح کد حساب نامعتبر است'),
+  typeActivity: enumFieldSchema(TYPE_ACTIVITY_VALUES, 'ماهیت حساب نامعتبر است'),
+  typeAccCode: enumFieldSchema(TYPE_ACC_CODE_VALUES, 'نوع حساب نامعتبر است'),
+  typeAction: enumFieldSchema(TYPE_ACTION_VALUES, 'کنترل خلاف ماهیت نامعتبر است'),
 });
 
 export type AccountCodeFormValues = z.infer<typeof accountCodeFormSchema>;
@@ -43,10 +58,10 @@ export const emptyAccountCodeFormValues: AccountCodeFormValues = {
   parentId: null,
   parentLabel: null,
   moInforClose: '',
-  typeCode: '',
-  typeActivity: '',
-  typeAccCode: '',
-  typeAction: '',
+  typeCode: null,
+  typeActivity: null,
+  typeAccCode: null,
+  typeAction: null,
 };
 
 export function accountCodeDtoToFormValues(
@@ -59,10 +74,10 @@ export function accountCodeDtoToFormValues(
     parentId: dto.parentId,
     parentLabel,
     moInforClose: dto.moInforClose ?? '',
-    typeCode: booleanToTriState(dto.typeCode),
-    typeActivity: booleanToTriState(dto.typeActivity),
-    typeAccCode: booleanToTriState(dto.typeAccCode),
-    typeAction: booleanToTriState(dto.typeAction),
+    typeCode: dto.typeCode,
+    typeActivity: dto.typeActivity,
+    typeAccCode: dto.typeAccCode,
+    typeAction: dto.typeAction,
   };
 }
 
@@ -77,10 +92,10 @@ export function accountCodeFormValuesToPayload(values: AccountCodeFormValues): A
     accCodeName: values.accCodeName.trim(),
     parentId: values.parentId,
     moInforClose: values.moInforClose?.trim() ? values.moInforClose.trim() : null,
-    typeCode: triStateToBoolean(values.typeCode as TriStateValue),
-    typeActivity: triStateToBoolean(values.typeActivity as TriStateValue),
-    typeAccCode: triStateToBoolean(values.typeAccCode as TriStateValue),
-    typeAction: triStateToBoolean(values.typeAction as TriStateValue),
+    typeCode: values.typeCode,
+    typeActivity: values.typeActivity,
+    typeAccCode: values.typeAccCode,
+    typeAction: values.typeAction,
     sourceAndConsumeId: null,
     identyGroupsId: null,
   };

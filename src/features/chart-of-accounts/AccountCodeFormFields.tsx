@@ -1,16 +1,29 @@
 import { Controller, type Control, type FieldErrors, type UseFormRegister } from 'react-hook-form';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { toLatinDigits } from '../../lib/format/numbers';
+import {
+  TYPE_ACC_CODE_OPTIONS,
+  TYPE_ACTION_OPTIONS,
+  TYPE_ACTIVITY_OPTIONS,
+  TYPE_CODE_OPTIONS,
+} from './accountCodeEnums';
 import type { AccountCodeFormValues } from './schema';
+
+/** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 interface AccountCodeFormFieldsProps {
   control: Control<AccountCodeFormValues>;
@@ -107,7 +120,7 @@ export function AccountCodeFormFields({
       <Grid size={12}>
         <FormAdvancedSection
           label="ویژگی‌های تکمیلی (اختیاری)"
-          caption="معنای دقیق این ستون‌های قدیمی هنوز در بک‌اند تأیید نشده — فعلاً به‌صورت سه‌حالته (بله/خیر/تعیین‌نشده) نمایش داده می‌شوند."
+          caption="این چهار فیلد اختیاری‌اند — گزینهٔ «انتخاب نشده» مقدار را روی نامشخص (null) نگه می‌دارد."
         >
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 3 }}>
@@ -126,11 +139,23 @@ export function AccountCodeFormFields({
                 control={control}
                 name="typeCode"
                 render={({ field }) => (
-                  <TriStateToggle
-                    label="typeCode (نوع کد)"
-                    value={field.value as TriStateValue}
-                    onChange={field.onChange}
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="سطح کد حساب"
+                    helperText={errors.typeCode?.message ?? 'typeCode'}
+                    error={!!errors.typeCode}
+                    value={field.value ?? UNSET}
+                    onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                  >
+                    <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                    {TYPE_CODE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 )}
               />
             </Grid>
@@ -139,11 +164,23 @@ export function AccountCodeFormFields({
                 control={control}
                 name="typeActivity"
                 render={({ field }) => (
-                  <TriStateToggle
-                    label="typeActivity (نوع فعالیت)"
-                    value={field.value as TriStateValue}
-                    onChange={field.onChange}
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="ماهیت حساب"
+                    helperText={errors.typeActivity?.message ?? 'typeActivity'}
+                    error={!!errors.typeActivity}
+                    value={field.value ?? UNSET}
+                    onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                  >
+                    <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                    {TYPE_ACTIVITY_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 )}
               />
             </Grid>
@@ -152,11 +189,23 @@ export function AccountCodeFormFields({
                 control={control}
                 name="typeAccCode"
                 render={({ field }) => (
-                  <TriStateToggle
-                    label="typeAccCode (نوع کد حساب)"
-                    value={field.value as TriStateValue}
-                    onChange={field.onChange}
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="نوع حساب (موقت/دائم)"
+                    helperText={errors.typeAccCode?.message ?? 'typeAccCode'}
+                    error={!!errors.typeAccCode}
+                    value={field.value ?? UNSET}
+                    onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                  >
+                    <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                    {TYPE_ACC_CODE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 )}
               />
             </Grid>
@@ -165,11 +214,23 @@ export function AccountCodeFormFields({
                 control={control}
                 name="typeAction"
                 render={({ field }) => (
-                  <TriStateToggle
-                    label="typeAction (نوع عملیات)"
-                    value={field.value as TriStateValue}
-                    onChange={field.onChange}
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="کنترل خلاف ماهیت"
+                    helperText={errors.typeAction?.message ?? 'typeAction'}
+                    error={!!errors.typeAction}
+                    value={field.value ?? UNSET}
+                    onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                  >
+                    <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                    {TYPE_ACTION_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 )}
               />
             </Grid>

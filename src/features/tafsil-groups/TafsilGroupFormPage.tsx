@@ -6,6 +6,7 @@ import { Controller, useForm } from 'react-hook-form';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -18,7 +19,6 @@ import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits } from '../../lib/format/numbers';
@@ -30,6 +30,14 @@ import {
   tafsilGroupFormValuesToPayload,
   type TafsilGroupFormValues,
 } from './schema';
+import { PERSON_TYPE_OPTIONS } from '../../types/legacyEnums';
+
+/** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 /** Handles both `/base/tafsil-groups/new` and `/base/tafsil-groups/:id/edit`. */
 export function TafsilGroupFormPage() {
@@ -157,17 +165,29 @@ export function TafsilGroupFormPage() {
           </Grid>
 
           <Grid size={12}>
-            <FormSectionLabel
-              label="ویژگی‌های تکمیلی"
-              caption="معنای دقیق این فیلد در بک‌اند مستند نشده — فعلاً به‌صورت سه‌حالته نمایش داده می‌شود."
-            />
+            <FormSectionLabel label="ویژگی‌های تکمیلی" caption="نوع شخصِ حساب‌های تفصیلی این گروه." />
           </Grid>
           <Grid size={{ xs: 12, sm: 4 }}>
             <Controller
               control={control}
               name="personType"
               render={({ field }) => (
-                <TriStateToggle label="نوع شخص (PersonType)" value={field.value as TriStateValue} onChange={field.onChange} />
+                <TextField
+                  select
+                  fullWidth
+                  label="نوع شخص"
+                  helperText={errors.personType?.message ?? 'personType'}
+                  error={!!errors.personType}
+                  value={field.value ?? UNSET}
+                  onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                >
+                  <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                  {PERSON_TYPE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
               )}
             />
           </Grid>

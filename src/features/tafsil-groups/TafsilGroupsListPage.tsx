@@ -21,16 +21,13 @@ import { MonoCode } from '../../components/MonoCode';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { tafsilGroupsApi } from './api';
 import type { TafsilGroupDto } from '../../types/tafsilGroup';
+import { getPersonTypeLabel } from '../../types/legacyEnums';
 
 const PAGE_SIZE = 20;
 
-/**
- * `true` = حقیقی (confirmed by project owner). `false`/`null` labels are provisional
- * (حقوقی/نامشخص) pending the owner's exact confirmation.
- */
-function personTypeChip(value: boolean | null) {
-  if (value === null) return <Chip size="small" variant="outlined" label="نامشخص" />;
-  return <Chip size="small" color={value ? 'primary' : 'default'} label={value ? 'حقیقی' : 'حقوقی'} />;
+function personTypeChip(value: number | null) {
+  if (value === null) return <Chip size="small" variant="outlined" label="تعیین‌نشده" />;
+  return <Chip size="small" color="primary" label={getPersonTypeLabel(value)} />;
 }
 
 export function TafsilGroupsListPage() {

@@ -8,9 +8,10 @@ export interface PayReciveHeadDto {
   payReciveCode: string;
   payReciveDate: string;
   payReciveDescription: string;
-  // CONFIRMED bool|null-should-be-enum (real values 1=پرداخت 2=دریافت 3=همه) — the third value is
-  // unreachable through this API. Not re-typed here; a breaking API-contract change out of scope.
-  payReciveType: boolean | null;
+  // Phase 27: real nullable-integer enum on the wire (`PayRecivType`: 1=پرداخت, 2=دریافت, 3=همه)
+  // — was a buggy `bool|null` under which value 3 was unreachable. Value/label table:
+  // `../types/legacyEnums.ts`.
+  payReciveType: number | null;
   vahedCode: string;
   year: string;
   voucherHeadId: string | null; // guid — the accounting voucher this document was turned into, if any

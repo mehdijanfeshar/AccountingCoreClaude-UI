@@ -13,7 +13,8 @@ export interface PayReciveHeadWritePayload {
   payReciveCode: string;
   payReciveDate: string;
   payReciveDescription: string;
-  payReciveType: boolean | null;
+  // Phase 27: real nullable-integer enum on the wire — see `../../types/legacyEnums.ts`.
+  payReciveType: number | null;
   year: string;
   voucherHeadId: string | null;
 }

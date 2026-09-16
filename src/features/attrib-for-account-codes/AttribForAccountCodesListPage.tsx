@@ -20,12 +20,9 @@ import { ListToolbar } from '../../components/ListToolbar';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { attribForAccountCodesApi } from './api';
 import type { AttribForAccountCodeDto } from '../../types/attribForAccountCode';
+import { getAttribFlagLabel, getAttribSumLabel } from '../../types/legacyEnums';
 
 const PAGE_SIZE = 20;
-
-function boolChip(value: boolean, trueLabel: string) {
-  return <Chip size="small" color={value ? 'primary' : 'default'} variant={value ? 'filled' : 'outlined'} label={trueLabel} />;
-}
 
 export function AttribForAccountCodesListPage() {
   const notify = useNotify();
@@ -62,9 +59,17 @@ export function AttribForAccountCodesListPage() {
   const columns: DataTableColumn<AttribForAccountCodeDto>[] = [
     { key: 'year', header: 'سال مالی', render: (row) => row.year ?? '—' },
     { key: 'lenAtr', header: 'طول ویژگی (LenAtr)', render: (row) => toPersianDigits(row.lenAtr) },
-    { key: 'attribBoxNo', header: 'AttribBoxNo', render: (row) => boolChip(row.attribBoxNo, 'بله') },
-    { key: 'flag', header: 'Flag', render: (row) => boolChip(row.flag, 'بله') },
-    { key: 'attribSum', header: 'AttribSum', render: (row) => boolChip(row.attribSum, 'بله') },
+    { key: 'attribBoxNo', header: 'شماره جعبه', render: (row) => toPersianDigits(row.attribBoxNo) },
+    {
+      key: 'flag',
+      header: 'نوع مقدار',
+      render: (row) => <Chip size="small" color="primary" label={getAttribFlagLabel(row.flag)} />,
+    },
+    {
+      key: 'attribSum',
+      header: 'جمع‌پذیری',
+      render: (row) => <Chip size="small" color="primary" label={getAttribSumLabel(row.attribSum)} />,
+    },
     {
       key: 'action',
       header: 'عملیات',

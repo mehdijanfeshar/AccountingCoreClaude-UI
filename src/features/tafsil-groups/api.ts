@@ -10,7 +10,8 @@ import type { TafsilGroupDto } from '../../types/tafsilGroup';
 export interface TafsilGroupWritePayload {
   tafsilGroupCode: string;
   tafsilGroupName: string;
-  personType: boolean | null;
+  // Phase 27: real nullable-integer enum on the wire — see `../../types/legacyEnums.ts`.
+  personType: number | null;
 }
 
 export const tafsilGroupsApi = createResourceApi<TafsilGroupDto, TafsilGroupWritePayload, TafsilGroupWritePayload>(

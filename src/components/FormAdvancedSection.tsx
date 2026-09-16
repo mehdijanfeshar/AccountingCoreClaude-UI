@@ -14,11 +14,16 @@ interface FormAdvancedSectionProps {
 }
 
 /**
- * Collapsed-by-default container for the Legacy flag columns every base-info form carries
- * (`typeCode`, `typeActivity`, `Owner`, ...). Their business meaning is still unconfirmed, so
- * they must stay editable — but left expanded they dominate a form whose genuinely meaningful
- * fields are only a code, a name and a parent. Collapsing them puts the common case first
- * without hiding anything from the users who do need them.
+ * Collapsed-by-default container for the secondary Legacy columns every base-info form carries
+ * (`Owner`, `ControlId`, `PersonType`, ...). Most of their business meanings are still
+ * unconfirmed, so they must stay editable — but left expanded they dominate a form whose
+ * genuinely meaningful fields are only a code, a name and a parent. Collapsing them puts the
+ * common case first without hiding anything from the users who do need them.
+ *
+ * Note: `typeCode`/`typeActivity`/`typeAccCode`/`typeAction` on the account-code form are no
+ * longer in the "unconfirmed" bucket — phase 25/26 resolved them into real enums (see
+ * `features/chart-of-accounts/accountCodeEnums.ts`). They still live in this section only
+ * because they are optional, not because their meaning is unknown.
  */
 export function FormAdvancedSection({ label, caption, children }: FormAdvancedSectionProps) {
   return (

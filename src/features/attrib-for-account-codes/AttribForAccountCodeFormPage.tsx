@@ -6,10 +6,9 @@ import { Controller, useForm } from 'react-hook-form';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
@@ -24,7 +23,6 @@ import { FormAdvancedSection } from '../../components/FormAdvancedSection';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { ApiError } from '../../lib/api/apiError';
@@ -39,6 +37,14 @@ import {
   type AttribForAccountCodeFormValues,
 } from './schema';
 import type { AccountCodeDto } from '../../types/accountCode';
+import { ATTRIB_CONTROL_OPTIONS, ATTRIB_FLAG_OPTIONS, ATTRIB_SUM_OPTIONS } from '../../types/legacyEnums';
+
+/** `''` is the Select's own "not selected" sentinel for a nullable-enum RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 /** Handles both `/base/attrib-for-account-codes/new` and `/base/attrib-for-account-codes/:id/edit`. */
 export function AttribForAccountCodeFormPage() {
@@ -139,7 +145,7 @@ export function AttribForAccountCodeFormPage() {
         eyebrow="اطلاعات پایه"
         icon={<TuneOutlinedIcon />}
         title={isEdit ? 'ویرایش ویژگی' : 'ویژگی جدید'}
-        description="معنای دقیق فیلدهای AttribBoxNo/Flag/LenAtr/AttribSum/ControlId در بک‌اند مستند نشده — نام انگلیسی فیلد در کنار هر برچسب آمده."
+        description="شمارهٔ جعبه، نوع مقدار، طول ویژگی، جمع‌پذیری و کنترل این ویژگی را وارد کنید."
       />
 
       {duplicateMessage ? (
@@ -197,55 +203,95 @@ export function AttribForAccountCodeFormPage() {
               helperText={errors.lenAtr?.message}
             />
           </Grid>
+          <Grid size={{ xs: 12, sm: 4 }}>
+            <TextField
+              {...register('attribBoxNo', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
+              label="شماره جعبه (AttribBoxNo)"
+              fullWidth
+              required
+              inputMode="numeric"
+              slotProps={{ htmlInput: { maxLength: 1 } }}
+              error={!!errors.attribBoxNo}
+              helperText={errors.attribBoxNo?.message ?? 'عددی بین ۰ تا ۹'}
+            />
+          </Grid>
 
           <Grid size={12}>
             <FormAdvancedSection
-              label="ویژگی‌های تکمیلی (اختیاری)"
-              caption="معنای دقیق این فیلدها در بک‌اند مستند نشده — نام انگلیسی فیلد در کنار هر برچسب آمده."
+              label="ویژگی‌های تکمیلی"
+              caption="نوع مقدار، جمع‌پذیری و کنترل این ویژگی."
             >
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Controller
-                    control={control}
-                    name="controlId"
-                    render={({ field }) => (
-                      <TriStateToggle label="ControlId" value={field.value as TriStateValue} onChange={field.onChange} />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
-                  <Controller
-                    control={control}
-                    name="attribBoxNo"
-                    render={({ field }) => (
-                      <FormControlLabel
-                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                        label="AttribBoxNo"
-                      />
-                    )}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Controller
                     control={control}
                     name="flag"
                     render={({ field }) => (
-                      <FormControlLabel
-                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                        label="Flag"
-                      />
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="نوع مقدار (Flag)"
+                        helperText={errors.flag?.message ?? 'flag'}
+                        error={!!errors.flag}
+                        value={field.value}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      >
+                        {ATTRIB_FLAG_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                     )}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 3 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Controller
                     control={control}
                     name="attribSum"
                     render={({ field }) => (
-                      <FormControlLabel
-                        control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
-                        label="AttribSum"
-                      />
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="جمع‌پذیری (AttribSum)"
+                        helperText={errors.attribSum?.message ?? 'attribSum'}
+                        error={!!errors.attribSum}
+                        value={field.value}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      >
+                        {ATTRIB_SUM_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <Controller
+                    control={control}
+                    name="controlId"
+                    render={({ field }) => (
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="کنترل (ControlId)"
+                        helperText={errors.controlId?.message ?? 'controlId'}
+                        error={!!errors.controlId}
+                        value={field.value ?? UNSET}
+                        onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                      >
+                        <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                        {ATTRIB_CONTROL_OPTIONS.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                     )}
                   />
                 </Grid>

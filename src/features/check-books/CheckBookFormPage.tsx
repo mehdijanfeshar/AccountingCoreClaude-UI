@@ -13,6 +13,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import Button from '@mui/material/Button';
 import Autocomplete from '@mui/material/Autocomplete';
+import MenuItem from '@mui/material/MenuItem';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
@@ -29,7 +30,6 @@ import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { BankAccountPickerDialog } from '../../components/BankAccountPickerDialog';
-import { TriStateToggle, type TriStateValue } from '../../components/TriStateToggle';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits } from '../../lib/format/numbers';
@@ -44,6 +44,14 @@ import {
   type CheckBookFormValues,
 } from './schema';
 import type { BankAccountDto } from '../../types/bankAccount';
+import { CHECK_TYPE_OPTIONS } from '../../types/legacyEnums';
+
+/** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
+const UNSET = '';
+
+function toEnumFieldValue(raw: string): number | null {
+  return raw === UNSET ? null : Number(raw);
+}
 
 /** Handles both `/operation/check-books/new` and `/operation/check-books/:id/edit`. */
 export function CheckBookFormPage() {
@@ -308,17 +316,27 @@ export function CheckBookFormPage() {
               )}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               control={control}
               name="checkBookType"
               render={({ field }) => (
-                <TriStateToggle
-                  label="CheckBookType"
-                  value={field.value as TriStateValue}
-                  onChange={field.onChange}
-                  helperText="معنای دقیق این ستون در بک‌اند هنوز تأیید نشده."
-                />
+                <TextField
+                  select
+                  fullWidth
+                  label="نوع دسته‌چک"
+                  helperText={errors.checkBookType?.message ?? 'checkBookType'}
+                  error={!!errors.checkBookType}
+                  value={field.value ?? UNSET}
+                  onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}
+                >
+                  <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
+                  {CHECK_TYPE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
               )}
             />
           </Grid>

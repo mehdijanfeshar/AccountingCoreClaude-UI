@@ -14,7 +14,8 @@ export interface CheckBookWritePayload {
   fromCheckNumber: string;
   toCheckNumber: string;
   checkTypeId: string | null;
-  checkBookType: boolean | null;
+  // Phase 27: real nullable-integer enum on the wire — see `../../types/legacyEnums.ts`.
+  checkBookType: number | null;
   serial: string | null;
 }
 

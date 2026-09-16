@@ -13,10 +13,11 @@ export interface TafsiliWritePayload {
   tafsiliCode: string;
   tafsiliName: string;
   tafsilDesc: string | null;
-  isActive: boolean | null;
-  personType: boolean | null;
-  owner: boolean | null;
-  vahedType: boolean | null;
+  // Phase 27: real nullable-integer enums on the wire — see `../../types/legacyEnums.ts`.
+  isActive: number | null;
+  personType: number | null;
+  owner: number | null;
+  vahedType: number | null;
   tafsilGroupIds: string[];
   /**
    * Visibility scope (`Accounting.Domain.ValueObjects.VahedCategory`: 1=بیمه, 2=درمان, 3=همه)
