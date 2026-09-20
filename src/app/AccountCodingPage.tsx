@@ -10,6 +10,7 @@ import CallSplitOutlinedIcon from '@mui/icons-material/CallSplitOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import { StatTiles, type StatTile } from '../components/StatTiles';
 import { AccountCodeLevelTab } from '../features/chart-of-accounts/AccountCodeLevelTab';
 import { useAllAccountCodes } from '../features/chart-of-accounts/useAllAccountCodes';
 import { TafsilisTab } from '../features/tafsilis/TafsilisTab';
@@ -65,8 +66,31 @@ export function AccountCodingPage() {
 
   const tabIconSx = { mb: '0 !important', mr: 0, ml: 1 } as const;
 
+  /**
+   * One tile per coding level. Each is also the switch to that level's tab, so the number and the
+   * way to see the accounts behind it are the same control rather than two separate steps.
+   *
+   * Only the three levels that share `TB_ACCOUNTCODE` get a tile — تفصیلی and the معین↔گروه link
+   * are different tables, and a tile row that mixes them would imply a hierarchy that is not there.
+   */
+  const statTiles: StatTile[] = [
+    { key: 'group', label: 'حساب‌های گروه', tone: 'primary' as const, tab: 'group' as const, count: levelCount(2) },
+    { key: 'kol', label: 'حساب‌های کل', tone: 'info' as const, tab: 'kol' as const, count: levelCount(4) },
+    { key: 'moin', label: 'حساب‌های معین', tone: 'success' as const, tab: 'moin' as const, count: levelCount(6) },
+  ].map((tile) => ({
+    key: tile.key,
+    label: tile.label,
+    value: tile.count ?? null,
+    tone: tile.tone,
+    icon: <AccountTreeOutlinedIcon fontSize="small" />,
+    active: tab === tile.tab,
+    onClick: () => setTab(tile.tab),
+  }));
+
   return (
     <Box>
+      <StatTiles tiles={statTiles} isLoading={isLoading} />
+
       <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
         <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto">
           <Tab

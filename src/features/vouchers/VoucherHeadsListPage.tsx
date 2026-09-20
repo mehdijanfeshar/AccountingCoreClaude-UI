@@ -1,5 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import DatePicker from 'react-multi-date-picker';
 import DateObject from 'react-date-object';
@@ -39,13 +39,28 @@ import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { sysTypesApi } from '../../lib/api/sysTypesApi';
 import { useSession } from '../../lib/session/SessionContext';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
-import { changeVoucherState, DOC_LIFE_OPTIONS, getDocLifeLabel, voucherHeadsApi } from './api';
+import { StatTiles, type StatTile, type StatTileTone } from '../../components/StatTiles';
+import {
+  changeVoucherState,
+  DOC_LIFE_OPTIONS,
+  getDocLifeLabel,
+  getDocLifeTone,
+  voucherHeadsApi,
+} from './api';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 
 const PAGE_SIZE = 20;
 
 /** `''` is the «همه» tab; the others are a `DocLife` value as a string. */
 type StatusTab = '' | '1' | '2' | '3' | '4';
+
+/** Tile tone per state — same progression as the chips, minus the chip's neutral. */
+const DOC_LIFE_TILE_TONES: Record<number, StatTileTone> = {
+  1: 'primary',
+  2: 'warning',
+  3: 'info',
+  4: 'success',
+};
 
 interface Filters {
   year: string;
@@ -162,6 +177,29 @@ export function VoucherHeadsListPage() {
   });
   const sysTypes = sysTypesQuery.data ?? [];
 
+  // One count per state, so the tabs and tiles show real numbers instead of decoration.
+  // `pageSize: 1` because only `totalCount` is read — four tiny requests, cached by React Query
+  // and refetched together with the list after a state change.
+  const countQueries = useQueries({
+    queries: DOC_LIFE_OPTIONS.map((option) => ({
+      queryKey: ['voucher-heads', 'count', filters.year, option.value],
+      queryFn: () =>
+        voucherHeadsApi.list({
+          pageNumber: 1,
+          pageSize: 1,
+          year: filters.year || undefined,
+          docLife: option.value,
+        }),
+      enabled: isConfigured,
+      select: (page: { totalCount: number }) => page.totalCount,
+    })),
+  });
+
+  const countsLoading = countQueries.some((q) => q.isLoading);
+  const countByState = new Map<number, number | undefined>(
+    DOC_LIFE_OPTIONS.map((option, index) => [option.value, countQueries[index]?.data]),
+  );
+
   const query = useQuery({
     queryKey: ['voucher-heads', pageNumber, PAGE_SIZE, filters, statusTab],
     queryFn: () =>
@@ -203,7 +241,9 @@ export function VoucherHeadsListPage() {
     {
       key: 'docLife',
       header: 'وضعیت',
-      render: (row) => <Chip size="small" variant="outlined" label={getDocLifeLabel(row.docLife)} />,
+      render: (row) => (
+        <Chip size="small" color={getDocLifeTone(row.docLife)} label={getDocLifeLabel(row.docLife)} />
+      ),
     },
     {
       key: 'rowActions',
@@ -254,6 +294,31 @@ export function VoucherHeadsListPage() {
   /** The states a selection can move to — every state except the tab it is already in. */
   const moveTargets = DOC_LIFE_OPTIONS.filter((option) => String(option.value) !== statusTab);
 
+  /**
+   * One tile per state. Each is also the filter for that state, so the number and the way to see
+   * the rows behind it are the same control — clicking a tile switches to its tab.
+   *
+   * ⚠️ These count the fiscal year only, not the other filters: a tile is meant to answer "how
+   * much work is waiting this year", which a چند-فیلتره count would quietly stop answering. The
+   * toolbar's own count is the one that reflects every active filter.
+   */
+  const statTiles: StatTile[] = DOC_LIFE_OPTIONS.map((option) => ({
+    key: String(option.value),
+    label: `اسناد ${option.label}`,
+    value: countByState.get(option.value) ?? null,
+    // getDocLifeTone returns MUI *chip* colours, where یادداشت is the neutral `default`.
+    // A tile has no neutral, so that one maps to `primary`.
+    tone: DOC_LIFE_TILE_TONES[option.value],
+    icon: <DescriptionOutlinedIcon fontSize="small" />,
+    hint: filters.year ? `سال ${toPersianDigits(filters.year)}` : undefined,
+    active: statusTab === String(option.value),
+    onClick: () => {
+      setStatusTab(String(option.value) as StatusTab);
+      setSelectedIds([]);
+      setPageNumber(1);
+    },
+  }));
+
   const hasExtraFilter = Boolean(
     filters.docNumFrom || filters.docNumTo || filters.dateDocFrom || filters.dateDocTo || filters.systemTypeId,
   );
@@ -300,13 +365,36 @@ export function VoucherHeadsListPage() {
 
       {query.isError && <ErrorBanner error={query.error} />}
 
+      {isConfigured && <StatTiles tiles={statTiles} isLoading={countsLoading} />}
+
       {isConfigured && (
         <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
           <Tabs value={statusTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
             <Tab value="" label="همه" />
-            {DOC_LIFE_OPTIONS.map((option) => (
-              <Tab key={option.value} value={String(option.value)} label={option.label} />
-            ))}
+            {DOC_LIFE_OPTIONS.map((option) => {
+              const count = countByState.get(option.value);
+
+              return (
+                <Tab
+                  key={option.value}
+                  value={String(option.value)}
+                  label={
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <span>{option.label}</span>
+                      {/* The count tells the user where the work is before they click. */}
+                      {count !== undefined && (
+                        <Chip
+                          size="small"
+                          label={toPersianDigits(count)}
+                          color={count > 0 ? getDocLifeTone(option.value) : 'default'}
+                          sx={{ height: 20, minWidth: 28, fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Stack>
+                  }
+                />
+              );
+            })}
           </Tabs>
         </Paper>
       )}

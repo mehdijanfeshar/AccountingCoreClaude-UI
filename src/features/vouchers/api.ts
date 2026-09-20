@@ -126,3 +126,23 @@ export function changeVoucherState(voucherHeadIds: string[], newState: number): 
     .post('/voucher-heads/change-state', { voucherHeadIds, newState })
     .then(() => undefined);
 }
+
+/**
+ * Semantic colour per state, so the چیپ carries meaning rather than being uniformly blue:
+ * یادداشت is a scratch note, موقت is in-flight, بررسی‌شده is checked but not final, تأیید دائم
+ * is done. MUI severity names map onto exactly that progression.
+ */
+export function getDocLifeTone(value: number | null | undefined): 'default' | 'warning' | 'info' | 'success' {
+  switch (value) {
+    case 1:
+      return 'default';
+    case 2:
+      return 'warning';
+    case 3:
+      return 'info';
+    case 4:
+      return 'success';
+    default:
+      return 'default';
+  }
+}
