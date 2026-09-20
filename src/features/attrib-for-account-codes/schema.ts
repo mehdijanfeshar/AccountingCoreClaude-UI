@@ -37,7 +37,7 @@ export const attribForAccountCodeFormSchema = z.object({
   lenAtr: z
     .string()
     .trim()
-    .min(1, 'طول ویژگی الزامی است')
+    .min(1, 'طول شناسه الزامی است')
     .refine((v) => {
       const n = Number(v);
       return Number.isInteger(n) && n >= 0 && n <= 255;

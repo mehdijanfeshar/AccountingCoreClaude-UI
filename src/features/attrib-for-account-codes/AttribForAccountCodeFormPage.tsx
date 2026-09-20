@@ -112,7 +112,7 @@ export function AttribForAccountCodeFormPage() {
         await createMutation.mutateAsync(values);
       }
       await queryClient.invalidateQueries({ queryKey: ['attrib-for-account-codes'] });
-      notify(isEdit ? 'ویژگی ویرایش شد.' : 'ویژگی جدید ذخیره شد.');
+      notify(isEdit ? 'حساب شناسه‌دار ویرایش شد.' : 'حساب شناسه‌دار جدید ذخیره شد.');
       navigate('/base/attrib-for-account-codes');
     } catch (error) {
       setSubmitError(error);
@@ -136,7 +136,7 @@ export function AttribForAccountCodeFormPage() {
 
   const duplicateMessage =
     submitError instanceof ApiError && submitError.status === 409
-      ? 'ویژگی برای این حساب معین و سال مالی تکراری است.'
+      ? 'برای این حساب معین و سال مالی، شناسه از قبل تعریف شده است.'
       : null;
 
   return (
@@ -144,8 +144,8 @@ export function AttribForAccountCodeFormPage() {
       <PageHeader
         eyebrow="اطلاعات پایه"
         icon={<TuneOutlinedIcon />}
-        title={isEdit ? 'ویرایش ویژگی' : 'ویژگی جدید'}
-        description="شمارهٔ جعبه، نوع مقدار، طول ویژگی، جمع‌پذیری و کنترل این ویژگی را وارد کنید."
+        title={isEdit ? 'ویرایش حساب شناسه‌دار' : 'حساب شناسه‌دار جدید'}
+        description="حساب معین، شمارهٔ جعبه، نوع مقدار، طول شناسه، جمع‌پذیری و کنترل را وارد کنید."
       />
 
       {duplicateMessage ? (
@@ -191,7 +191,7 @@ export function AttribForAccountCodeFormPage() {
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               {...register('lenAtr', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
-              label="LenAtr (طول ویژگی)"
+              label="طول شناسه (LenAtr)"
               fullWidth
               required
               inputMode="numeric"
@@ -218,8 +218,8 @@ export function AttribForAccountCodeFormPage() {
 
           <Grid size={12}>
             <FormAdvancedSection
-              label="ویژگی‌های تکمیلی"
-              caption="نوع مقدار، جمع‌پذیری و کنترل این ویژگی."
+              label="تنظیمات تکمیلی"
+              caption="نوع مقدار، جمع‌پذیری و کنترل این شناسه."
             >
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 4 }}>

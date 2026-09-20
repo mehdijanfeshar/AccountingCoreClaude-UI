@@ -96,7 +96,7 @@ export function WorkShopsListPage() {
         eyebrow="اطلاعات پایه"
         icon={<FactoryOutlinedIcon />}
         title="کارگاه"
-        description="فهرست کارگاه‌ها/خطوط تولید (TB_WORKSHOP)"
+        description="فهرست کارگاه‌ها و شعب مربوطه (TB_WORKSHOP)"
         actions={
           <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/work-shops/new">
             افزودن کارگاه

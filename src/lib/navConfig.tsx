@@ -4,7 +4,7 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -81,14 +81,14 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <SavingsOutlinedIcon fontSize="small" />,
       },
       {
-        label: 'ویژگی',
-        description: 'ویژگی‌های تعریف‌شده برای حساب‌های معین',
+        label: 'حساب‌های شناسه‌دار',
+        description: 'حساب‌های معین دارای شناسه',
         to: '/base/attrib-for-account-codes',
-        icon: <TuneOutlinedIcon fontSize="small" />,
+        icon: <BadgeOutlinedIcon fontSize="small" />,
       },
       {
         label: 'کارگاه',
-        description: 'کارگاه‌ها و خطوط تولید',
+        description: 'کارگاه‌ها و شعب مربوطه',
         to: '/base/work-shops',
         icon: <FactoryOutlinedIcon fontSize="small" />,
       },

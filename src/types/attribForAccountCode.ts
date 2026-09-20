@@ -15,6 +15,9 @@
 export interface AttribForAccountCodeDto {
   id: string; // guid
   accountCodeId: string;
+  /** Denormalized from the linked TB_ACCOUNTCODE — the defining column of this list. */
+  moinCode: string | null;
+  moinName: string | null;
   attribBoxNo: number; // 0..9
   flag: number;
   lenAtr: number; // byte (0-255)
