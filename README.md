@@ -19,13 +19,23 @@ npm run dev
 
 ```
 VITE_API_BASE_URL=/api
+VITE_AUTH_SERVER=https://account-pilot.tamin.ir/
+VITE_AUTH_CLIENT_ID=136f697b158116450170417a5105224e
+VITE_AUTH_REDIRECT_URI=
 ```
 
-مقدار پیش‌فرض نسبی (`/api`) است تا Vite proxy کار کند و هیچ آدرس مطلق بک‌اند در کد/باندل فرانت نباشد.
+مقدار پیش‌فرض `VITE_API_BASE_URL` نسبی (`/api`) است تا Vite proxy کار کند و هیچ آدرس مطلق بک‌اند در کد/باندل فرانت نباشد. بقیهٔ مقادیر برای SSO سازمانی‌اند — رجوع به بخش بعد.
 
-## احراز هویت (توسعه)
+## احراز هویت
 
-این بک‌اند endpoint لاگین ندارد — توکن JWT از IDP سازمان تأمین می‌شود. برای تست محلی، توکن واقعی را از نوار بالای برنامه («تنظیم توکن») وارد کنید؛ در `localStorage` نگه داشته می‌شود و به‌صورت خودکار به هدر `Authorization: Bearer` هر درخواست اضافه می‌شود. **این یک UI لاگین کامل نیست** — صرفاً اسکلت نگه‌داری توکن است.
+این بک‌اند endpoint لاگین ندارد — توکن JWT همیشه از IDP سازمان (`account-pilot.tamin.ir`) تأمین می‌شود. فرم نام‌کاربری/رمز داخل برنامه وجود ندارد و نباید ساخته شود؛ ورود واقعی روی صفحهٔ خودِ سازمان انجام می‌شود:
+
+1. کاربر در `/login` روی «ورود با حساب سازمانی» کلیک می‌کند (`src/features/auth/LoginPage.tsx`) → به IDP ریدایرکت می‌شود.
+2. IDP بعد از ورود موفق، کاربر را به `redirect_uri` ثبت‌شده (در dev دقیقاً `http://localhost:4200` — پورت Vite **عمداً ثابت** روی ۴۲۰۰ است، رجوع به `vite.config.ts`) با توکن در `location.hash` برمی‌گرداند. **مسیر اختصاصی `/auth/callback` وجود ندارد** — چون `redirect_uri` ثبت‌شده هیچ path ای ندارد؛ پردازش callback در `src/lib/auth/authBootstrap.ts` قبل از رندر برنامه (در `main.tsx`) انجام می‌شود.
+3. `src/lib/auth/RequireAuth.tsx` هر مسیر محافظت‌شده را چک می‌کند و در صورت نبود/انقضای توکن به `/login` هدایت می‌کند.
+4. خروج از `UserMenu` در `Layout.tsx` هم توکن محلی را پاک می‌کند و هم به `auth/signout` سازمان ریدایرکت می‌کند.
+
+`response_type` در حالت dev برابر `token` (implicit) و برای production (طبق پیکربندی مرجع) `code` + PKCE است — رجوع به `src/lib/auth/authConfig.ts` و `src/lib/auth/oauth.ts`.
 
 ## ساختار
 
@@ -34,7 +44,7 @@ src/
   app/            روت برنامه (App.tsx)، routes.tsx، QueryClient
   components/     کامپوننت‌های مشترک UI (Layout, PageHeader, DataTable, Pagination, Field, ErrorBanner)
   lib/api/        apiClient (axios) + createResourceApi (helper CRUD جنریک) + ApiError
-  lib/auth/       نگه‌داری توکن + AuthContext + مدیریت ۴۰۱
+  lib/auth/       جریان SSO (authConfig, oauth, authBootstrap, RequireAuth) + AuthContext + مدیریت ۴۰۱
   lib/session/    context سال مالی + واحد سازمانی (نمایشی) — الگوی «تنظیمات اولیه»
   features/chart-of-accounts/   فهرست کدینگ حسابداری (GET /api/account-codes)
   features/vouchers/            فهرست اسناد (GET /api/voucher-heads) + placeholder تفصیلی داینامیک

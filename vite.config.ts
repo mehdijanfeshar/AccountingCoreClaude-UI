@@ -5,10 +5,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 9200,
+    // Fixed at 4200 on purpose: the organization's IDP (account-pilot.tamin.ir)
+    // only issues tokens for pre-registered redirect_uri values, and
+    // http://localhost:4200 is already registered for our client_id. Do not
+    // change this without registering the new URL with the IDP first.
+    port: 4200,
     strictPort: true,
     // Bind to all interfaces so the dev server is reachable from other machines on the LAN
-    // (e.g. http://172.16.15.65:9200). Dev-only: this exposes both the app and — through the
+    // (e.g. http://172.16.15.65:4200). Dev-only: this exposes both the app and — through the
     // /api proxy below — the backend to anyone on the same network.
     host: true,
     proxy: {

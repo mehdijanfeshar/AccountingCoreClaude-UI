@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -19,10 +19,14 @@ import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
 import Stack from '@mui/material/Stack';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import MenuIcon from '@mui/icons-material/Menu';
 import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutlineOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
@@ -170,63 +174,49 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/** Dev-only helper to set the Bearer token by hand until a real login/IDP flow exists. */
-function DevTokenBar() {
-  const { isAuthenticated, setToken, signOut } = useAuth();
-  const [draft, setDraft] = useState('');
+/** Shows the signed-in user (from the SSO token, display-only) and a sign-out action. */
+function UserMenu() {
+  const { isAuthenticated, user, signOut } = useAuth();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const trimmed = draft.trim();
-    if (trimmed) {
-      // The api client always prepends "Bearer " itself (see lib/api/client.ts),
-      // so strip one if the user pasted it along with the token to avoid a
-      // doubled-up "Bearer Bearer <token>" header.
-      const value = trimmed.replace(/^Bearer\s+/i, '');
-      setToken(value);
-      setDraft('');
-    }
+  if (!isAuthenticated) {
+    // RequireAuth keeps unauthenticated users off every route that renders
+    // this Layout, so this is just a defensive fallback, not a real state.
+    return null;
   }
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleSubmit}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1,
-        border: '1px dashed',
-        borderColor: 'divider',
-        borderRadius: 1,
-        px: 1,
-        py: 0.5,
-      }}
-    >
-      <Chip label="DEV" size="small" color="warning" variant="outlined" />
-      <Typography variant="caption" color="text.secondary" noWrap>
-        {isAuthenticated ? 'توکن تنظیم شده' : 'بدون توکن (۴۰۱)'}
-      </Typography>
-      <TextField
-        type="password"
-        autoComplete="off"
-        placeholder="توکن (بدون Bearer)"
-        size="small"
-        variant="standard"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        aria-label="توکن Bearer برای توسعه"
-        sx={{ width: 160 }}
-      />
-      <Button type="submit" size="small" variant="text">
-        تنظیم
+    <>
+      <Button
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        color="inherit"
+        startIcon={
+          <Avatar sx={{ width: 28, height: 28, bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>
+            <PersonOutlineIcon fontSize="small" />
+          </Avatar>
+        }
+        aria-haspopup="true"
+        aria-expanded={Boolean(anchorEl)}
+        sx={{ textTransform: 'none' }}
+      >
+        <Typography variant="body2" noWrap sx={{ maxWidth: 140 }}>
+          {user?.name ?? 'کاربر سازمانی'}
+        </Typography>
       </Button>
-      {isAuthenticated && (
-        <Button type="button" size="small" variant="text" color="inherit" onClick={signOut}>
-          پاک کردن
-        </Button>
-      )}
-    </Box>
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            signOut();
+          }}
+        >
+          <ListItemIcon>
+            <LogoutOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          خروج
+        </MenuItem>
+      </Menu>
+    </>
   );
 }
 
@@ -307,7 +297,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </Stack>
           <Box sx={{ flexGrow: 1 }} />
           <YearSelector />
-          <DevTokenBar />
+          <UserMenu />
         </Toolbar>
       </AppBar>
 

@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router-dom';
 import { HomePage } from './HomePage';
+import { LoginPage } from '../features/auth/LoginPage';
 import { AccountCodingPage } from './AccountCodingPage';
 import { AccountCodeFormPage } from '../features/chart-of-accounts/AccountCodeFormPage';
 import { TafsilGroupsListPage } from '../features/tafsil-groups/TafsilGroupsListPage';
@@ -21,8 +22,12 @@ import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHea
 import { CheckBooksListPage } from '../features/check-books/CheckBooksListPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 
+/** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
+export const PUBLIC_PATHS = new Set<string>(['/login']);
+
 export const routes: RouteObject[] = [
   { path: '/', element: <HomePage /> },
+  { path: '/login', element: <LoginPage /> },
 
   { path: '/base/account-codes', element: <AccountCodingPage /> },
   { path: '/base/account-codes/new', element: <AccountCodeFormPage /> },
