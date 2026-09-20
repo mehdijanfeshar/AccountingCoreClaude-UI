@@ -8,8 +8,7 @@ import Tooltip from '@mui/material/Tooltip';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
-import { PageHeader } from '../../components/PageHeader';
+import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -24,7 +23,12 @@ import type { BankAccountDto } from '../../types/bankAccount';
 
 const PAGE_SIZE = 20;
 
-export function BankAccountsListPage() {
+/**
+ * تب «حساب‌های بانکی» — `TB_ACCOUNT`.
+ *
+ * No `PageHeader` of its own: the parent `BankPage` owns it, same as the کدینگ and ویژگی tabs.
+ */
+export function BankAccountsTab({ onOpenCheckBooks }: { onOpenCheckBooks: (accountId: string) => void }) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
@@ -74,8 +78,13 @@ export function BankAccountsListPage() {
       header: 'عملیات',
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
+          <Tooltip title="دسته‌چک‌های این حساب">
+            <IconButton size="small" aria-label="دسته‌چک‌های این حساب" onClick={() => onOpenCheckBooks(row.id)}>
+              <BookOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="ویرایش">
-            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/bank-accounts/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/bank/accounts/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -90,25 +99,23 @@ export function BankAccountsListPage() {
   ];
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="اطلاعات پایه"
-        icon={<AccountBalanceOutlinedIcon />}
-        title="بانک"
-        description="فهرست حساب‌های بانکی (TB_ACCOUNT)"
-        actions={
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/bank-accounts/new">
-            افزودن حساب بانکی
-          </Button>
-        }
-      />
-
+    <>
       <ListToolbar
         search={filter}
         onSearchChange={setFilter}
         searchLabel="جستجو در همین صفحه"
         summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
-      />
+      >
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddOutlinedIcon />}
+          component={RouterLink}
+          to="/base/bank/accounts/new"
+        >
+          افزودن حساب بانکی
+        </Button>
+      </ListToolbar>
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -126,7 +133,7 @@ export function BankAccountsListPage() {
                   پاک کردن جستجو
                 </Button>
               ) : (
-                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/bank-accounts/new">
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/bank/accounts/new">
                   افزودن حساب بانکی
                 </Button>
               )
@@ -151,6 +158,6 @@ export function BankAccountsListPage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
-    </section>
+    </>
   );
 }

@@ -8,8 +8,9 @@ import Tooltip from '@mui/material/Tooltip';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
-import { PageHeader } from '../../components/PageHeader';
+import Alert from '@mui/material/Alert';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -25,7 +26,25 @@ import type { CheckBookDto } from '../../types/checkBook';
 
 const PAGE_SIZE = 20;
 
-export function CheckBooksListPage() {
+/**
+ * تب «دسته‌چک» — `TB_CHECKBOOK`.
+ *
+ * Lives under بانک rather than عملیات because `ACCOUNT_ID` is a REQUIRED FK to `TB_ACCOUNT`: a
+ * دسته‌چک cannot exist without the bank account it was issued for, so it was never a standalone
+ * operation.
+ *
+ * ⚠️ The account filter is client-side. `GetCheckBooks` has no `accountId` parameter yet, so it
+ * narrows the loaded page only and the toolbar count stays the unfiltered total — the banner
+ * says so rather than letting the two numbers quietly disagree. Recorded in
+ * `docs/open-decisions.md`.
+ */
+export function CheckBooksTab({
+  accountFilter,
+  onAccountFilterChange,
+}: {
+  accountFilter: string;
+  onAccountFilterChange: (accountId: string) => void;
+}) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
@@ -64,7 +83,12 @@ export function CheckBooksListPage() {
   });
 
   const rows = useMemo(() => {
-    const items = query.data?.items ?? [];
+    let items = query.data?.items ?? [];
+
+    if (accountFilter) {
+      items = items.filter((row) => row.accountId === accountFilter);
+    }
+
     if (!filter.trim()) return items;
     const needle = filter.trim().toLowerCase();
     return items.filter(
@@ -74,7 +98,7 @@ export function CheckBooksListPage() {
         (row.checkBookTitle ?? '').toLowerCase().includes(needle) ||
         (row.serial ?? '').toLowerCase().includes(needle),
     );
-  }, [query.data, filter]);
+  }, [query.data, filter, accountFilter]);
 
   const columns: DataTableColumn<CheckBookDto>[] = [
     {
@@ -105,7 +129,7 @@ export function CheckBooksListPage() {
             <IconButton
               size="small"
               component={RouterLink}
-              to={`/operation/check-books/${row.id}/edit`}
+              to={`/base/bank/check-books/${row.id}/edit`}
               aria-label={`ویرایش دسته‌چک ${row.fromCheckNumber} تا ${row.toCheckNumber}`}
             >
               <EditOutlinedIcon fontSize="small" />
@@ -127,25 +151,44 @@ export function CheckBooksListPage() {
   ];
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="عملیات"
-        icon={<BookOutlinedIcon />}
-        title="دسته‌چک"
-        description="فهرست دسته‌چک‌های صادرشده برای حساب‌های بانکی (TB_CHECKBOOK)"
-        actions={
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/check-books/new">
-            افزودن دسته‌چک
-          </Button>
-        }
-      />
-
+    <>
       <ListToolbar
         search={filter}
         onSearchChange={setFilter}
         searchLabel="جستجو در همین صفحه"
         summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}
-      />
+      >
+        <TextField
+          select
+          size="small"
+          label="حساب بانکی"
+          value={accountFilter}
+          onChange={(event) => onAccountFilterChange(event.target.value)}
+          sx={{ width: 240 }}
+        >
+          <MenuItem value="">همه</MenuItem>
+          {(bankAccountsQuery.data?.items ?? []).map((account) => (
+            <MenuItem key={account.id} value={account.id}>
+              {accountLabelById.get(account.id) ?? account.accountNumber}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddOutlinedIcon />}
+          component={RouterLink}
+          to="/base/bank/check-books/new"
+        >
+          افزودن دسته‌چک
+        </Button>
+      </ListToolbar>
+
+      {accountFilter && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          فیلتر حساب بانکی فقط روی ردیف‌های همین صفحه اعمال می‌شود؛ شمارندهٔ بالا کل ردیف‌هاست.
+        </Alert>
+      )}
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -163,7 +206,7 @@ export function CheckBooksListPage() {
                 size="small"
                 startIcon={<AddOutlinedIcon />}
                 component={RouterLink}
-                to="/operation/check-books/new"
+                to="/base/bank/check-books/new"
               >
                 افزودن اولین دسته‌چک
               </Button>
@@ -192,6 +235,6 @@ export function CheckBooksListPage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
-    </section>
+    </>
   );
 }

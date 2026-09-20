@@ -44,7 +44,7 @@ import {
 } from './schema';
 import type { AccountCodeDto } from '../../types/accountCode';
 
-/** Handles both `/base/bank-accounts/new` and `/base/bank-accounts/:id/edit`. */
+/** Handles both `/base/bank/accounts/new` and `/base/bank/accounts/:id/edit`. */
 export function BankAccountFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
@@ -109,7 +109,7 @@ export function BankAccountFormPage() {
       }
       await queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
       notify(isEdit ? 'حساب بانکی ویرایش شد.' : 'حساب بانکی جدید ذخیره شد.');
-      navigate('/base/bank-accounts');
+      navigate('/base/bank');
     } catch (error) {
       setSubmitError(error);
     }
@@ -291,7 +291,7 @@ export function BankAccountFormPage() {
               changeUserId={existingQuery.data?.changeUserId}
             />
             <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/base/bank-accounts')}>
+              <Button variant="text" onClick={() => navigate('/base/bank')}>
                 انصراف
               </Button>
               <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>

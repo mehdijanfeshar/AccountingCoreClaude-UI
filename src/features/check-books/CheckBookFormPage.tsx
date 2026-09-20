@@ -53,7 +53,7 @@ function toEnumFieldValue(raw: string): number | null {
   return raw === UNSET ? null : Number(raw);
 }
 
-/** Handles both `/operation/check-books/new` and `/operation/check-books/:id/edit`. */
+/** Handles both `/base/bank/check-books/new` and `/base/bank/check-books/:id/edit`. */
 export function CheckBookFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
@@ -121,7 +121,7 @@ export function CheckBookFormPage() {
       }
       await queryClient.invalidateQueries({ queryKey: ['check-books'] });
       notify(isEdit ? 'دسته‌چک ویرایش شد.' : 'دسته‌چک جدید ذخیره شد.');
-      navigate('/operation/check-books');
+      navigate('/base/bank');
     } catch (error) {
       setSubmitError(error);
     }
@@ -349,7 +349,7 @@ export function CheckBookFormPage() {
               changeUserId={existingQuery.data?.changeUserId}
             />
             <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/operation/check-books')}>
+              <Button variant="text" onClick={() => navigate('/base/bank')}>
                 انصراف
               </Button>
               <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>

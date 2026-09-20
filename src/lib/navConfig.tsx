@@ -12,7 +12,6 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
@@ -65,8 +64,8 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: 'بانک',
-        description: 'حساب‌های بانکی سازمان',
-        to: '/base/bank-accounts',
+        description: 'حساب‌های بانکی و دسته‌چک‌های هر حساب',
+        to: '/base/bank',
         icon: <AccountBalanceOutlinedIcon fontSize="small" />,
       },
       {
@@ -126,12 +125,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <SwapHorizOutlinedIcon fontSize="small" />,
       },
       { label: 'کارتابل', icon: <InboxOutlinedIcon fontSize="small" /> },
-      {
-        label: 'دسته‌چک',
-        description: 'دسته‌چک‌های صادرشده برای حساب‌های بانکی',
-        to: '/operation/check-books',
-        icon: <BookOutlinedIcon fontSize="small" />,
-      },
     ],
   },
   {

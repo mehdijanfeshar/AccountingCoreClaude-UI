@@ -5,7 +5,7 @@ import { AccountCodingPage } from './AccountCodingPage';
 import { AccountCodeFormPage } from '../features/chart-of-accounts/AccountCodeFormPage';
 import { TafsilGroupsListPage } from '../features/tafsil-groups/TafsilGroupsListPage';
 import { TafsilGroupFormPage } from '../features/tafsil-groups/TafsilGroupFormPage';
-import { BankAccountsListPage } from '../features/bank-accounts/BankAccountsListPage';
+import { BankPage } from './BankPage';
 import { BankAccountFormPage } from '../features/bank-accounts/BankAccountFormPage';
 import { ExpensesListPage } from '../features/expenses/ExpensesListPage';
 import { ExpenseFormPage } from '../features/expenses/ExpenseFormPage';
@@ -23,7 +23,6 @@ import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage'
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
-import { CheckBooksListPage } from '../features/check-books/CheckBooksListPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
@@ -41,9 +40,12 @@ export const routes: RouteObject[] = [
   { path: '/base/tafsil-groups/new', element: <TafsilGroupFormPage /> },
   { path: '/base/tafsil-groups/:id/edit', element: <TafsilGroupFormPage /> },
 
-  { path: '/base/bank-accounts', element: <BankAccountsListPage /> },
-  { path: '/base/bank-accounts/new', element: <BankAccountFormPage /> },
-  { path: '/base/bank-accounts/:id/edit', element: <BankAccountFormPage /> },
+  // بانک — یک صفحهٔ تب‌دار (حساب‌ها / دسته‌چک)، چون دسته‌چک FK اجباری به حساب دارد.
+  { path: '/base/bank', element: <BankPage /> },
+  { path: '/base/bank/accounts/new', element: <BankAccountFormPage /> },
+  { path: '/base/bank/accounts/:id/edit', element: <BankAccountFormPage /> },
+  { path: '/base/bank/check-books/new', element: <CheckBookFormPage /> },
+  { path: '/base/bank/check-books/:id/edit', element: <CheckBookFormPage /> },
 
   { path: '/base/expenses', element: <ExpensesListPage /> },
   { path: '/base/expenses/new', element: <ExpenseFormPage /> },
@@ -77,7 +79,4 @@ export const routes: RouteObject[] = [
   { path: '/operation/pay-recive-heads/new', element: <PayReciveHeadFormPage /> },
   { path: '/operation/pay-recive-heads/:id/edit', element: <PayReciveHeadFormPage /> },
 
-  { path: '/operation/check-books', element: <CheckBooksListPage /> },
-  { path: '/operation/check-books/new', element: <CheckBookFormPage /> },
-  { path: '/operation/check-books/:id/edit', element: <CheckBookFormPage /> },
 ];
