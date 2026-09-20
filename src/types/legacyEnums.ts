@@ -147,3 +147,43 @@ export function getAttribSumLabel(value: number | null | undefined): string {
 export function getAttribControlLabel(value: number | null | undefined): string {
   return labelFromOptions(ATTRIB_CONTROL_OPTIONS, value);
 }
+
+// --- شناسنامه (TB_IDENTITYSUBGRP) ------------------------------------------------------------
+//
+// ⚠️ Not to be confused with the ATTRIB_* options above. Those belong to حساب‌های شناسه‌دار
+// (TB_ATTRIBFORACCOUNTCODE); these belong to شناسنامه (TB_IDENTITY*). Two separate mechanisms —
+// see docs/centralaccount-business-reference.md §۲۵ in the backend repo.
+
+/**
+ * Non-nullable on the backend. Decides where a subgroup's value is recorded: a `Fixed` subgroup
+ * gets one value on the شناسنامه itself, a `Variable` one gets a value per voucher line.
+ */
+export const IDENTITY_SUB_GROUP_KIND_OPTIONS = [
+  { value: 1, label: 'ثابت' },
+  { value: 2, label: 'متغیر' },
+] as const satisfies readonly LegacyEnumOption<number>[];
+
+/** Nullable on the backend. Describes what the subgroup's value is meant to hold. */
+export const IDENTITY_SUB_GROUP_TYPE_OPTIONS = [
+  { value: 1, label: 'تاریخ' },
+  { value: 2, label: 'حروف فارسی' },
+  { value: 3, label: 'عدد' },
+  { value: 4, label: 'حروف لاتین' },
+] as const satisfies readonly LegacyEnumOption<number>[];
+
+export type IdentitySubGroupKindValue = (typeof IDENTITY_SUB_GROUP_KIND_OPTIONS)[number]['value'];
+export type IdentitySubGroupTypeValue = (typeof IDENTITY_SUB_GROUP_TYPE_OPTIONS)[number]['value'];
+
+export const IDENTITY_SUB_GROUP_KIND_VALUES: readonly number[] = IDENTITY_SUB_GROUP_KIND_OPTIONS.map((o) => o.value);
+export const IDENTITY_SUB_GROUP_TYPE_VALUES: readonly number[] = IDENTITY_SUB_GROUP_TYPE_OPTIONS.map((o) => o.value);
+
+/** Value of `IdentitySubGroupKind.Fixed` — the kind the شناسنامه entry form asks for. */
+export const IDENTITY_SUB_GROUP_KIND_FIXED = 1;
+
+export function getIdentitySubGroupKindLabel(value: number | null | undefined): string {
+  return labelFromOptions(IDENTITY_SUB_GROUP_KIND_OPTIONS, value);
+}
+
+export function getIdentitySubGroupTypeLabel(value: number | null | undefined): string {
+  return labelFromOptions(IDENTITY_SUB_GROUP_TYPE_OPTIONS, value);
+}
