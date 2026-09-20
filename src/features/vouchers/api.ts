@@ -19,6 +19,13 @@ export interface VoucherHeadListParams extends ListParams {
   dateDocTo?: string;
   /** نوع سند — `TB_SYSTYPE.ID`, see `sysTypesApi`. */
   systemTypeId?: string;
+  /**
+   * وضعیت سند — `DocLife`: 1=یادداشت, 2=موقت, 3=بررسی‌شده, 4=تأیید دائم.
+   *
+   * ⚠️ Exact match server-side, not ">=". A کارتابل tab asks which vouchers are in *this*
+   * state right now, so one that has moved on leaves the tab it came from.
+   */
+  docLife?: number;
 }
 
 /**
@@ -33,7 +40,8 @@ export interface VoucherHeadListParams extends ListParams {
 export interface CreateVoucherHeadPayload {
   docNum: string;
   dateDoc: string;
-  docLife: boolean | null;
+  /** `DocLife`: 1=یادداشت, 2=موقت, 3=بررسی‌شده, 4=تأیید دائم. Was wrongly typed `boolean` until the backend `bool`→enum fix. */
+  docLife: number | null;
   headDesc: string | null;
   apendix: string | null;
   systemTypeId: string | null;
@@ -90,3 +98,31 @@ export const voucherDetailsApi = {
       .then((res) => res.data);
   },
 };
+
+/** وضعیت سند — mirrors `Accounting.Domain.ValueObjects.DocLife`. */
+export const DOC_LIFE_OPTIONS = [
+  { value: 1, label: 'یادداشت' },
+  { value: 2, label: 'موقت' },
+  { value: 3, label: 'بررسی‌شده' },
+  { value: 4, label: 'تأیید دائم' },
+] as const;
+
+export type DocLifeValue = (typeof DOC_LIFE_OPTIONS)[number]['value'];
+
+export function getDocLifeLabel(value: number | null | undefined): string {
+  if (value === null || value === undefined) return 'تعیین‌نشده';
+  return DOC_LIFE_OPTIONS.find((o) => o.value === value)?.label ?? `نامشخص (${value})`;
+}
+
+/**
+ * انتقال وضعیت — `POST /api/voucher-heads/change-state`.
+ *
+ * Batch and all-or-nothing: an unknown or deleted id rejects the whole request with a 404 and
+ * nothing moves. Deliberately NOT part of the update payload — changing what a voucher says and
+ * changing how final it is are separate operations server-side too.
+ */
+export function changeVoucherState(voucherHeadIds: string[], newState: number): Promise<void> {
+  return apiClient
+    .post('/voucher-heads/change-state', { voucherHeadIds, newState })
+    .then(() => undefined);
+}

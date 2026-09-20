@@ -12,7 +12,8 @@ export interface VoucherHeadDto {
   docNum: string | null;
   dateDoc: string | null;
   // TODO(backend risk #2): actually a multi-valued enum, typed boolean|null by a known backend bug
-  docLife: boolean | null;
+  /** `DocLife`: 1=یادداشت, 2=موقت, 3=بررسی‌شده, 4=تأیید دائم. Was wrongly typed `boolean` until the backend `bool`→enum fix. */
+  docLife: number | null;
   headDesc: string | null;
   apendix: string | null;
   systemTypeId: string | null;

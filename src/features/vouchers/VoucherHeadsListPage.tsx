@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import DatePicker from 'react-multi-date-picker';
 import DateObject from 'react-date-object';
@@ -7,6 +7,14 @@ import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -18,6 +26,8 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ListToolbar } from '../../components/ListToolbar';
@@ -28,10 +38,14 @@ import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { sysTypesApi } from '../../lib/api/sysTypesApi';
 import { useSession } from '../../lib/session/SessionContext';
-import { voucherHeadsApi } from './api';
+import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { changeVoucherState, DOC_LIFE_OPTIONS, getDocLifeLabel, voucherHeadsApi } from './api';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 
 const PAGE_SIZE = 20;
+
+/** `''` is the «همه» tab; the others are a `DocLife` value as a string. */
+type StatusTab = '' | '1' | '2' | '3' | '4';
 
 interface Filters {
   year: string;
@@ -93,14 +107,48 @@ function DateFilterField({ label, value, onChange }: { label: string; value: str
  */
 export function VoucherHeadsListPage() {
   const { financialYear, isConfigured } = useSession();
+  const notify = useNotify();
+  const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
   const [filters, setFilters] = useState<Filters>({ year: financialYear, ...EMPTY_FILTERS });
+  const [statusTab, setStatusTab] = useState<StatusTab>('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // The top-bar fiscal year seeds this page; changing it there resets the page's year filter.
   useEffect(() => {
     setFilters((previous) => ({ ...previous, year: financialYear }));
     setPageNumber(1);
   }, [financialYear]);
+
+  // A selection only means anything within the tab it was made in — carrying it across a tab
+  // change would let someone move vouchers they can no longer see.
+  function handleTabChange(_event: SyntheticEvent, value: StatusTab) {
+    setStatusTab(value);
+    setSelectedIds([]);
+    setPageNumber(1);
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((previous) =>
+      previous.includes(id) ? previous.filter((x) => x !== id) : [...previous, id],
+    );
+  }
+
+  const changeStateMutation = useMutation({
+    mutationFn: (newState: number) => changeVoucherState(selectedIds, newState),
+    onSuccess: async (_data, newState) => {
+      const moved = selectedIds.length;
+      setSelectedIds([]);
+      await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
+      notify(`${toPersianDigits(moved)} سند به وضعیت «${getDocLifeLabel(newState)}» منتقل شد.`);
+    },
+    onError: (error) => {
+      notify({
+        message: error instanceof Error ? error.message : 'انتقال وضعیت با خطا مواجه شد.',
+        severity: 'error',
+      });
+    },
+  });
 
   function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((previous) => ({ ...previous, [key]: value }));
@@ -115,7 +163,7 @@ export function VoucherHeadsListPage() {
   const sysTypes = sysTypesQuery.data ?? [];
 
   const query = useQuery({
-    queryKey: ['voucher-heads', pageNumber, PAGE_SIZE, filters],
+    queryKey: ['voucher-heads', pageNumber, PAGE_SIZE, filters, statusTab],
     queryFn: () =>
       voucherHeadsApi.list({
         pageNumber,
@@ -126,6 +174,8 @@ export function VoucherHeadsListPage() {
         dateDocFrom: filters.dateDocFrom || undefined,
         dateDocTo: filters.dateDocTo || undefined,
         systemTypeId: filters.systemTypeId || undefined,
+        // Applied server-side across all pages, so a tab's count is its true count.
+        docLife: statusTab ? Number(statusTab) : undefined,
       }),
     placeholderData: (previous) => previous,
     enabled: isConfigured,
@@ -150,7 +200,59 @@ export function VoucherHeadsListPage() {
         ),
     },
     { key: 'year', header: 'سال مالی', render: (row) => (row.year ? toPersianDigits(row.year) : '—') },
+    {
+      key: 'docLife',
+      header: 'وضعیت',
+      render: (row) => <Chip size="small" variant="outlined" label={getDocLifeLabel(row.docLife)} />,
+    },
+    {
+      key: 'rowActions',
+      header: 'عملیات',
+      render: () => (
+        <Stack direction="row" spacing={0.5}>
+          {/* Both actions exist in the old system and neither is built yet — shown disabled with
+              the reason, rather than omitted, so the gap is visible where it will be filled. */}
+          <Tooltip title="ویرایش سند — هنوز ساخته نشده است">
+            <span>
+              <IconButton size="small" aria-label="ویرایش سند" disabled>
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="سند معکوس — هنوز ساخته نشده است">
+            <span>
+              <IconButton size="small" aria-label="سند معکوس" disabled>
+                <SwapVertOutlinedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+      ),
+    },
   ];
+
+  // The checkbox column exists only inside a status tab. «همه» mixes states, and a bulk move from
+  // there would drag vouchers out of states the user was not looking at.
+  const tableColumns: DataTableColumn<VoucherHeadDto>[] = statusTab
+    ? [
+        {
+          key: 'select',
+          header: '',
+          render: (row) => (
+            <Checkbox
+              size="small"
+              checked={selectedIds.includes(row.id)}
+              onChange={() => toggleSelected(row.id)}
+              slotProps={{ input: { 'aria-label': `انتخاب سند ${row.docNum ?? ''}` } }}
+            />
+          ),
+        },
+        ...columns,
+      ]
+    : columns;
+
+  /** The states a selection can move to — every state except the tab it is already in. */
+  const moveTargets = DOC_LIFE_OPTIONS.filter((option) => String(option.value) !== statusTab);
 
   const hasExtraFilter = Boolean(
     filters.docNumFrom || filters.docNumTo || filters.dateDocFrom || filters.dateDocTo || filters.systemTypeId,
@@ -167,8 +269,8 @@ export function VoucherHeadsListPage() {
         eyebrow="عملیات"
         icon={<DescriptionOutlinedIcon />}
         accentColor="secondary"
-        title="اسناد حسابداری"
-        description="کارتابل سرسند اسناد — همهٔ فیلترها روی کل اسناد واحد شما اعمال می‌شوند، نه فقط صفحهٔ جاری."
+        title="کارتابل اسناد"
+        description="اسناد بر اساس وضعیت — همهٔ فیلترها و تب‌ها روی کل اسناد واحد شما اعمال می‌شوند، نه فقط صفحهٔ جاری."
         actions={
           <Button variant="contained" color="secondary" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/vouchers/new">
             صدور سند جدید
@@ -197,6 +299,17 @@ export function VoucherHeadsListPage() {
       )}
 
       {query.isError && <ErrorBanner error={query.error} />}
+
+      {isConfigured && (
+        <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
+          <Tabs value={statusTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
+            <Tab value="" label="همه" />
+            {DOC_LIFE_OPTIONS.map((option) => (
+              <Tab key={option.value} value={String(option.value)} label={option.label} />
+            ))}
+          </Tabs>
+        </Paper>
+      )}
 
       {isConfigured && !query.isError && (
         <>
@@ -293,8 +406,34 @@ export function VoucherHeadsListPage() {
             )}
           </ListToolbar>
 
+          {statusTab && selectedIds.length > 0 && (
+            <Paper
+              variant="outlined"
+              sx={{ mb: 2, p: 1.5, borderRadius: 2, display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}
+            >
+              <Typography variant="body2">
+                {toPersianDigits(selectedIds.length)} سند انتخاب شده — انتقال به:
+              </Typography>
+              {moveTargets.map((target) => (
+                <Button
+                  key={target.value}
+                  size="small"
+                  variant="outlined"
+                  disabled={changeStateMutation.isPending}
+                  onClick={() => changeStateMutation.mutate(target.value)}
+                >
+                  {target.label}
+                </Button>
+              ))}
+              <Box sx={{ flexGrow: 1 }} />
+              <Button size="small" variant="text" onClick={() => setSelectedIds([])}>
+                لغو انتخاب
+              </Button>
+            </Paper>
+          )}
+
           <DataTable
-            columns={columns}
+            columns={tableColumns}
             rows={query.data?.items ?? []}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}

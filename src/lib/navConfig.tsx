@@ -8,7 +8,6 @@ import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
@@ -107,10 +106,10 @@ export const NAV_GROUPS: NavGroup[] = [
     color: 'secondary',
     items: [
       {
-        label: 'اسناد حسابداری',
-        description: 'فهرست سرسند اسناد',
+        label: 'کارتابل اسناد',
+        description: 'اسناد بر اساس وضعیت، با امکان انتقال وضعیت',
         to: '/operation/voucher-heads',
-        icon: <DescriptionOutlinedIcon fontSize="small" />,
+        icon: <InboxOutlinedIcon fontSize="small" />,
       },
       {
         label: 'صدور سند (تفصیلی داینامیک)',
@@ -124,7 +123,6 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/operation/pay-recive-heads',
         icon: <SwapHorizOutlinedIcon fontSize="small" />,
       },
-      { label: 'کارتابل', icon: <InboxOutlinedIcon fontSize="small" /> },
     ],
   },
   {
