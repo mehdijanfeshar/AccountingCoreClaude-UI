@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
@@ -13,10 +14,8 @@ import Typography from '@mui/material/Typography';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
-import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -25,25 +24,28 @@ import { ListToolbar } from '../../components/ListToolbar';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
-import { identityGroupsApi, identityHeadsApi } from './api';
-import type { IdentityHeadDto } from '../../types/identity';
+import { identityHeadsApi } from './api';
+import type { IdentityGroupDto, IdentityHeadDto } from '../../types/identity';
 
 const PAGE_SIZE = 20;
 
-/** Group dropdown needs every group, not a page of them; units rarely have many. */
-const GROUP_PAGE_SIZE = 200;
-
 /**
- * شناسنامه‌ها — `GET /api/identity-heads`.
+ * تب «ویژگی‌های ثبت‌شده» — `TB_IDENTITYHEAD`.
  *
- * Each row is one شناسنامه issued against a گروه, carrying the value of every ثابت زیرگروه of
- * that group. The متغیر values are not here: they live on voucher lines.
+ * Each row is one ویژگی issued against a گروه, carrying the value of every **ثابت** جزء of that
+ * group. The متغیر values are not here: they belong to voucher lines.
  *
  * Both filters are applied server-side across all pages, so the toolbar count is the true match
  * count. The organizational unit is deliberately absent — the backend scopes to the caller's own
  * unit from the token.
  */
-export function IdentityHeadsListPage() {
+export function IdentityHeadsTab({
+  groups,
+  groupsLoading,
+}: {
+  groups: IdentityGroupDto[];
+  groupsLoading: boolean;
+}) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const { financialYear } = useSession();
@@ -56,12 +58,6 @@ export function IdentityHeadsListPage() {
     setYear(financialYear);
     setPageNumber(1);
   }, [financialYear]);
-
-  const groupsQuery = useQuery({
-    queryKey: ['identity-groups', 'all'],
-    queryFn: () => identityGroupsApi.list({ pageNumber: 1, pageSize: GROUP_PAGE_SIZE }),
-  });
-  const groups = groupsQuery.data?.items ?? [];
 
   const query = useQuery({
     queryKey: ['identity-heads', pageNumber, PAGE_SIZE, groupId, year],
@@ -79,7 +75,7 @@ export function IdentityHeadsListPage() {
     mutationFn: (id: string) => identityHeadsApi.remove(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['identity-heads'] });
-      notify('شناسنامه حذف شد.');
+      notify('ویژگی ثبت‌شده حذف شد.');
       setPendingDelete(null);
     },
     onError: (error) => {
@@ -93,7 +89,7 @@ export function IdentityHeadsListPage() {
     { key: 'serial', header: 'سریال', render: (row) => toPersianDigits(row.serial) },
     {
       key: 'identityGroupDesc',
-      header: 'گروه شناسنامه',
+      header: 'گروه ویژگی',
       render: (row) =>
         row.identityGroupDesc ?? (
           <Typography variant="body2" color="text.disabled">
@@ -103,7 +99,7 @@ export function IdentityHeadsListPage() {
     },
     {
       key: 'fixItems',
-      header: 'مقادیر ثابت',
+      header: 'مقادیر',
       render: (row) =>
         row.fixItems.length === 0 ? (
           <Typography variant="body2" color="text.disabled">
@@ -133,7 +129,7 @@ export function IdentityHeadsListPage() {
               size="small"
               aria-label="ویرایش"
               component={RouterLink}
-              to={`/base/identity-heads/${row.id}/edit`}
+              to={`/base/features/records/${row.id}/edit`}
             >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
@@ -151,29 +147,18 @@ export function IdentityHeadsListPage() {
   const hasExtraFilter = Boolean(groupId);
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="اطلاعات پایه"
-        icon={<BadgeOutlinedIcon />}
-        title="شناسنامه‌ها"
-        description="شناسنامه‌های صادرشده و مقادیر ثابت هرکدام — فیلترها روی کل رکوردهای واحد شما اعمال می‌شوند."
-        actions={
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/identity-heads/new">
-            صدور شناسنامه
-          </Button>
-        }
-      />
-
-      <ListToolbar summary={query.data ? `${toPersianDigits(query.data.totalCount)} شناسنامه` : ''}>
+    <>
+      <ListToolbar summary={query.data ? `${toPersianDigits(query.data.totalCount)} ردیف` : ''}>
         <TextField
           select
           size="small"
-          label="گروه شناسنامه"
+          label="گروه ویژگی"
           value={groupId}
           onChange={(event) => {
             setGroupId(event.target.value);
             setPageNumber(1);
           }}
+          disabled={groupsLoading}
           sx={{ width: 220 }}
         >
           <MenuItem value="">همه</MenuItem>
@@ -216,7 +201,22 @@ export function IdentityHeadsListPage() {
             پاک کردن فیلترها
           </Button>
         )}
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddOutlinedIcon />}
+          component={RouterLink}
+          to="/base/features/records/new"
+        >
+          ثبت ویژگی
+        </Button>
       </ListToolbar>
+
+      {!groupsLoading && groups.length === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          ابتدا در تب «گروه ویژگی» یک گروه و سپس در تب «اجزای ویژگی» چند جزء ثابت بسازید.
+        </Alert>
+      )}
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -227,18 +227,16 @@ export function IdentityHeadsListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage={
-              hasExtraFilter ? 'نتیجه‌ای برای این فیلترها یافت نشد.' : 'هنوز شناسنامه‌ای صادر نشده است.'
-            }
+            emptyMessage={hasExtraFilter ? 'نتیجه‌ای برای این فیلترها یافت نشد.' : 'هنوز ویژگی‌ای ثبت نشده است.'}
             emptyAction={
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<AddOutlinedIcon />}
                 component={RouterLink}
-                to="/base/identity-heads/new"
+                to="/base/features/records/new"
               >
-                صدور شناسنامه
+                ثبت ویژگی
               </Button>
             }
           />
@@ -255,12 +253,12 @@ export function IdentityHeadsListPage() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="حذف شناسنامه"
-        description="آیا از حذف این شناسنامه مطمئن هستید؟ مقادیر ثابت آن هم حذف می‌شوند."
+        title="حذف ویژگی ثبت‌شده"
+        description="آیا از حذف این ویژگی مطمئن هستید؟ مقادیر آن هم حذف می‌شوند."
         pending={deleteMutation.isPending}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
-    </section>
+    </>
   );
 }

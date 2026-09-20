@@ -5,7 +5,7 @@ import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlin
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
-import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -82,16 +82,10 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <SavingsOutlinedIcon fontSize="small" />,
       },
       {
-        label: 'تعریف ویژگی',
-        description: 'گروه‌ها و زیرگروه‌های شناسنامه',
-        to: '/base/identity-groups',
-        icon: <AccountTreeOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: 'شناسنامه‌ها',
-        description: 'شناسنامه‌های صادرشده و مقادیر ثابت آن‌ها',
-        to: '/base/identity-heads',
-        icon: <FactCheckOutlinedIcon fontSize="small" />,
+        label: 'ویژگی',
+        description: 'گروه ویژگی، اجزای آن، و ویژگی‌های ثبت‌شده',
+        to: '/base/features',
+        icon: <TuneOutlinedIcon fontSize="small" />,
       },
       {
         label: 'حساب‌های شناسه‌دار',

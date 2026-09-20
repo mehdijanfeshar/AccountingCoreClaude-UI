@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link as RouterLink, useParams } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
-import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { MonoCode } from '../../components/MonoCode';
 import { Pagination } from '../../components/Pagination';
@@ -21,8 +21,8 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ListToolbar } from '../../components/ListToolbar';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { toPersianDigits } from '../../lib/format/numbers';
-import { identityGroupsApi, identitySubGroupsApi } from './api';
-import type { IdentitySubGroupDto } from '../../types/identity';
+import { identitySubGroupsApi } from './api';
+import type { IdentityGroupDto, IdentitySubGroupDto } from '../../types/identity';
 import {
   getIdentitySubGroupKindLabel,
   getIdentitySubGroupTypeLabel,
@@ -32,37 +32,46 @@ import {
 const PAGE_SIZE = 20;
 
 /**
- * زیرگروه‌های یک گروه شناسنامه — `GET /api/identity-sub-groups?identityGroupId=…`.
+ * تب «اجزای ویژگی» — `TB_IDENTITYSUBGRP`.
  *
- * Scoped to one group by route rather than by a filter the user picks: a زیرگروه only means
- * anything inside its group, and the شناسنامه form reads exactly this list (narrowed further to
- * the ثابت ones).
+ * Always scoped to one گروه: a جزء means nothing outside its group, and it is the group that the
+ * ویژگی entry form queries by. The group is picked here rather than taken from the route, because
+ * this is now a tab rather than a page of its own.
+ *
+ * <b>ثابت vs متغیر matters a lot here:</b> a ثابت جزء gets one value on the ویژگی record itself;
+ * a متغیر one is meant to get a value per voucher line — and that write path does not exist yet,
+ * so a متغیر جزء can be defined but never filled. The tab says so rather than letting a user
+ * discover it later.
  */
-export function IdentitySubGroupsListPage() {
-  const { groupId } = useParams<{ groupId: string }>();
+export function IdentitySubGroupsTab({
+  groups,
+  groupsLoading,
+  selectedGroupId,
+  onSelectGroup,
+}: {
+  groups: IdentityGroupDto[];
+  groupsLoading: boolean;
+  selectedGroupId: string;
+  onSelectGroup: (groupId: string) => void;
+}) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
   const [pendingDelete, setPendingDelete] = useState<IdentitySubGroupDto | null>(null);
 
-  const groupQuery = useQuery({
-    queryKey: ['identity-groups', groupId],
-    queryFn: () => identityGroupsApi.getById(groupId as string),
-    enabled: Boolean(groupId),
-  });
-
   const query = useQuery({
-    queryKey: ['identity-sub-groups', groupId, pageNumber, PAGE_SIZE],
-    queryFn: () => identitySubGroupsApi.list({ pageNumber, pageSize: PAGE_SIZE, identityGroupId: groupId }),
+    queryKey: ['identity-sub-groups', selectedGroupId, pageNumber, PAGE_SIZE],
+    queryFn: () =>
+      identitySubGroupsApi.list({ pageNumber, pageSize: PAGE_SIZE, identityGroupId: selectedGroupId }),
     placeholderData: (previous) => previous,
-    enabled: Boolean(groupId),
+    enabled: Boolean(selectedGroupId),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => identitySubGroupsApi.remove(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['identity-sub-groups'] });
-      notify('زیرگروه حذف شد.');
+      notify('جزء ویژگی حذف شد.');
       setPendingDelete(null);
     },
     onError: (error) => {
@@ -76,7 +85,7 @@ export function IdentitySubGroupsListPage() {
     { key: 'identySubGroupsCode', header: 'کد', render: (row) => <MonoCode value={row.identySubGroupsCode} /> },
     {
       key: 'subgrpsDesc',
-      header: 'شرح زیرگروه',
+      header: 'شرح جزء',
       render: (row) =>
         row.subgrpsDesc ?? (
           <Typography variant="body2" color="text.disabled">
@@ -86,7 +95,7 @@ export function IdentitySubGroupsListPage() {
     },
     {
       key: 'fixed',
-      header: 'نوع زیرگروه',
+      header: 'نوع',
       render: (row) => (
         <Chip
           size="small"
@@ -109,7 +118,7 @@ export function IdentitySubGroupsListPage() {
               size="small"
               aria-label="ویرایش"
               component={RouterLink}
-              to={`/base/identity-groups/${groupId}/sub-groups/${row.id}/edit`}
+              to={`/base/features/groups/${selectedGroupId}/parts/${row.id}/edit`}
             >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
@@ -124,58 +133,79 @@ export function IdentitySubGroupsListPage() {
     },
   ];
 
-  const groupLabel = groupQuery.data?.identityGroupsDesc ?? '…';
+  const hasVariableParts = rows.some((row) => row.fixed !== IDENTITY_SUB_GROUP_KIND_FIXED);
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="تعریف ویژگی"
-        icon={<ListAltOutlinedIcon />}
-        title={`زیرگروه‌های ${groupLabel}`}
-        description="زیرگروه ثابت یک مقدار روی خودِ شناسنامه می‌گیرد؛ زیرگروه متغیر به‌ازای هر ردیف سند مقدار می‌گیرد."
-        actions={
-          <Stack direction="row" spacing={1}>
-            <Button
-              variant="text"
-              startIcon={<ArrowBackOutlinedIcon />}
-              component={RouterLink}
-              to="/base/identity-groups"
-            >
-              بازگشت به گروه‌ها
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddOutlinedIcon />}
-              component={RouterLink}
-              to={`/base/identity-groups/${groupId}/sub-groups/new`}
-            >
-              افزودن زیرگروه
-            </Button>
-          </Stack>
-        }
-      />
+    <>
+      <ListToolbar summary={query.data ? `${toPersianDigits(query.data.totalCount)} جزء` : ''}>
+        <TextField
+          select
+          size="small"
+          label="گروه ویژگی"
+          value={selectedGroupId}
+          onChange={(event) => {
+            onSelectGroup(event.target.value);
+            setPageNumber(1);
+          }}
+          disabled={groupsLoading}
+          sx={{ width: 260 }}
+        >
+          {groups.map((group) => (
+            <MenuItem key={group.id} value={group.id}>
+              {group.identityGroupsDesc}
+            </MenuItem>
+          ))}
+        </TextField>
+        {selectedGroupId && (
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<AddOutlinedIcon />}
+            component={RouterLink}
+            to={`/base/features/groups/${selectedGroupId}/parts/new`}
+          >
+            افزودن جزء
+          </Button>
+        )}
+      </ListToolbar>
 
-      <ListToolbar summary={query.data ? `${toPersianDigits(query.data.totalCount)} زیرگروه` : ''} />
+      {!groupsLoading && groups.length === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          ابتدا در تب «گروه ویژگی» یک گروه بسازید.
+        </Alert>
+      )}
+
+      {!selectedGroupId && groups.length > 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          یک گروه ویژگی انتخاب کنید تا اجزای آن نمایش داده شود.
+        </Alert>
+      )}
+
+      {hasVariableParts && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          اجزای «متغیر» در فرم ثبت ویژگی نمایش داده نمی‌شوند؛ مقدار آن‌ها باید روی ردیف سند ثبت شود و آن مسیر هنوز ساخته نشده است.
+        </Alert>
+      )}
 
       {query.isError && <ErrorBanner error={query.error} />}
 
-      {!query.isError && (
+      {selectedGroupId && !query.isError && (
         <>
           <DataTable
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage="هنوز زیرگروهی برای این گروه ثبت نشده است."
+            emptyMessage="هنوز جزئی برای این گروه ثبت نشده است."
             emptyAction={
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<AddOutlinedIcon />}
                 component={RouterLink}
-                to={`/base/identity-groups/${groupId}/sub-groups/new`}
+                to={`/base/features/groups/${selectedGroupId}/parts/new`}
               >
-                افزودن زیرگروه
+                افزودن جزء
               </Button>
             }
           />
@@ -192,12 +222,12 @@ export function IdentitySubGroupsListPage() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="حذف زیرگروه"
-        description="آیا از حذف این زیرگروه مطمئن هستید؟ مقادیر ثبت‌شدهٔ آن در شناسنامه‌ها حذف نمی‌شوند."
+        title="حذف جزء ویژگی"
+        description="آیا از حذف این جزء مطمئن هستید؟ مقادیر ثبت‌شدهٔ آن حذف نمی‌شوند."
         pending={deleteMutation.isPending}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
-    </section>
+    </>
   );
 }

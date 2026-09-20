@@ -28,7 +28,7 @@ import {
   type IdentityGroupFormValues,
 } from './schema';
 
-/** Handles both `/base/identity-groups/new` and `/base/identity-groups/:id/edit`. */
+/** Handles both `/base/features/new` and `/base/features/:id/edit`. */
 export function IdentityGroupFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
@@ -79,8 +79,8 @@ export function IdentityGroupFormPage() {
         await createMutation.mutateAsync(values);
       }
       await queryClient.invalidateQueries({ queryKey: ['identity-groups'] });
-      notify(isEdit ? 'گروه شناسنامه ویرایش شد.' : 'گروه شناسنامه جدید ذخیره شد.');
-      navigate('/base/identity-groups');
+      notify(isEdit ? 'گروه ویژگی ویرایش شد.' : 'گروه ویژگی جدید ذخیره شد.');
+      navigate('/base/features');
     } catch (error) {
       setSubmitError(error);
     }
@@ -99,8 +99,8 @@ export function IdentityGroupFormPage() {
       <PageHeader
         eyebrow="اطلاعات پایه"
         icon={<AccountTreeOutlinedIcon />}
-        title={isEdit ? 'ویرایش گروه شناسنامه' : 'گروه شناسنامه جدید'}
-        description="گروه شناسنامه، مجموعه‌ای از زیرگروه‌ها را تعریف می‌کند که شناسنامه‌ها بر اساس آن صادر می‌شوند."
+        title={isEdit ? 'ویرایش گروه ویژگی' : 'گروه ویژگی جدید'}
+        description="گروه ویژگی، مجموعه‌ای از اجزا را تعریف می‌کند که ویژگی‌های ثبت‌شده بر اساس آن ساخته می‌شوند."
       />
 
       {submitError !== null && <ErrorBanner error={submitError} />}
@@ -151,7 +151,7 @@ export function IdentityGroupFormPage() {
 
           <Grid size={12}>
             <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
-              <Button variant="text" onClick={() => navigate('/base/identity-groups')} disabled={pending}>
+              <Button variant="text" onClick={() => navigate('/base/features')} disabled={pending}>
                 انصراف
               </Button>
               <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>

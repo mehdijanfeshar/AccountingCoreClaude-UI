@@ -42,9 +42,9 @@ import {
 const UNSET = '';
 
 /**
- * Handles both `/base/identity-groups/:groupId/sub-groups/new` and `…/:id/edit`.
+ * Handles both `/base/features/groups/:groupId/parts/new` and `…/:id/edit`.
  *
- * The group comes from the route and is never editable here — moving a زیرگروه between groups
+ * The group comes from the route and is never editable here — moving a جزء between groups
  * would orphan every value already recorded against it.
  */
 export function IdentitySubGroupFormPage() {
@@ -56,7 +56,7 @@ export function IdentitySubGroupFormPage() {
   const { financialYear } = useSession();
   const [submitError, setSubmitError] = useState<unknown>(null);
 
-  const backTo = `/base/identity-groups/${groupId}/sub-groups`;
+  const backTo = '/base/features';
 
   const existingQuery = useQuery({
     queryKey: ['identity-sub-groups', id],
@@ -101,7 +101,7 @@ export function IdentitySubGroupFormPage() {
         await createMutation.mutateAsync(values);
       }
       await queryClient.invalidateQueries({ queryKey: ['identity-sub-groups'] });
-      notify(isEdit ? 'زیرگروه ویرایش شد.' : 'زیرگروه جدید ذخیره شد.');
+      notify(isEdit ? 'جزء ویرایش شد.' : 'جزء جدید ذخیره شد.');
       navigate(backTo);
     } catch (error) {
       setSubmitError(error);
@@ -119,10 +119,10 @@ export function IdentitySubGroupFormPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="تعریف ویژگی"
+        eyebrow="ویژگی"
         icon={<ListAltOutlinedIcon />}
-        title={isEdit ? 'ویرایش زیرگروه شناسنامه' : 'زیرگروه شناسنامه جدید'}
-        description="زیرگروه ثابت یک مقدار روی خودِ شناسنامه می‌گیرد؛ زیرگروه متغیر به‌ازای هر ردیف سند."
+        title={isEdit ? 'ویرایش جزء ویژگی' : 'جزء ویژگی جدید'}
+        description="جزء ثابت یک مقدار روی خودِ ویژگی ثبت‌شده می‌گیرد؛ جزء متغیر به‌ازای هر ردیف سند."
       />
 
       {submitError !== null && <ErrorBanner error={submitError} />}
@@ -136,7 +136,7 @@ export function IdentitySubGroupFormPage() {
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
-              label="کد زیرگروه"
+              label="کد جزء"
               {...register('identySubGroupsCode')}
               error={Boolean(errors.identySubGroupsCode)}
               helperText={errors.identySubGroupsCode?.message ?? 'اختیاری'}
@@ -155,7 +155,7 @@ export function IdentitySubGroupFormPage() {
           <Grid size={{ xs: 12, md: 8 }}>
             <TextField
               fullWidth
-              label="شرح زیرگروه"
+              label="شرح جزء"
               {...register('subgrpsDesc')}
               error={Boolean(errors.subgrpsDesc)}
               helperText={errors.subgrpsDesc?.message}
@@ -172,7 +172,7 @@ export function IdentitySubGroupFormPage() {
           </Grid>
 
           <Grid size={12}>
-            <FormSectionLabel label="رفتار زیرگروه" />
+            <FormSectionLabel label="رفتار جزء" />
           </Grid>
 
           <Grid size={{ xs: 12, md: 4 }}>
@@ -183,11 +183,11 @@ export function IdentitySubGroupFormPage() {
                 <TextField
                   select
                   fullWidth
-                  label="نوع زیرگروه"
+                  label="نوع جزء"
                   value={String(field.value)}
                   onChange={(event) => field.onChange(Number(event.target.value))}
                   error={Boolean(errors.fixed)}
-                  helperText={errors.fixed?.message ?? 'ثابت: مقدار روی شناسنامه — متغیر: مقدار روی ردیف سند'}
+                  helperText={errors.fixed?.message ?? 'ثابت: مقدار روی ویژگی ثبت‌شده — متغیر: مقدار روی ردیف سند'}
                 >
                   {IDENTITY_SUB_GROUP_KIND_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={String(option.value)}>

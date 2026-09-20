@@ -28,7 +28,7 @@ const GROUP_PAGE_SIZE = 200;
 const SUB_GROUP_PAGE_SIZE = 200;
 
 /**
- * Handles both `/base/identity-heads/new` and `/base/identity-heads/:id/edit`.
+ * Handles both `/base/features/records/new` and `/base/features/records/:id/edit`.
  *
  * <b>The form is built at runtime from the chosen group.</b> Picking a گروه fetches its **ثابت**
  * subgroups and renders one input per subgroup — exactly the reference app's flow
@@ -156,8 +156,8 @@ export function IdentityHeadFormPage() {
         await createMutation.mutateAsync();
       }
       await queryClient.invalidateQueries({ queryKey: ['identity-heads'] });
-      notify(isEdit ? 'شناسنامه ویرایش شد.' : 'شناسنامه جدید صادر شد.');
-      navigate('/base/identity-heads');
+      notify(isEdit ? 'ویژگی ویرایش شد.' : 'ویژگی جدید ثبت شد.');
+      navigate('/base/features');
     } catch (error) {
       setSubmitError(error);
     }
@@ -176,7 +176,7 @@ export function IdentityHeadFormPage() {
       <PageHeader
         eyebrow="اطلاعات پایه"
         icon={<BadgeOutlinedIcon />}
-        title={isEdit ? 'ویرایش شناسنامه' : 'صدور شناسنامه'}
+        title={isEdit ? 'ویرایش ویژگی ثبت‌شده' : 'ثبت ویژگی'}
         description="پس از انتخاب گروه، فیلدهای ثابت آن گروه به‌صورت خودکار ساخته می‌شوند."
       />
 
@@ -192,7 +192,7 @@ export function IdentityHeadFormPage() {
             <TextField
               select
               fullWidth
-              label="گروه شناسنامه"
+              label="گروه ویژگی"
               value={groupId}
               onChange={(event) => {
                 setGroupId(event.target.value);
@@ -206,7 +206,7 @@ export function IdentityHeadFormPage() {
                 missingGroup
                   ? 'انتخاب گروه الزامی است'
                   : isEdit
-                    ? 'گروه شناسنامه پس از صدور قابل تغییر نیست.'
+                    ? 'گروه ویژگی پس از صدور قابل تغییر نیست.'
                     : undefined
               }
             >
@@ -252,13 +252,13 @@ export function IdentityHeadFormPage() {
 
           {!groupId && (
             <Grid size={12}>
-              <Alert severity="info">ابتدا یک گروه شناسنامه انتخاب کنید تا فیلدهای آن ساخته شوند.</Alert>
+              <Alert severity="info">ابتدا یک گروه ویژگی انتخاب کنید تا فیلدهای آن ساخته شوند.</Alert>
             </Grid>
           )}
 
           {groupId && subGroupsQuery.isLoading && (
             <Grid size={12}>
-              <Alert severity="info">در حال خواندن زیرگروه‌های ثابت…</Alert>
+              <Alert severity="info">در حال خواندن جزء‌های ثابت…</Alert>
             </Grid>
           )}
 
@@ -271,7 +271,7 @@ export function IdentityHeadFormPage() {
           {groupId && !subGroupsQuery.isLoading && !subGroupsQuery.isError && fixedSubGroups.length === 0 && (
             <Grid size={12}>
               <Alert severity="warning">
-                این گروه هیچ زیرگروه ثابتی ندارد؛ شناسنامه بدون مقدار صادر می‌شود. برای افزودن زیرگروه به بخش «تعریف ویژگی» بروید.
+                این گروه هیچ جزء ثابتی ندارد؛ ویژگی بدون مقدار ثبت می‌شود. برای افزودن جزء به تب «اجزای ویژگی» بروید.
               </Alert>
             </Grid>
           )}
@@ -312,7 +312,7 @@ export function IdentityHeadFormPage() {
 
           <Grid size={12}>
             <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
-              <Button variant="text" onClick={() => navigate('/base/identity-heads')} disabled={pending}>
+              <Button variant="text" onClick={() => navigate('/base/features')} disabled={pending}>
                 انصراف
               </Button>
               <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>

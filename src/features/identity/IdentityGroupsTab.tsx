@@ -9,9 +9,7 @@ import Typography from '@mui/material/Typography';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { MonoCode } from '../../components/MonoCode';
 import { Pagination } from '../../components/Pagination';
@@ -26,14 +24,14 @@ import type { IdentityGroupDto } from '../../types/identity';
 const PAGE_SIZE = 20;
 
 /**
- * تعریف ویژگی — گروه‌های شناسنامه (`GET /api/identity-groups`).
+ * تب «گروه ویژگی» — `TB_IDENTITYGROUP`.
  *
- * A گروه شناسنامه is the top of the three-level شناسنامه structure: it owns a set of زیرگروه‌ها
- * (each ثابت or متغیر), and شناسنامه records are then issued against it.
+ * Top of the three-level ویژگی structure: a group owns a set of اجزا (each ثابت or متغیر), and
+ * ویژگی‌های ثبت‌شده are then issued against it.
  *
- * ⚠️ Not «حساب‌های شناسه‌دار» — see `../../types/identity.ts`.
+ * No `PageHeader` of its own — the parent `FeaturesPage` owns it, same as the کدینگ tabs.
  */
-export function IdentityGroupsListPage() {
+export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: string) => void }) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
@@ -50,7 +48,7 @@ export function IdentityGroupsListPage() {
     mutationFn: (id: string) => identityGroupsApi.remove(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['identity-groups'] });
-      notify('گروه شناسنامه حذف شد.');
+      notify('گروه ویژگی حذف شد.');
       setPendingDelete(null);
     },
     onError: (error) => {
@@ -85,13 +83,8 @@ export function IdentityGroupsListPage() {
       header: 'عملیات',
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
-          <Tooltip title="زیرگروه‌ها">
-            <IconButton
-              size="small"
-              aria-label="زیرگروه‌ها"
-              component={RouterLink}
-              to={`/base/identity-groups/${row.id}/sub-groups`}
-            >
+          <Tooltip title="اجزای این گروه">
+            <IconButton size="small" aria-label="اجزای این گروه" onClick={() => onOpenParts(row.id)}>
               <ListAltOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -100,7 +93,7 @@ export function IdentityGroupsListPage() {
               size="small"
               aria-label="ویرایش"
               component={RouterLink}
-              to={`/base/identity-groups/${row.id}/edit`}
+              to={`/base/features/groups/${row.id}/edit`}
             >
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
@@ -116,25 +109,23 @@ export function IdentityGroupsListPage() {
   ];
 
   return (
-    <section>
-      <PageHeader
-        eyebrow="اطلاعات پایه"
-        icon={<AccountTreeOutlinedIcon />}
-        title="تعریف ویژگی"
-        description="گروه‌های شناسنامه و زیرگروه‌های هرکدام (TB_IDENTITYGROUP)"
-        actions={
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/identity-groups/new">
-            افزودن گروه
-          </Button>
-        }
-      />
-
+    <>
       <ListToolbar
         search={filter}
         onSearchChange={setFilter}
         searchLabel="جستجو در همین صفحه (کد یا شرح)"
         summary={query.data ? `${toPersianDigits(query.data.totalCount)} گروه` : ''}
-      />
+      >
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddOutlinedIcon />}
+          component={RouterLink}
+          to="/base/features/groups/new"
+        >
+          افزودن گروه ویژگی
+        </Button>
+      </ListToolbar>
 
       {query.isError && <ErrorBanner error={query.error} />}
 
@@ -145,7 +136,7 @@ export function IdentityGroupsListPage() {
             rows={rows}
             getRowKey={(row) => row.id}
             isLoading={query.isLoading}
-            emptyMessage={needle ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز گروه شناسنامه‌ای ثبت نشده است.'}
+            emptyMessage={needle ? 'نتیجه‌ای برای این جستجو یافت نشد.' : 'هنوز گروه ویژگی‌ای ثبت نشده است.'}
             emptyAction={
               needle ? (
                 <Button size="small" variant="text" onClick={() => setFilter('')}>
@@ -157,9 +148,9 @@ export function IdentityGroupsListPage() {
                   variant="outlined"
                   startIcon={<AddOutlinedIcon />}
                   component={RouterLink}
-                  to="/base/identity-groups/new"
+                  to="/base/features/groups/new"
                 >
-                  افزودن گروه
+                  افزودن گروه ویژگی
                 </Button>
               )
             }
@@ -177,12 +168,12 @@ export function IdentityGroupsListPage() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="حذف گروه شناسنامه"
-        description="آیا از حذف این گروه مطمئن هستید؟ زیرگروه‌ها و شناسنامه‌های وابسته به آن حذف نمی‌شوند."
+        title="حذف گروه ویژگی"
+        description="آیا از حذف این گروه مطمئن هستید؟ اجزا و ویژگی‌های ثبت‌شدهٔ وابسته به آن حذف نمی‌شوند."
         pending={deleteMutation.isPending}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
-    </section>
+    </>
   );
 }

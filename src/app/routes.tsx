@@ -13,11 +13,9 @@ import { RevolvingFundsListPage } from '../features/revolving-funds/RevolvingFun
 import { RevolvingFundFormPage } from '../features/revolving-funds/RevolvingFundFormPage';
 import { AttribForAccountCodesListPage } from '../features/attrib-for-account-codes/AttribForAccountCodesListPage';
 import { AttribForAccountCodeFormPage } from '../features/attrib-for-account-codes/AttribForAccountCodeFormPage';
-import { IdentityGroupsListPage } from '../features/identity/IdentityGroupsListPage';
+import { FeaturesPage } from './FeaturesPage';
 import { IdentityGroupFormPage } from '../features/identity/IdentityGroupFormPage';
-import { IdentitySubGroupsListPage } from '../features/identity/IdentitySubGroupsListPage';
 import { IdentitySubGroupFormPage } from '../features/identity/IdentitySubGroupFormPage';
-import { IdentityHeadsListPage } from '../features/identity/IdentityHeadsListPage';
 import { IdentityHeadFormPage } from '../features/identity/IdentityHeadFormPage';
 import { WorkShopsListPage } from '../features/work-shops/WorkShopsListPage';
 import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
@@ -59,16 +57,14 @@ export const routes: RouteObject[] = [
   { path: '/base/attrib-for-account-codes/new', element: <AttribForAccountCodeFormPage /> },
   { path: '/base/attrib-for-account-codes/:id/edit', element: <AttribForAccountCodeFormPage /> },
 
-  // شناسنامه — «تعریف ویژگی» در پروژهٔ مرجع. زیرگروه‌ها عمداً زیر مسیر گروهشان هستند.
-  { path: '/base/identity-groups', element: <IdentityGroupsListPage /> },
-  { path: '/base/identity-groups/new', element: <IdentityGroupFormPage /> },
-  { path: '/base/identity-groups/:id/edit', element: <IdentityGroupFormPage /> },
-  { path: '/base/identity-groups/:groupId/sub-groups', element: <IdentitySubGroupsListPage /> },
-  { path: '/base/identity-groups/:groupId/sub-groups/new', element: <IdentitySubGroupFormPage /> },
-  { path: '/base/identity-groups/:groupId/sub-groups/:id/edit', element: <IdentitySubGroupFormPage /> },
-  { path: '/base/identity-heads', element: <IdentityHeadsListPage /> },
-  { path: '/base/identity-heads/new', element: <IdentityHeadFormPage /> },
-  { path: '/base/identity-heads/:id/edit', element: <IdentityHeadFormPage /> },
+  // ویژگی — یک صفحهٔ تب‌دار (گروه / اجزا / ثبت‌شده‌ها) مثل کدینگ، نه چند منوی خواهر.
+  { path: '/base/features', element: <FeaturesPage /> },
+  { path: '/base/features/groups/new', element: <IdentityGroupFormPage /> },
+  { path: '/base/features/groups/:id/edit', element: <IdentityGroupFormPage /> },
+  { path: '/base/features/groups/:groupId/parts/new', element: <IdentitySubGroupFormPage /> },
+  { path: '/base/features/groups/:groupId/parts/:id/edit', element: <IdentitySubGroupFormPage /> },
+  { path: '/base/features/records/new', element: <IdentityHeadFormPage /> },
+  { path: '/base/features/records/:id/edit', element: <IdentityHeadFormPage /> },
 
   { path: '/base/work-shops', element: <WorkShopsListPage /> },
   { path: '/base/work-shops/new', element: <WorkShopFormPage /> },
