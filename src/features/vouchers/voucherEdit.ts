@@ -24,6 +24,28 @@ export interface LoadedVoucher {
 }
 
 /**
+ * Thrown when a loaded line has no `tafsiliLinks` field at all.
+ *
+ * <b>This is a version mismatch, not missing data, and the difference is the whole reason this
+ * exists.</b> An empty array means "this line has no تفصیلی". An absent field means the API
+ * predates the field and cannot tell us either way. Treating the second as the first would be
+ * quietly destructive: the update path always sends a list, so saving would clear every تفصیلی
+ * assignment on every line of the voucher, and nothing would report an error.
+ *
+ * So the form refuses to load rather than opening in a state where the save button destroys data.
+ */
+export class VoucherApiTooOldError extends Error {
+  constructor() {
+    super(
+      'سرویس بک‌اند نسخهٔ قدیمی‌تری است و تفصیلی ردیف‌های سند را برنمی‌گرداند. ' +
+        'ویرایش در این حالت باعث پاک‌شدن تفصیلی‌ها می‌شود، بنابراین فرم باز نمی‌شود. ' +
+        'لطفاً سرویس را با آخرین نسخه اجرا کنید.',
+    );
+    this.name = 'VoucherApiTooOldError';
+  }
+}
+
+/**
  * Turns a head plus its lines into form values.
  *
  * Labels come from the server rather than being looked up here: `accountLabel` and the تفصیلی
@@ -36,6 +58,11 @@ export function toFormValues(
   accountLabelById: (id: string | null) => string,
 ): LoadedVoucher {
   const detailIds: DetailIdByRowKey = {};
+
+  // Checked before anything is mapped, so the form never half-loads.
+  if (details.some((detail) => !Array.isArray(detail.tafsiliLinks))) {
+    throw new VoucherApiTooOldError();
+  }
 
   const lines: VoucherLineFormValue[] = details.map((detail) => {
     const line = createEmptyVoucherLine();

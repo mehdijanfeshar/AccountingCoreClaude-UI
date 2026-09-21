@@ -121,22 +121,31 @@ export function VoucherEntryPage() {
     enabled: isEditing,
   });
 
+  const [loadError, setLoadError] = useState<Error | null>(null);
+
   // Reset once, when the voucher arrives. Re-running on every render would fight the user for
   // control of the fields they are typing in.
   useEffect(() => {
     if (!existingVoucher.data) return;
 
-    const loaded = toFormValues(
-      existingVoucher.data.head,
-      existingVoucher.data.lines,
-      (accountId) => {
-        const account = accountCodes?.find((candidate) => candidate.id === accountId);
-        return account ? `${account.accCode ?? ''} - ${account.accCodeName ?? ''}` : '';
-      },
-    );
+    try {
+      const loaded = toFormValues(
+        existingVoucher.data.head,
+        existingVoucher.data.lines,
+        (accountId) => {
+          const account = accountCodes?.find((candidate) => candidate.id === accountId);
+          return account ? `${account.accCode ?? ''} - ${account.accCodeName ?? ''}` : '';
+        },
+      );
 
-    form.reset(loaded.values);
-    setDetailIds(loaded.detailIds);
+      form.reset(loaded.values);
+      setDetailIds(loaded.detailIds);
+      setLoadError(null);
+    } catch (error) {
+      // Anything thrown here would otherwise escape during render and take the whole tree down —
+      // a blank page with no message, which is what a stale backend used to produce.
+      setLoadError(error instanceof Error ? error : new Error('بارگذاری سند با خطا مواجه شد.'));
+    }
   }, [existingVoucher.data, accountCodes, form]);
 
   const [createdHeadId, setCreatedHeadId] = useState<string | null>(null);
@@ -392,6 +401,22 @@ export function VoucherEntryPage() {
             : 'سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند.'
         }
       />
+
+      {/* Loading an existing voucher can fail in a way that is not a network error — see
+          VoucherApiTooOldError. Showing the reason and stopping is the point: opening the form
+          anyway would present an editable voucher whose save button destroys its تفصیلی. */}
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle>سند بارگذاری نشد</AlertTitle>
+          {loadError.message}
+        </Alert>
+      )}
+
+      {isEditing && existingVoucher.isError && (
+        <Box sx={{ mb: 3 }}>
+          <ErrorBanner error={existingVoucher.error} />
+        </Box>
+      )}
 
       {/* The stepper narrates the two-request create flow (head, then lines). Editing has no such
           sequence — the head already exists — so showing it would describe something that is not
