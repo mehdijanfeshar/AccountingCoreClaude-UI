@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toPersianDigits } from '../../lib/format/numbers';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -58,17 +59,33 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
 
   const query = useTafsiliLevelItems(accountCodeId, level.levelId, debouncedSearch, pageNumber);
 
+  /**
+   * The total is tracked here, from the same response that produced `accumulated`, instead of
+   * being read straight off `query.data`.
+   *
+   * <b>Reading it off the query is what produced «۰ از ۳».</b> `placeholderData` deliberately
+   * keeps the previous response while a new key is in flight, so `query.data.totalCount` could
+   * describe an older account, level or search than the options actually on screen — a footer
+   * insisting three items exist above an empty list. Two numbers from two different responses look
+   * like the server contradicting itself, which is far harder to diagnose than an empty list.
+   */
+  const [totalCount, setTotalCount] = useState(0);
+
   useEffect(() => {
-    if (!query.data) return;
+    // Placeholder data belongs to the previous key; adopting it would put another account's
+    // تفصیلی into this row's dropdown.
+    if (!query.data || query.isPlaceholderData) return;
+
+    setTotalCount(query.data.totalCount);
     setAccumulated((previous) => {
       if (pageNumber === 1) return query.data.items;
       const seen = new Set(previous.map((item) => item.id));
       return [...previous, ...query.data.items.filter((item) => !seen.has(item.id))];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query.data, pageNumber]);
+  }, [query.data, query.isPlaceholderData, pageNumber]);
 
-  const hasMore = query.data ? accumulated.length < query.data.totalCount : false;
+  const hasMore = accumulated.length < totalCount;
 
   const fetchErrorMessage = query.isError
     ? query.error instanceof ApiError
@@ -137,9 +154,24 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
             نمایش موارد بیشتر
           </Button>
           <Typography variant="caption" color="text.secondary">
-            {accumulated.length} از {query.data?.totalCount ?? 0} مورد
+            {toPersianDigits(accumulated.length)} از {toPersianDigits(totalCount)} مورد
           </Typography>
         </Stack>
+      )}
+
+      {/*
+        An empty dropdown says nothing about why it is empty, and the two reasons need different
+        actions from the user: a search that matched nothing is theirs to change, while a level
+        with no تفصیلی at all means this account has none linked for this level and no amount of
+        typing will help. Only shown once a real (non-placeholder) response has arrived, so it
+        never contradicts a list that is still loading.
+      */}
+      {!query.isFetching && !fetchErrorMessage && totalCount === 0 && accumulated.length === 0 && (
+        <Typography variant="caption" color="text.secondary">
+          {debouncedSearch
+            ? 'موردی با این جست‌وجو پیدا نشد.'
+            : 'برای این حساب در این سطح، تفصیلی تعریف نشده است.'}
+        </Typography>
       )}
     </Stack>
   );
