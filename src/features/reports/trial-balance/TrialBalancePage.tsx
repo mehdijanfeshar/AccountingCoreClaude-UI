@@ -4,6 +4,8 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -14,15 +16,19 @@ import Typography from '@mui/material/Typography';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import RestartAltOutlinedIcon from '@mui/icons-material/RestartAltOutlined';
+import TableViewOutlinedIcon from '@mui/icons-material/TableViewOutlined';
+import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../../../components/PageHeader';
-import { DataTable, type DataTableColumn } from '../../../components/DataTable';
 import { ErrorBanner } from '../../../components/ErrorBanner';
-import { ListToolbar } from '../../../components/ListToolbar';
-import { MonoCode } from '../../../components/MonoCode';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
+import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { useSession } from '../../../lib/session/SessionContext';
 import { formatThousands, toPersianDigits, normalizeNumericInput } from '../../../lib/format/numbers';
 import { trialBalanceApi } from './api';
+import { emptyTotals, sumTotals } from './columns';
+import { describePeriod, exportToExcel, exportToPdf, type ReportContext } from './export';
+import { TRIAL_BALANCE_PRINT_STYLES } from './printStyles';
+import { TrialBalanceTable } from './TrialBalanceTable';
 import {
   DOC_LIFE_FILTER_OPTIONS,
   SEARCH_OPERATOR,
@@ -31,35 +37,18 @@ import {
   TRIAL_BALANCE_LEVEL_LABELS,
   type SearchParam,
   type TrialBalanceLevel,
-  type TrialBalanceRow,
   type TrialBalanceVariant,
 } from '../../../types/trialBalance';
 
 const VARIANTS: { value: TrialBalanceVariant; label: string; hint: string }[] = [
-  { value: 4, label: '۴ ستونی', hint: 'گردش و مانده دوره' },
+  { value: 4, label: '۴ ستونی', hint: 'گردش و مانده' },
   { value: 6, label: '۶ ستونی', hint: '+ اول دوره' },
   { value: 8, label: '۸ ستونی', hint: '+ جمع کل' },
 ];
 
-/** A zero cell is noise in a report this dense; only real figures earn ink. */
-function Amount({ value }: { value: number | undefined }) {
-  if (!value) {
-    return (
-      <Typography component="span" variant="body2" sx={{ color: 'text.disabled' }}>
-        —
-      </Typography>
-    );
-  }
-
-  return (
-    <Typography component="span" variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-      {formatThousands(value)}
-    </Typography>
-  );
-}
-
 export function TrialBalancePage() {
-  const { financialYear, isConfigured } = useSession();
+  const { financialYear, unitLabel, isConfigured } = useSession();
+  const notify = useNotify();
 
   const [variant, setVariant] = useState<TrialBalanceVariant>(4);
   const [level, setLevel] = useState<TrialBalanceLevel>(TRIAL_BALANCE_LEVEL.Moin);
@@ -67,10 +56,11 @@ export function TrialBalancePage() {
   const [toDate, setToDate] = useState('');
   const [docLife, setDocLife] = useState<number | ''>('');
   const [codeFilter, setCodeFilter] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
-  // The filters the user is typing are not the filters the report was run with. Holding the
-  // applied set separately keeps the table from re-querying on every keystroke and makes the
-  // "اعمال فیلتر" button mean something.
+  // The filters being typed are not the filters the report was run with. Holding the applied set
+  // separately keeps the report from re-querying on every keystroke and gives "اعمال فیلتر"
+  // something to mean.
   const [applied, setApplied] = useState({
     fromDate: '',
     toDate: '',
@@ -79,12 +69,9 @@ export function TrialBalancePage() {
   });
 
   /**
-   * Account-code filtering is server-side, expressed in the backend's generic `SearchParam` shape.
-   * It used to run here on rows already fetched, which meant the entire report was computed and
-   * sent before being narrowed; the clause now reaches the `WHERE` of the aggregate query.
-   *
-   * `property` is a logical field name the backend allowlists — never a column name — so this
-   * cannot be turned into a filter on something the report does not mean to expose.
+   * Account-code filtering is server-side, in the backend's generic `SearchParam` shape, so the
+   * clause reaches the `WHERE` of the aggregate query instead of trimming rows already computed.
+   * `property` is a logical field name the backend allowlists — never a column name.
    */
   const filters = useMemo<SearchParam[]>(() => {
     const term = applied.code.trim();
@@ -116,121 +103,40 @@ export function TrialBalancePage() {
     placeholderData: (previous) => previous,
   });
 
-  const visibleRows = query.data ?? [];
+  const rows = query.data ?? [];
+  const totals = useMemo(() => (rows.length > 0 ? sumTotals(rows) : emptyTotals()), [rows]);
 
-  const totals = useMemo(() => {
-    return visibleRows.reduce(
-      (acc, row) => ({
-        debtor: acc.debtor + row.debtor,
-        creditor: acc.creditor + row.creditor,
-        debtorBalance: acc.debtorBalance + row.debtorBalance,
-        creditorBalance: acc.creditorBalance + row.creditorBalance,
-        firstDebtor: acc.firstDebtor + (row.firstDebtor ?? 0),
-        firstCreditor: acc.firstCreditor + (row.firstCreditor ?? 0),
-        totDebtor: acc.totDebtor + (row.totDebtor ?? 0),
-        totCreditor: acc.totCreditor + (row.totCreditor ?? 0),
-      }),
-      {
-        debtor: 0,
-        creditor: 0,
-        debtorBalance: 0,
-        creditorBalance: 0,
-        firstDebtor: 0,
-        firstCreditor: 0,
-        totDebtor: 0,
-        totCreditor: 0,
-      },
-    );
-  }, [visibleRows]);
-
-  // A trial balance that does not balance is the single most useful thing this page can tell an
-  // accountant, and this system has no server-side guarantee of it (open risk #3) — so the answer
-  // is computed and shown rather than assumed.
+  // A trial balance that does not balance is the most useful thing this page can say, and the
+  // backend guarantees nothing of the sort (open risk #3) — so it is measured, not assumed.
   const difference = totals.debtor - totals.creditor;
-  const isBalanced = visibleRows.length > 0 && difference === 0;
+  const isBalanced = rows.length > 0 && difference === 0;
 
-  const columns = useMemo<DataTableColumn<TrialBalanceRow>[]>(() => {
-    const base: DataTableColumn<TrialBalanceRow>[] = [
-      {
-        key: 'code',
-        header: 'کد حساب',
-        width: 140,
-        render: (row) => <MonoCode value={row.code} />,
-      },
-      {
-        key: 'description',
-        header: 'شرح',
-        render: (row) =>
-          row.description ?? (
-            <Typography component="span" variant="body2" sx={{ color: 'text.disabled' }}>
-              بدون شرح
-            </Typography>
-          ),
-      },
-    ];
+  const docLifeLabel =
+    docLife === ''
+      ? 'همهٔ وضعیت‌ها'
+      : (DOC_LIFE_FILTER_OPTIONS.find((o) => o.value === applied.docLife)?.label ?? '—');
 
-    if (variant >= 6) {
-      base.push(
-        {
-          key: 'firstDebtor',
-          header: 'بدهکار اول دوره',
-          align: 'end',
-          render: (row) => <Amount value={row.firstDebtor} />,
-        },
-        {
-          key: 'firstCreditor',
-          header: 'بستانکار اول دوره',
-          align: 'end',
-          render: (row) => <Amount value={row.firstCreditor} />,
-        },
-      );
-    }
-
-    base.push(
-      { key: 'debtor', header: 'گردش بدهکار', align: 'end', render: (row) => <Amount value={row.debtor} /> },
-      { key: 'creditor', header: 'گردش بستانکار', align: 'end', render: (row) => <Amount value={row.creditor} /> },
-    );
-
-    if (variant >= 8) {
-      base.push(
-        { key: 'totDebtor', header: 'جمع بدهکار', align: 'end', render: (row) => <Amount value={row.totDebtor} /> },
-        {
-          key: 'totCreditor',
-          header: 'جمع بستانکار',
-          align: 'end',
-          render: (row) => <Amount value={row.totCreditor} />,
-        },
-      );
-    }
-
-    base.push(
-      {
-        key: 'debtorBalance',
-        header: 'مانده بدهکار',
-        align: 'end',
-        render: (row) => <Amount value={row.debtorBalance} />,
-      },
-      {
-        key: 'creditorBalance',
-        header: 'مانده بستانکار',
-        align: 'end',
-        render: (row) => <Amount value={row.creditorBalance} />,
-      },
-    );
-
-    return base;
-  }, [variant]);
+  const context: ReportContext = {
+    variant,
+    level,
+    year: financialYear,
+    fromDate: applied.fromDate,
+    toDate: applied.toDate,
+    docLifeLabel,
+    codeFilter: applied.code,
+    unitLabel,
+  };
 
   const tiles: StatTile[] = [
-    { key: 'rows', label: 'تعداد حساب', value: visibleRows.length, tone: 'info' },
+    { key: 'rows', label: 'تعداد حساب', value: rows.length, tone: 'info' },
     { key: 'debtor', label: 'جمع گردش بدهکار', value: formatThousands(totals.debtor), tone: 'primary' },
     { key: 'creditor', label: 'جمع گردش بستانکار', value: formatThousands(totals.creditor), tone: 'secondary' },
     {
       key: 'diff',
-      label: 'اختلاف',
-      value: formatThousands(Math.abs(difference)),
+      label: isBalanced ? 'وضعیت تراز' : 'اختلاف',
+      value: isBalanced ? 'تراز است' : formatThousands(Math.abs(difference)),
       tone: isBalanced ? 'success' : 'error',
-      hint: isBalanced ? 'تراز است' : 'بدهکار و بستانکار برابر نیستند',
+      hint: isBalanced ? 'بدهکار و بستانکار برابرند' : 'بدهکار و بستانکار برابر نیستند',
     },
   ];
 
@@ -246,207 +152,253 @@ export function TrialBalancePage() {
     setApplied({ fromDate: '', toDate: '', docLife: '', code: '' });
   }
 
+  async function handleExcel() {
+    setIsExporting(true);
+    try {
+      await exportToExcel(rows, totals, context);
+    } catch {
+      // ExcelJS is fetched on demand, so this can fail on a bad connection as well as on a bug.
+      // Silence would look like a dead button.
+      notify('ساخت فایل اکسل ناموفق بود.');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   const hasPendingChanges =
     fromDate !== applied.fromDate ||
     toDate !== applied.toDate ||
     docLife !== applied.docLife ||
     normalizeNumericInput(codeFilter) !== applied.code;
 
+  const hasRows = rows.length > 0;
+
   return (
-    <Stack spacing={2.5}>
-      <PageHeader
-        eyebrow="گزارش‌ها"
-        icon={<BarChartOutlinedIcon fontSize="small" />}
-        accentColor="warning"
-        title="تراز آزمایشی"
-        description="گردش و مانده حساب‌ها در بازهٔ انتخابی، به تفکیک سطح کدینگ"
-      />
+    <>
+      <GlobalStyles styles={TRIAL_BALANCE_PRINT_STYLES} />
 
-      {!isConfigured && (
-        <Alert severity="info">
-          برای مشاهدهٔ گزارش، ابتدا سال مالی را از نوار بالا انتخاب کنید.
-        </Alert>
-      )}
+      <Stack spacing={2.5}>
+        <Box className="tb-no-print">
+          <PageHeader
+            eyebrow="گزارش‌ها"
+            icon={<BarChartOutlinedIcon fontSize="small" />}
+            accentColor="warning"
+            title="تراز آزمایشی"
+            description="گردش و مانده حساب‌ها در بازهٔ انتخابی، به تفکیک سطح کدینگ"
+            actions={
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  startIcon={<TableViewOutlinedIcon />}
+                  onClick={handleExcel}
+                  disabled={!hasRows || isExporting}
+                >
+                  خروجی اکسل
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PrintOutlinedIcon />}
+                  onClick={exportToPdf}
+                  disabled={!hasRows}
+                >
+                  چاپ / PDF
+                </Button>
+              </Stack>
+            }
+          />
+        </Box>
 
-      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Tabs
-          value={variant}
-          onChange={(_, next: TrialBalanceVariant) => setVariant(next)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ px: 1, borderBottom: 1, borderColor: 'divider' }}
-        >
-          {VARIANTS.map((item) => (
-            <Tab
-              key={item.value}
-              value={item.value}
-              label={
-                <Stack spacing={0.25} sx={{ alignItems: "center" }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {item.label}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {item.hint}
-                  </Typography>
-                </Stack>
+        {!isConfigured && (
+          <Alert severity="info" className="tb-no-print">
+            برای مشاهدهٔ گزارش، ابتدا سال مالی را از نوار بالا انتخاب کنید.
+          </Alert>
+        )}
+
+        <Paper variant="outlined" className="tb-no-print" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <Tabs
+            value={variant}
+            onChange={(_, next: TrialBalanceVariant) => setVariant(next)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ px: 1, borderBottom: 1, borderColor: 'divider' }}
+          >
+            {VARIANTS.map((item) => (
+              <Tab
+                key={item.value}
+                value={item.value}
+                label={
+                  <Stack spacing={0.25} sx={{ alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {item.hint}
+                    </Typography>
+                  </Stack>
+                }
+              />
+            ))}
+          </Tabs>
+
+          <Box sx={{ p: 2 }}>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              sx={{ alignItems: { md: 'flex-end' }, flexWrap: 'wrap' }}
+            >
+              <TextField
+                select
+                size="small"
+                label="سطح کدینگ"
+                value={level}
+                onChange={(e) => setLevel(Number(e.target.value) as TrialBalanceLevel)}
+                sx={{ minWidth: 130 }}
+              >
+                {Object.entries(TRIAL_BALANCE_LEVEL_LABELS).map(([value, label]) => (
+                  <MenuItem key={value} value={Number(value)}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                size="small"
+                label="کد حساب"
+                placeholder="مثلاً ۱۱۰۴"
+                value={toPersianDigits(codeFilter)}
+                onChange={(e) => setCodeFilter(normalizeNumericInput(e.target.value))}
+                sx={{ minWidth: 140 }}
+              />
+
+              <TextField
+                size="small"
+                label="از تاریخ"
+                placeholder="۱۴۰۳۰۱۰۱"
+                value={toPersianDigits(fromDate)}
+                onChange={(e) => setFromDate(normalizeNumericInput(e.target.value).slice(0, 8))}
+                sx={{ minWidth: 140 }}
+              />
+
+              <TextField
+                size="small"
+                label="تا تاریخ"
+                placeholder="۱۴۰۳۱۲۲۹"
+                value={toPersianDigits(toDate)}
+                onChange={(e) => setToDate(normalizeNumericInput(e.target.value).slice(0, 8))}
+                sx={{ minWidth: 140 }}
+              />
+
+              <TextField
+                select
+                size="small"
+                label="وضعیت سند"
+                value={docLife}
+                onChange={(e) => setDocLife(e.target.value === '' ? '' : Number(e.target.value))}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="">همهٔ وضعیت‌ها</MenuItem>
+                {DOC_LIFE_FILTER_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  startIcon={<SearchOutlinedIcon />}
+                  onClick={applyFilters}
+                  disabled={!isConfigured}
+                >
+                  اعمال فیلتر
+                </Button>
+                <Button variant="text" startIcon={<RestartAltOutlinedIcon />} onClick={resetFilters}>
+                  پاک‌سازی
+                </Button>
+              </Stack>
+            </Stack>
+
+            {hasPendingChanges && (
+              <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 1 }}>
+                فیلترها تغییر کرده‌اند — برای اعمال روی گزارش، «اعمال فیلتر» را بزنید.
+              </Typography>
+            )}
+          </Box>
+        </Paper>
+
+        {isConfigured && (
+          <Box className="tb-no-print">
+            <StatTiles tiles={tiles} isLoading={query.isLoading} />
+          </Box>
+        )}
+
+        {variant >= 6 && (
+          <Alert severity="warning" variant="outlined" className="tb-no-print">
+            ستون‌های «اول دوره» گردش خام پیش از بازه را نشان می‌دهند، نه ماندهٔ خالص یک‌طرفه. این مطابق
+            فرمول پروژهٔ مرجع پیاده شده ولی معنای دقیقش هنوز تأیید نشده است.
+          </Alert>
+        )}
+
+        {query.isError && (
+          <Box className="tb-no-print">
+            <ErrorBanner error={query.error} />
+          </Box>
+        )}
+
+        {/* Everything inside this element is what the printer and the PDF get. */}
+        <Box id="trial-balance-print-root">
+          {/* Only on paper: a printed report has to carry its own identity, because the sidebar
+              and filter panel that explain it on screen are not there. */}
+          <Box className="tb-print-only" sx={{ display: 'none', mb: 1.5 }}>
+            <Typography variant="h6" align="center" sx={{ fontWeight: 700 }}>
+              تراز آزمایشی {VARIANTS.find((v) => v.value === variant)?.label}
+            </Typography>
+            <Typography variant="body2" align="center" sx={{ color: 'text.secondary' }}>
+              {unitLabel ? `واحد ${unitLabel} · ` : ''}سال مالی {toPersianDigits(financialYear)} ·{' '}
+              {describePeriod(context)} · سطح {TRIAL_BALANCE_LEVEL_LABELS[level]} · {docLifeLabel}
+              {applied.code ? ` · فیلتر کد ${toPersianDigits(applied.code)}` : ''}
+            </Typography>
+            <Divider sx={{ mt: 1 }} />
+          </Box>
+
+          <Box className="tb-scroll">
+            <TrialBalanceTable
+              rows={rows}
+              variant={variant}
+              totals={totals}
+              isLoading={query.isLoading}
+              emptyMessage={
+                isConfigured
+                  ? 'برای این بازه و سطح، گردشی ثبت نشده است.'
+                  : 'ابتدا سال مالی را انتخاب کنید.'
               }
             />
-          ))}
-        </Tabs>
+          </Box>
 
-        <Box sx={{ p: 2 }}>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1.5}
-            sx={{ alignItems: { md: "flex-end" } }}
-          >
-            <TextField
-              select
-              size="small"
-              label="سطح کدینگ"
-              value={level}
-              onChange={(e) => setLevel(Number(e.target.value) as TrialBalanceLevel)}
-              sx={{ minWidth: 140 }}
+          {hasRows && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ mt: 1.5, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
             >
-              {Object.entries(TRIAL_BALANCE_LEVEL_LABELS).map(([value, label]) => (
-                <MenuItem key={value} value={Number(value)}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              size="small"
-              label="از تاریخ"
-              placeholder="۱۴۰۳۰۱۰۱"
-              value={toPersianDigits(fromDate)}
-              onChange={(e) => setFromDate(normalizeNumericInput(e.target.value).slice(0, 8))}
-              sx={{ minWidth: 150 }}
-            />
-
-            <TextField
-              size="small"
-              label="تا تاریخ"
-              placeholder="۱۴۰۳۱۲۲۹"
-              value={toPersianDigits(toDate)}
-              onChange={(e) => setToDate(normalizeNumericInput(e.target.value).slice(0, 8))}
-              sx={{ minWidth: 150 }}
-            />
-
-            <TextField
-              select
-              size="small"
-              label="وضعیت سند"
-              value={docLife}
-              onChange={(e) => setDocLife(e.target.value === '' ? '' : Number(e.target.value))}
-              sx={{ minWidth: 190 }}
-            >
-              <MenuItem value="">همهٔ وضعیت‌ها</MenuItem>
-              {DOC_LIFE_FILTER_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="contained"
-                startIcon={<SearchOutlinedIcon />}
-                onClick={applyFilters}
-                disabled={!isConfigured}
-              >
-                اعمال فیلتر
-              </Button>
-              <Button variant="text" startIcon={<RestartAltOutlinedIcon />} onClick={resetFilters}>
-                پاک‌سازی
-              </Button>
+              <Chip
+                size="small"
+                color={isBalanced ? 'success' : 'error'}
+                variant={isBalanced ? 'filled' : 'outlined'}
+                label={
+                  isBalanced
+                    ? 'تراز است — جمع بدهکار و بستانکار برابرند'
+                    : `ناتراز — اختلاف ${formatThousands(Math.abs(difference))}`
+                }
+              />
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {toPersianDigits(rows.length)} حساب در سطح {TRIAL_BALANCE_LEVEL_LABELS[level]}
+              </Typography>
             </Stack>
-          </Stack>
-
-          {hasPendingChanges && (
-            <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 1 }}>
-              فیلترها تغییر کرده‌اند — برای اعمال روی گزارش، «اعمال فیلتر» را بزنید.
-            </Typography>
           )}
         </Box>
-      </Paper>
-
-      {isConfigured && <StatTiles tiles={tiles} isLoading={query.isLoading} />}
-
-      {variant >= 6 && (
-        <Alert severity="warning" variant="outlined">
-          ستون‌های «اول دوره» گردش خام پیش از بازه را نشان می‌دهند، نه ماندهٔ خالص یک‌طرفه. این مطابق
-          فرمول پروژهٔ مرجع پیاده شده ولی معنای دقیقش هنوز تأیید نشده است.
-        </Alert>
-      )}
-
-      {query.isError && <ErrorBanner error={query.error} />}
-
-      <ListToolbar
-        search={codeFilter}
-        onSearchChange={setCodeFilter}
-        searchLabel="جست‌وجوی کد حساب (با «اعمال فیلتر»)"
-        summary={
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            {/*
-              A plain row count, not "x از y". The server now returns only matching rows, so the
-              unfiltered total is no longer known here — and claiming one would be inventing it.
-            */}
-            <Chip size="small" variant="outlined" label={`${toPersianDigits(visibleRows.length)} ردیف`} />
-            {applied.code && (
-              <Chip size="small" color="info" variant="outlined" label={`کد: ${toPersianDigits(applied.code)}`} />
-            )}
-            <Chip
-              size="small"
-              color={isBalanced ? 'success' : 'default'}
-              variant={isBalanced ? 'filled' : 'outlined'}
-              label={isBalanced ? 'تراز' : 'ناتراز'}
-            />
-          </Stack>
-        }
-      />
-
-      <DataTable
-        columns={columns}
-        rows={visibleRows}
-        getRowKey={(row) => row.code}
-        isLoading={query.isLoading}
-        emptyMessage={
-          isConfigured ? 'برای این بازه و سطح، گردشی ثبت نشده است.' : 'ابتدا سال مالی را انتخاب کنید.'
-        }
-      />
-
-      {visibleRows.length > 0 && (
-        <Paper
-          variant="outlined"
-          sx={{ p: 1.5, borderRadius: 2, bgcolor: 'action.hover', borderStyle: 'dashed' }}
-        >
-          <Stack
-            direction="row"
-            spacing={3}
-            sx={{ justifyContent: "flex-end", flexWrap: "wrap", fontVariantNumeric: "tabular-nums" }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              جمع کل:
-            </Typography>
-            {variant >= 6 && (
-              <>
-                <Typography variant="body2">اول دوره بدهکار: {formatThousands(totals.firstDebtor)}</Typography>
-                <Typography variant="body2">
-                  اول دوره بستانکار: {formatThousands(totals.firstCreditor)}
-                </Typography>
-              </>
-            )}
-            <Typography variant="body2">گردش بدهکار: {formatThousands(totals.debtor)}</Typography>
-            <Typography variant="body2">گردش بستانکار: {formatThousands(totals.creditor)}</Typography>
-            <Typography variant="body2">مانده بدهکار: {formatThousands(totals.debtorBalance)}</Typography>
-            <Typography variant="body2">
-              مانده بستانکار: {formatThousands(totals.creditorBalance)}
-            </Typography>
-          </Stack>
-        </Paper>
-      )}
-    </Stack>
+      </Stack>
+    </>
   );
 }
