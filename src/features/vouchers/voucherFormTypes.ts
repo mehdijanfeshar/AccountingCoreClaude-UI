@@ -1,3 +1,4 @@
+import { newClientId } from '../../lib/ids';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
 
 /**
@@ -12,7 +13,9 @@ export type VoucherLineFormValue = VoucherEntryFormSchema['lines'][number];
 /** Factory (not a shared constant) — each call needs its own unique `key`. */
 export function createEmptyVoucherLine(): VoucherLineFormValue {
   return {
-    key: crypto.randomUUID(),
+    // Not crypto.randomUUID: that only exists in a secure context, and this app is opened over
+    // plain HTTP on a LAN address during development. See newClientId.
+    key: newClientId(),
     accountId: '',
     accountLabel: '',
     description: '',
