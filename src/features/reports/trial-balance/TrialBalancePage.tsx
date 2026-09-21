@@ -25,8 +25,11 @@ import { formatThousands, toPersianDigits, normalizeNumericInput } from '../../.
 import { trialBalanceApi } from './api';
 import {
   DOC_LIFE_FILTER_OPTIONS,
+  SEARCH_OPERATOR,
+  TRIAL_BALANCE_FIELD,
   TRIAL_BALANCE_LEVEL,
   TRIAL_BALANCE_LEVEL_LABELS,
+  type SearchParam,
   type TrialBalanceLevel,
   type TrialBalanceRow,
   type TrialBalanceVariant,
@@ -68,10 +71,38 @@ export function TrialBalancePage() {
   // The filters the user is typing are not the filters the report was run with. Holding the
   // applied set separately keeps the table from re-querying on every keystroke and makes the
   // "اعمال فیلتر" button mean something.
-  const [applied, setApplied] = useState({ fromDate: '', toDate: '', docLife: '' as number | '' });
+  const [applied, setApplied] = useState({
+    fromDate: '',
+    toDate: '',
+    docLife: '' as number | '',
+    code: '',
+  });
+
+  /**
+   * Account-code filtering is server-side, expressed in the backend's generic `SearchParam` shape.
+   * It used to run here on rows already fetched, which meant the entire report was computed and
+   * sent before being narrowed; the clause now reaches the `WHERE` of the aggregate query.
+   *
+   * `property` is a logical field name the backend allowlists — never a column name — so this
+   * cannot be turned into a filter on something the report does not mean to expose.
+   */
+  const filters = useMemo<SearchParam[]>(() => {
+    const term = applied.code.trim();
+    if (!term) return [];
+    return [{ property: TRIAL_BALANCE_FIELD.Code, operator: SEARCH_OPERATOR.LIKE, value: term }];
+  }, [applied.code]);
 
   const query = useQuery({
-    queryKey: ['trial-balance', variant, financialYear, level, applied.fromDate, applied.toDate, applied.docLife],
+    queryKey: [
+      'trial-balance',
+      variant,
+      financialYear,
+      level,
+      applied.fromDate,
+      applied.toDate,
+      applied.docLife,
+      applied.code,
+    ],
     queryFn: () =>
       trialBalanceApi.get(variant, {
         year: financialYear,
@@ -79,23 +110,13 @@ export function TrialBalancePage() {
         fromDate: applied.fromDate || undefined,
         toDate: applied.toDate || undefined,
         docLife: applied.docLife === '' ? undefined : applied.docLife,
+        filters: filters.length > 0 ? filters : undefined,
       }),
     enabled: isConfigured,
     placeholderData: (previous) => previous,
   });
 
-  const rows = query.data ?? [];
-
-  /**
-   * Account-code filtering happens here, on the client, and that is a real limitation rather than
-   * a design choice: the backend takes year/date/level/docLife only — there is no code-range
-   * parameter to pass. It narrows what was returned, so the totals below follow the filter.
-   */
-  const visibleRows = useMemo(() => {
-    const needle = normalizeNumericInput(codeFilter).trim();
-    if (!needle) return rows;
-    return rows.filter((row) => row.code.includes(needle));
-  }, [rows, codeFilter]);
+  const visibleRows = query.data ?? [];
 
   const totals = useMemo(() => {
     return visibleRows.reduce(
@@ -214,7 +235,7 @@ export function TrialBalancePage() {
   ];
 
   function applyFilters() {
-    setApplied({ fromDate, toDate, docLife });
+    setApplied({ fromDate, toDate, docLife, code: normalizeNumericInput(codeFilter) });
   }
 
   function resetFilters() {
@@ -222,11 +243,14 @@ export function TrialBalancePage() {
     setToDate('');
     setDocLife('');
     setCodeFilter('');
-    setApplied({ fromDate: '', toDate: '', docLife: '' });
+    setApplied({ fromDate: '', toDate: '', docLife: '', code: '' });
   }
 
   const hasPendingChanges =
-    fromDate !== applied.fromDate || toDate !== applied.toDate || docLife !== applied.docLife;
+    fromDate !== applied.fromDate ||
+    toDate !== applied.toDate ||
+    docLife !== applied.docLife ||
+    normalizeNumericInput(codeFilter) !== applied.code;
 
   return (
     <Stack spacing={2.5}>
@@ -362,15 +386,16 @@ export function TrialBalancePage() {
       <ListToolbar
         search={codeFilter}
         onSearchChange={setCodeFilter}
-        searchLabel="جست‌وجوی کد حساب"
+        searchLabel="جست‌وجوی کد حساب (با «اعمال فیلتر»)"
         summary={
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            {codeFilter && (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={`${toPersianDigits(visibleRows.length)} از ${toPersianDigits(rows.length)}`}
-              />
+            {/*
+              A plain row count, not "x از y". The server now returns only matching rows, so the
+              unfiltered total is no longer known here — and claiming one would be inventing it.
+            */}
+            <Chip size="small" variant="outlined" label={`${toPersianDigits(visibleRows.length)} ردیف`} />
+            {applied.code && (
+              <Chip size="small" color="info" variant="outlined" label={`کد: ${toPersianDigits(applied.code)}`} />
             )}
             <Chip
               size="small"

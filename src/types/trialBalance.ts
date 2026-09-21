@@ -93,5 +93,43 @@ export interface TrialBalanceParams {
   level: TrialBalanceLevel;
   /** Optional inclusive lower bound on the raw `DOCLIFE` number. */
   docLife?: number;
+  /**
+   * Generic report filters. Server-side: they narrow the aggregate query itself rather than the
+   * rows it already produced, which is why this replaced the page's client-side code filter.
+   */
+  filters?: SearchParam[];
 }
 
+
+/**
+ * Mirrors `Accounting.Application.Common.Search` — the generic filter shape the backend reports
+ * accept, ported from the project owner's previous system.
+ *
+ * `property` is a **logical field name**, not a column: the backend matches it against a small
+ * allowlist and maps it to SQL itself. Sending anything else is a 400, by design — that allowlist
+ * is what keeps a generic filter from becoming an injection point.
+ */
+export const SEARCH_OPERATOR = {
+  EQ: 0,
+  NEQ: 1,
+  GT: 2,
+  LT: 3,
+  GTE: 4,
+  LTE: 5,
+  LIKE: 6,
+  IN: 7,
+} as const;
+
+export type SearchOperator = (typeof SEARCH_OPERATOR)[keyof typeof SEARCH_OPERATOR];
+
+export interface SearchParam {
+  property: string;
+  operator: SearchOperator;
+  value: string;
+}
+
+/** The fields a trial balance filter may name — must match `TrialBalanceSearchFields`. */
+export const TRIAL_BALANCE_FIELD = {
+  Code: 'code',
+  Description: 'description',
+} as const;

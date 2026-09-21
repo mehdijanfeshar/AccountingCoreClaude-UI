@@ -23,7 +23,7 @@ import type {
 export const trialBalanceApi = {
   get(
     variant: TrialBalanceVariant,
-    { year, fromDate, toDate, level, docLife }: TrialBalanceParams,
+    { year, fromDate, toDate, level, docLife, filters }: TrialBalanceParams,
   ): Promise<TrialBalanceRow[]> {
     // Empty optional filters are dropped rather than sent blank: the backend distinguishes an
     // absent fromDate from an empty one, and sending "" would silently narrow the report.
@@ -32,6 +32,14 @@ export const trialBalanceApi = {
     if (fromDate) params.fromDate = fromDate;
     if (toDate) params.toDate = toDate;
     if (docLife !== undefined) params.docLife = docLife;
+
+    // ASP.NET binds a List<SearchParam> from indexed query-string keys, so the clauses are spread
+    // out rather than serialised: filters[0].property=code&filters[0].operator=6&…
+    filters?.forEach((filter, i) => {
+      params[`filters[${i}].property`] = filter.property;
+      params[`filters[${i}].operator`] = filter.operator;
+      params[`filters[${i}].value`] = filter.value;
+    });
 
     return apiClient
       .get<TrialBalanceRow[]>(`/reports/trial-balance-${variant}`, { params })
