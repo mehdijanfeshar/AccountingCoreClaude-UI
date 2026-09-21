@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     // Fixed at 4200 on purpose: the organization's IDP (account-pilot.tamin.ir)
     // only issues tokens for pre-registered redirect_uri values, and
