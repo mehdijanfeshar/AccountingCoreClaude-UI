@@ -21,7 +21,6 @@ import { WorkShopsListPage } from '../features/work-shops/WorkShopsListPage';
 import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
 import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
-import { VoucherHeadsShadcnPage } from '../features/vouchers/VoucherHeadsShadcnPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
@@ -74,9 +73,6 @@ export const routes: RouteObject[] = [
   { path: '/base/work-shops/:id/edit', element: <WorkShopFormPage /> },
 
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
-  // PILOT — same page on Tailwind + shadcn, routed alongside for comparison. Remove one of the
-  // two once the platform decision is made; do not leave both.
-  { path: '/operation/voucher-heads-shadcn', element: <VoucherHeadsShadcnPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
 
   { path: '/operation/pay-recive-heads', element: <PayReciveHeadsListPage /> },

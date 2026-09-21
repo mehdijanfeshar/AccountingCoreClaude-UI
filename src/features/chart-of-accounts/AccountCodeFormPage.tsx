@@ -3,12 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -151,14 +149,7 @@ export function AccountCodeFormPage() {
           addUserId={existingQuery.data?.addUserId}
           changeUserId={existingQuery.data?.changeUserId}
         />
-        <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-          <Button variant="text" onClick={() => navigate('/base/account-codes')}>
-            انصراف
-          </Button>
-          <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-            {pending ? 'در حال ذخیره...' : 'ذخیره'}
-          </Button>
-        </Stack>
+        <FormActions onCancel={() => navigate('/base/account-codes')} pending={pending} />
       </FormCard>
 
       <AccountCodePickerDialog

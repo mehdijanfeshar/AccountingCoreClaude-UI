@@ -7,14 +7,11 @@ import DatePicker from 'react-multi-date-picker';
 import DateObject from 'react-date-object';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
 import Autocomplete from '@mui/material/Autocomplete';
 import MenuItem from '@mui/material/MenuItem';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
@@ -24,6 +21,7 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -348,14 +346,7 @@ export function CheckBookFormPage() {
               addUserId={existingQuery.data?.addUserId}
               changeUserId={existingQuery.data?.changeUserId}
             />
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/base/bank')}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره...' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate('/base/bank')} pending={pending} />
           </Grid>
         </Grid>
       </FormCard>

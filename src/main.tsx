@@ -11,7 +11,6 @@ import { App } from './app/App';
 import { theme } from './theme';
 import { rtlCache } from './theme/rtlCache';
 import { bootstrapAuth } from './lib/auth/authBootstrap';
-import './tailwind.css';
 import './index.css';
 
 // Must resolve before the app renders: if the URL is the IDP redirecting

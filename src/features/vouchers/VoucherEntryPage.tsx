@@ -24,7 +24,6 @@ import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
 import Avatar from '@mui/material/Avatar';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import FormatListNumberedOutlinedIcon from '@mui/icons-material/FormatListNumberedOutlined';
@@ -37,6 +36,7 @@ import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
+import { FormActions } from '../../components/FormActions';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -541,20 +541,14 @@ export function VoucherEntryPage() {
           </Alert>
         )}
 
-        <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-          <Button variant="text" onClick={() => navigate('/operation/voucher-heads')}>
-            انصراف
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            color="secondary"
-            startIcon={<SaveOutlinedIcon />}
-            disabled={formState.isSubmitting}
-          >
-            {formState.isSubmitting ? 'در حال ذخیره...' : 'ذخیره سند'}
-          </Button>
-        </Stack>
+        {/* The longest form in the app — a voucher grows a row per line, so this is the save
+            button most likely to end up scrolled out of reach. */}
+        <FormActions
+          onCancel={() => navigate('/operation/voucher-heads')}
+          pending={formState.isSubmitting}
+          submitLabel="ذخیره سند"
+          errorCount={Object.keys(formState.errors).length}
+        />
       </Box>
     </section>
   );

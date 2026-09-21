@@ -12,9 +12,7 @@ import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
@@ -23,6 +21,7 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -278,14 +277,7 @@ export function PayReciveHeadFormPage() {
               addUserId={existingQuery.data?.addUserId}
               changeUserId={existingQuery.data?.changeUserId}
             />
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/operation/pay-recive-heads')}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره...' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate('/operation/pay-recive-heads')} pending={pending} />
           </Grid>
         </Grid>
       </FormCard>

@@ -3,21 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -278,14 +276,7 @@ export function IdentitySubGroupFormPage() {
           </Grid>
 
           <Grid size={12}>
-            <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
-              <Button variant="text" onClick={() => navigate(backTo)} disabled={pending}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره…' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate(backTo)} pending={pending} />
           </Grid>
         </Grid>
 

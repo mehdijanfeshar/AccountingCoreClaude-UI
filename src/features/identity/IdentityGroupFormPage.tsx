@@ -3,17 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -150,14 +148,7 @@ export function IdentityGroupFormPage() {
           </Grid>
 
           <Grid size={12}>
-            <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end' }}>
-              <Button variant="text" onClick={() => navigate('/base/features')} disabled={pending}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره…' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate('/base/features')} pending={pending} />
           </Grid>
         </Grid>
 

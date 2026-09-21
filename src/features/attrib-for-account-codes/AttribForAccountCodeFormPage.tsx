@@ -3,19 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -306,14 +304,7 @@ export function AttribForAccountCodeFormPage() {
               addUserId={existingQuery.data?.addUserId}
               changeUserId={existingQuery.data?.changeUserId}
             />
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/base/attrib-for-account-codes')}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره...' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate('/base/attrib-for-account-codes')} pending={pending} />
           </Grid>
         </Grid>
       </FormCard>

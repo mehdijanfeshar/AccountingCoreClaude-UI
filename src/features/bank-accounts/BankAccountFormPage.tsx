@@ -6,12 +6,9 @@ import { useForm, Controller } from 'react-hook-form';
 import DatePicker from 'react-multi-date-picker';
 import persian from 'react-date-object/calendars/persian';
 import persian_fa from 'react-date-object/locales/persian_fa';
-import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Button from '@mui/material/Button';
-import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import NumbersOutlinedIcon from '@mui/icons-material/NumbersOutlined';
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
@@ -22,6 +19,7 @@ import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
 import { RecordMetaFooter } from '../../components/RecordMetaFooter';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
@@ -290,14 +288,7 @@ export function BankAccountFormPage() {
               addUserId={existingQuery.data?.addUserId}
               changeUserId={existingQuery.data?.changeUserId}
             />
-            <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end', mt: 3 }}>
-              <Button variant="text" onClick={() => navigate('/base/bank')}>
-                انصراف
-              </Button>
-              <Button type="submit" variant="contained" startIcon={<SaveOutlinedIcon />} disabled={pending}>
-                {pending ? 'در حال ذخیره...' : 'ذخیره'}
-              </Button>
-            </Stack>
+            <FormActions onCancel={() => navigate('/base/bank')} pending={pending} />
           </Grid>
         </Grid>
       </FormCard>

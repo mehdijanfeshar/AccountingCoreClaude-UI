@@ -122,12 +122,49 @@ export const theme = createTheme(
           hover: { '&:hover': { backgroundColor: '#F8FAFC' } },
         },
       },
+      /*
+       * Inputs carry most of a form's visual weight, so they get the most attention here.
+       *
+       * They sit on a tinted ground rather than plain white: against an outlined white card a
+       * white field has only its 1px border to say "you can type here", and a column of them
+       * reads as ruled lines. The tint makes each field legible as a target at a glance, and it
+       * goes fully white on focus so the active field is unmistakable.
+       */
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            backgroundColor: '#FFFFFF',
+            backgroundColor: '#F8FAFC',
+            transition: 'background-color 160ms, box-shadow 160ms',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: BORDER },
+            '&:hover': { backgroundColor: '#F1F5F9' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#94A3B8' },
+            '&.Mui-focused': {
+              backgroundColor: '#FFFFFF',
+              // A soft ring rather than only a thicker border — the field lifts off the card
+              // instead of just darkening, which is far easier to track while tabbing.
+              boxShadow: `0 0 0 3px ${alpha('#1E3A8A', 0.12)}`,
+            },
+            '&.Mui-disabled': { backgroundColor: '#F1F5F9' },
+            '&.Mui-error.Mui-focused': { boxShadow: `0 0 0 3px ${alpha('#B91C1C', 0.12)}` },
           },
+          input: {
+            // Accounting forms are mostly numbers; lining tabular figures keep digits aligned
+            // and stop `۱` from sitting narrower than `۸`.
+            fontVariantNumeric: 'tabular-nums lining-nums',
+          },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: { fontWeight: 500, '&.Mui-focused': { fontWeight: 600 } },
+          // Required fields are marked by colour and weight, not the pale asterisk MUI renders
+          // by default, which disappears in a dense form.
+          asterisk: { color: '#B91C1C', fontWeight: 700 },
+        },
+      },
+      MuiFormHelperText: {
+        styleOverrides: {
+          root: { marginInlineStart: 2, marginTop: 5, fontSize: '0.72rem', lineHeight: 1.6 },
         },
       },
       MuiAlert: {
