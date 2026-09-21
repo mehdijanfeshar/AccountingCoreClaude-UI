@@ -416,14 +416,34 @@ export function VoucherHeadsListPage() {
                   label={
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <span>{option.label}</span>
-                      {/* The count tells the user where the work is before they click. */}
+                      {/*
+                        The count tells the user where the work is before they click — but it is
+                        information, not status. It used to be a filled status-coloured chip, and
+                        in a tab strip that is the visual language of an unread badge: a bold green
+                        «۲» reads as "two things need you", when it only means "two vouchers are in
+                        this state". The state is already named by the tab next to it.
+
+                        Every count now looks the same and only its weight changes — present when
+                        there is something, receded when there is not. It keeps its shape at zero
+                        rather than vanishing, so the tabs do not shift as the counts load.
+                      */}
                       {count !== undefined && (
-                        <Chip
-                          size="small"
-                          label={toPersianDigits(count)}
-                          color={count > 0 ? getDocLifeTone(option.value) : 'default'}
-                          sx={{ height: 20, minWidth: 28, fontSize: '0.7rem' }}
-                        />
+                        <Box
+                          component="span"
+                          sx={{
+                            minWidth: 22,
+                            px: 0.75,
+                            borderRadius: 1,
+                            fontSize: '0.7rem',
+                            lineHeight: '18px',
+                            textAlign: 'center',
+                            fontVariantNumeric: 'tabular-nums',
+                            bgcolor: count > 0 ? 'action.selected' : 'action.hover',
+                            color: count > 0 ? 'text.secondary' : 'text.disabled',
+                          }}
+                        >
+                          {toPersianDigits(count)}
+                        </Box>
                       )}
                     </Stack>
                   }
