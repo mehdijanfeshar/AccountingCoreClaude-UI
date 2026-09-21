@@ -130,7 +130,12 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: <AssessmentOutlinedIcon fontSize="small" />,
     color: 'warning',
     items: [
-      { label: 'تراز آزمایشی', icon: <BarChartOutlinedIcon fontSize="small" /> },
+      {
+        label: 'تراز آزمایشی',
+        description: 'گردش و مانده حساب‌ها در بازهٔ انتخابی (۴، ۶ و ۸ ستونی)',
+        to: '/reports/trial-balance',
+        icon: <BarChartOutlinedIcon fontSize="small" />,
+      },
       { label: 'دفتر کل', icon: <MenuBookOutlinedIcon fontSize="small" /> },
       { label: 'دفتر روزنامه', icon: <ArticleOutlinedIcon fontSize="small" /> },
       { label: 'مرور حساب‌ها', icon: <ManageSearchOutlinedIcon fontSize="small" /> },
