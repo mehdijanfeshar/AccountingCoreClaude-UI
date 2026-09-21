@@ -47,6 +47,7 @@ import {
   DOC_LIFE_OPTIONS,
   getDocLifeLabel,
   getDocLifeTone,
+  isKnownDocLife,
   voucherHeadsApi,
 } from './api';
 import type { VoucherHeadDto } from '../../types/voucherHead';
@@ -263,9 +264,23 @@ export function VoucherHeadsListPage() {
     {
       key: 'docLife',
       header: 'وضعیت',
-      render: (row) => (
-        <Chip size="small" color={getDocLifeTone(row.docLife)} label={getDocLifeLabel(row.docLife)} />
-      ),
+      render: (row) =>
+        isKnownDocLife(row.docLife) ? (
+          <Chip size="small" color={getDocLifeTone(row.docLife)} label={getDocLifeLabel(row.docLife)} />
+        ) : (
+          // A voucher whose DOCLIFE is NULL or outside the enum has no state to colour. Giving it
+          // a solid chip like the real states would dress up an unknown as a status; an outlined
+          // muted one says "nothing here" without hiding the row. The raw value stays reachable in
+          // the tooltip for whoever is trying to work out where these rows came from.
+          <Tooltip title={`مقدار خام DOCLIFE: ${row.docLife === null ? 'NULL' : row.docLife}`}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={getDocLifeLabel(row.docLife)}
+              sx={{ color: 'text.disabled', borderStyle: 'dashed' }}
+            />
+          </Tooltip>
+        ),
     },
     {
       key: 'rowActions',

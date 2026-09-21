@@ -124,9 +124,24 @@ export const DOC_LIFE_OPTIONS = [
 
 export type DocLifeValue = (typeof DOC_LIFE_OPTIONS)[number]['value'];
 
+export function isKnownDocLife(value: number | null | undefined): boolean {
+  return value !== null && value !== undefined && DOC_LIFE_OPTIONS.some((o) => o.value === value);
+}
+
+/**
+ * ⚠️ Both "no value" and "a value outside the enum" read as «بدون وضعیت».
+ *
+ * They used to read as «تعیین‌نشده» and «نامشخص (۰)», which distinguished two things an
+ * accountant can neither act on nor tell apart in meaning. DOCLIFE is a four-state ordinal
+ * (یادداشت/موقت/بررسی‌شده/تأیید دائم); 0 exists only as an Oracle column DEFAULT and was
+ * deliberately never given a meaning, and NULL is simply absent. To a reader both say the same
+ * thing: this voucher has no usable state.
+ *
+ * The raw value is not thrown away — the list puts it in a tooltip, so anyone debugging can still
+ * see whether a row is 0 or NULL without the column asserting that the difference matters.
+ */
 export function getDocLifeLabel(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'تعیین‌نشده';
-  return DOC_LIFE_OPTIONS.find((o) => o.value === value)?.label ?? `نامشخص (${value})`;
+  return DOC_LIFE_OPTIONS.find((o) => o.value === value)?.label ?? 'بدون وضعیت';
 }
 
 /**

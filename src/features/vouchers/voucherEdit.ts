@@ -18,9 +18,21 @@ import type { VoucherEntryFormSchema } from './voucherEntrySchema';
 /** Maps a form row's client-side `key` to the `TB_VOUCHERSDETAIL.ID` it came from. */
 export type DetailIdByRowKey = Record<string, string>;
 
+/**
+ * The line rows exactly as they were loaded, keyed by form row.
+ *
+ * <b>Needed because the update path replaces rather than patches.</b> The handler assigns every
+ * column it accepts, unconditionally, so a field left out of the payload is not "unchanged" — it
+ * is set to null. This form edits five of a line's columns; the rest (RECEIP_ID, CHECK_ID,
+ * LOWLEVELCODE_ID, ETEBAR_ID and RADIF, the line's own ordering number) have to be sent back
+ * untouched or they are destroyed by an edit that never mentioned them.
+ */
+export type OriginalDetailByRowKey = Record<string, VoucherDetailDto>;
+
 export interface LoadedVoucher {
   values: VoucherEntryFormSchema;
   detailIds: DetailIdByRowKey;
+  originals: OriginalDetailByRowKey;
 }
 
 /**
@@ -58,6 +70,7 @@ export function toFormValues(
   accountLabelById: (id: string | null) => string,
 ): LoadedVoucher {
   const detailIds: DetailIdByRowKey = {};
+  const originals: OriginalDetailByRowKey = {};
 
   // Checked before anything is mapped, so the form never half-loads.
   if (details.some((detail) => !Array.isArray(detail.tafsiliLinks))) {
@@ -67,6 +80,7 @@ export function toFormValues(
   const lines: VoucherLineFormValue[] = details.map((detail) => {
     const line = createEmptyVoucherLine();
     detailIds[line.key] = detail.id;
+    originals[line.key] = detail;
 
     const tafsili: Record<string, string> = {};
     const tafsiliLabels: Record<string, string> = {};
@@ -92,6 +106,7 @@ export function toFormValues(
 
   return {
     detailIds,
+    originals,
     values: {
       docNum: head.docNum ?? '',
       dateDoc: head.dateDoc ?? '',
@@ -105,22 +120,29 @@ export function toFormValues(
   };
 }
 
+/**
+ * @param original The row as loaded, when this line already exists. Its columns are carried
+ * through untouched — the update path replaces rather than patches, so anything omitted is set to
+ * null rather than left alone. `RADIF` matters most here: it is the line's ordering number, and
+ * nulling it would silently reshuffle the voucher.
+ */
 function buildPayload(
   headId: string,
   line: VoucherLineFormValue,
   year: string,
+  original?: VoucherDetailDto,
 ): CreateVoucherDetailPayload {
   const tafsiliEntries = Object.entries(line.tafsili ?? {}).filter(([, tafsiliId]) => Boolean(tafsiliId));
 
   return {
     voucherHeadId: headId,
     accountId: line.accountId || null,
-    receiptId: null,
-    checkId: null,
-    lowLevelCodeId: null,
-    etebarId: null,
+    receiptId: original?.receiptId ?? null,
+    checkId: original?.checkId ?? null,
+    lowLevelCodeId: original?.lowLevelCodeId ?? null,
+    etebarId: original?.etebarId ?? null,
     description: line.description?.trim() ? line.description.trim() : null,
-    radif: null,
+    radif: original?.radif ?? null,
     debtor: line.debtor ? Number(line.debtor) : null,
     creditor: line.creditor ? Number(line.creditor) : null,
     year: year || null,
@@ -148,6 +170,7 @@ export async function reconcileLines(
   headId: string,
   lines: VoucherLineFormValue[],
   detailIds: DetailIdByRowKey,
+  originals: OriginalDetailByRowKey,
   year: string,
 ): Promise<ReconcileResult> {
   const failed: ReconcileResult['failed'] = [];
@@ -172,7 +195,7 @@ export async function reconcileLines(
     const existingId = detailIds[line.key];
     try {
       if (existingId) {
-        await voucherDetailsApi.update(existingId, buildPayload(headId, line, year));
+        await voucherDetailsApi.update(existingId, buildPayload(headId, line, year, originals[line.key]));
       } else {
         await voucherDetailsApi.create(buildPayload(headId, line, year));
       }

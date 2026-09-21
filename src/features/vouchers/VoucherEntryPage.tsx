@@ -45,7 +45,12 @@ import { formatThousands, toLatinDigits } from '../../lib/format/numbers';
 import { VoucherLineRow } from './VoucherLineRow';
 import { buildVoucherEntrySchema, type ActiveLevelsByRowKey, type VoucherEntryFormSchema } from './voucherEntrySchema';
 import { createEmptyVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
-import { reconcileLines, toFormValues, type DetailIdByRowKey } from './voucherEdit';
+import {
+  reconcileLines,
+  toFormValues,
+  type DetailIdByRowKey,
+  type OriginalDetailByRowKey,
+} from './voucherEdit';
 import { useAllAccountCodes } from '../chart-of-accounts/useAllAccountCodes';
 import { voucherDetailsApi, voucherHeadsApi, type CreateVoucherDetailPayload, type CreateVoucherHeadPayload } from './api';
 import type { TafsiliLevelDto } from '../../types/tafsili';
@@ -102,6 +107,7 @@ export function VoucherEntryPage() {
   const { id: editingId } = useParams<{ id: string }>();
   const isEditing = Boolean(editingId);
   const [detailIds, setDetailIds] = useState<DetailIdByRowKey>({});
+  const [originalDetails, setOriginalDetails] = useState<OriginalDetailByRowKey>({});
 
   const { items: accountCodes } = useAllAccountCodes();
 
@@ -140,6 +146,7 @@ export function VoucherEntryPage() {
 
       form.reset(loaded.values);
       setDetailIds(loaded.detailIds);
+      setOriginalDetails(loaded.originals);
       setLoadError(null);
     } catch (error) {
       // Anything thrown here would otherwise escape during render and take the whole tree down —
@@ -230,23 +237,49 @@ export function VoucherEntryPage() {
   async function submitEdit(values: VoucherEntryFormSchema) {
     setGlobalError(null);
 
+    const loadedHead = existingVoucher.data?.head;
+    if (!loadedHead) {
+      setGlobalError(new Error('سرسند بارگذاری نشده است؛ صفحه را دوباره باز کنید.'));
+      return;
+    }
+
     try {
+      // ⚠️ Every field the command accepts has to be sent, including the ones this form does not
+      // edit. The update path replaces rather than patches — the handler assigns all fourteen
+      // columns unconditionally — so a field left out of the payload is not "unchanged", it is
+      // set to null. Sending only the five fields the form owns would have silently wiped
+      // DOCLIFE, SYSTEM_TYPE, FLAG_STATE, ATF_NUM and the rest on every save.
+      //
+      // DOCLIFE in particular is round-tripped untouched rather than omitted: a voucher's state
+      // moves through change-state, which is its own auditable operation (phase 30). Editing must
+      // neither change it nor erase it.
       await voucherHeadsApi.update(editingId as string, {
         docNum: values.docNum.trim(),
         dateDoc: values.dateDoc.trim(),
         headDesc: values.headDesc?.trim() ? values.headDesc.trim() : null,
         apendix: values.apendix?.trim() ? values.apendix.trim() : null,
         year: values.year.trim(),
-        // DOCLIFE is deliberately absent. A voucher's state moves through change-state, which is
-        // its own auditable operation (phase 30) — letting an edit carry it would put the state
-        // back into an anonymous field write, which is exactly what that phase undid.
+        docLife: loadedHead.docLife,
+        systemTypeId: loadedHead.systemTypeId,
+        flagState: loadedHead.flagState,
+        isAutomatic: loadedHead.isAutomatic,
+        sndVahedCode: loadedHead.sndVahedCode,
+        parentHeadId: loadedHead.parentHeadId,
+        attachFileName: loadedHead.attachFileName,
+        atfNum: loadedHead.atfNum,
       });
     } catch (error) {
       setGlobalError(error);
       return;
     }
 
-    const { failed } = await reconcileLines(editingId as string, values.lines, detailIds, values.year);
+    const { failed } = await reconcileLines(
+      editingId as string,
+      values.lines,
+      detailIds,
+      originalDetails,
+      values.year,
+    );
 
     if (failed.length > 0) {
       setLineErrorMessages((prev) => {
