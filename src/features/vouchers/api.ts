@@ -82,11 +82,10 @@ export const voucherHeadsApi = createResourceApi<
 >('voucher-heads');
 
 /**
- * Deliberately only `create`/`list` here, not the full `createResourceApi<...>` helper —
- * this feature (voucher entry) never needs `getById`/`update`/`remove` on
- * `voucher-details`, and `list` takes extra query params (`voucherHeadId`/`year`) that don't
- * fit the generic helper's plain `ListParams`. A future feature needing the rest of the CRUD
- * surface can still add it via `createResourceApi` without conflicting with this object.
+ * Hand-written rather than `createResourceApi<...>`, because `list` takes extra query params
+ * (`voucherHeadId`/`year`) that do not fit the generic helper's plain `ListParams`. It now carries
+ * `update`/`remove` as well — the voucher edit form needs to reconcile a head's lines, which means
+ * changing some, adding others and removing the rest.
  */
 export const voucherDetailsApi = {
   create(payload: CreateVoucherDetailPayload): Promise<CreateResponse> {
@@ -95,6 +94,22 @@ export const voucherDetailsApi = {
   list(params: ListParams & { voucherHeadId?: string; year?: string }): Promise<PagedResult<VoucherDetailDto>> {
     return apiClient
       .get<PagedResult<VoucherDetailDto>>('/voucher-details', { params })
+      .then((res) => res.data);
+  },
+  /**
+   * ⚠️ Leaving `tafsiliLinks` out of the payload is not the same as sending `[]`. The backend
+   * leaves a line's existing links untouched when the field is absent, and soft-deletes every one
+   * of them when it is an empty array. The edit form depends on that difference — do not
+   * "normalise" an undefined into an empty list on the way out.
+   */
+  update(id: string, payload: Partial<CreateVoucherDetailPayload>): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/voucher-details/${id}/update`, payload)
+      .then((res) => res.data);
+  },
+  remove(id: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/voucher-details/${id}/delete`, {})
       .then((res) => res.data);
   },
 };

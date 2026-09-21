@@ -75,6 +75,7 @@ export const routes: RouteObject[] = [
 
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
+  { path: '/operation/vouchers/:id/edit', element: <VoucherEntryPage /> },
 
   { path: '/operation/pay-recive-heads', element: <PayReciveHeadsListPage /> },
   { path: '/operation/pay-recive-heads/new', element: <PayReciveHeadFormPage /> },

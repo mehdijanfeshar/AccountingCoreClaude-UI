@@ -21,4 +21,18 @@ export interface VoucherDetailDto {
   vahedCode: string | null;
   year: string | null;
   isDeleted: boolean | null;
+  /**
+   * The line's active تفصیلی assignments, added to the read side when the edit form was built.
+   * Never null: an empty array means "this line has none", which the form has to tell apart from
+   * "unknown" — it sends an empty list to clear links, and omits the field entirely to leave them
+   * untouched.
+   */
+  tafsiliLinks: {
+    tafsiliId: string;
+    levelId: string;
+    tafsiliCode: string | null;
+    tafsiliName: string | null;
+    /** `"{code} - {name}"`, composed server-side — show verbatim, same as the lookup returns. */
+    label: string;
+  }[];
 }

@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import DatePicker from 'react-multi-date-picker';
@@ -45,6 +45,8 @@ import { formatThousands, toLatinDigits } from '../../lib/format/numbers';
 import { VoucherLineRow } from './VoucherLineRow';
 import { buildVoucherEntrySchema, type ActiveLevelsByRowKey, type VoucherEntryFormSchema } from './voucherEntrySchema';
 import { createEmptyVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
+import { reconcileLines, toFormValues, type DetailIdByRowKey } from './voucherEdit';
+import { useAllAccountCodes } from '../chart-of-accounts/useAllAccountCodes';
 import { voucherDetailsApi, voucherHeadsApi, type CreateVoucherDetailPayload, type CreateVoucherHeadPayload } from './api';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 
@@ -93,6 +95,49 @@ export function VoucherEntryPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' });
   const watchedLines = useWatch({ control, name: 'lines' });
+
+  // Edit mode is this same form with a voucher already in it. A second page would mean a second
+  // copy of the تفصیلی row logic, which is the most intricate part of this feature and the last
+  // thing worth duplicating.
+  const { id: editingId } = useParams<{ id: string }>();
+  const isEditing = Boolean(editingId);
+  const [detailIds, setDetailIds] = useState<DetailIdByRowKey>({});
+
+  const { items: accountCodes } = useAllAccountCodes();
+
+  const existingVoucher = useQuery({
+    queryKey: ['voucher-heads', editingId, 'with-lines'],
+    queryFn: async () => {
+      const head = await voucherHeadsApi.getById(editingId as string);
+      // 200 lines is far past any real voucher; the alternative is paging a form, which would let
+      // a save silently drop the lines the user never scrolled to.
+      const lines = await voucherDetailsApi.list({
+        pageNumber: 1,
+        pageSize: 200,
+        voucherHeadId: editingId,
+      });
+      return { head, lines: lines.items };
+    },
+    enabled: isEditing,
+  });
+
+  // Reset once, when the voucher arrives. Re-running on every render would fight the user for
+  // control of the fields they are typing in.
+  useEffect(() => {
+    if (!existingVoucher.data) return;
+
+    const loaded = toFormValues(
+      existingVoucher.data.head,
+      existingVoucher.data.lines,
+      (accountId) => {
+        const account = accountCodes?.find((candidate) => candidate.id === accountId);
+        return account ? `${account.accCode ?? ''} - ${account.accCodeName ?? ''}` : '';
+      },
+    );
+
+    form.reset(loaded.values);
+    setDetailIds(loaded.detailIds);
+  }, [existingVoucher.data, accountCodes, form]);
 
   const [createdHeadId, setCreatedHeadId] = useState<string | null>(null);
   const [lineStatus, setLineStatus] = useState<Record<string, LineSubmissionState>>({});
@@ -168,7 +213,61 @@ export function VoucherEntryPage() {
     }
   }
 
+  /**
+   * Saving an edit is a different shape from saving a new voucher: the head is updated rather
+   * than created, and the lines have to be reconciled — some updated, some added, and the ones
+   * the user removed deleted. See `voucherEdit.ts` for why the reconcile is the delicate part.
+   */
+  async function submitEdit(values: VoucherEntryFormSchema) {
+    setGlobalError(null);
+
+    try {
+      await voucherHeadsApi.update(editingId as string, {
+        docNum: values.docNum.trim(),
+        dateDoc: values.dateDoc.trim(),
+        headDesc: values.headDesc?.trim() ? values.headDesc.trim() : null,
+        apendix: values.apendix?.trim() ? values.apendix.trim() : null,
+        year: values.year.trim(),
+        // DOCLIFE is deliberately absent. A voucher's state moves through change-state, which is
+        // its own auditable operation (phase 30) — letting an edit carry it would put the state
+        // back into an anonymous field write, which is exactly what that phase undid.
+      });
+    } catch (error) {
+      setGlobalError(error);
+      return;
+    }
+
+    const { failed } = await reconcileLines(editingId as string, values.lines, detailIds, values.year);
+
+    if (failed.length > 0) {
+      setLineErrorMessages((prev) => {
+        const next = { ...prev };
+        failed.forEach((f) => {
+          next[f.key] = f.message;
+        });
+        return next;
+      });
+      setLineStatus((prev) => {
+        const next = { ...prev };
+        failed.forEach((f) => {
+          next[f.key] = 'error';
+        });
+        return next;
+      });
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
+    await queryClient.invalidateQueries({ queryKey: ['voucher-details'] });
+    navigate('/operation/voucher-heads');
+  }
+
   async function onSubmit(values: VoucherEntryFormSchema) {
+    if (isEditing) {
+      await submitEdit(values);
+      return;
+    }
+
     setGlobalError(null);
     let headId = createdHeadId;
 
@@ -286,18 +385,27 @@ export function VoucherEntryPage() {
         eyebrow="عملیات"
         icon={<PostAddOutlinedIcon />}
         accentColor="secondary"
-        title="صدور سند (تفصیلی داینامیک)"
-        description="سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند."
+        title={isEditing ? 'ویرایش سند' : 'صدور سند (تفصیلی داینامیک)'}
+        description={
+          isEditing
+            ? 'ردیف‌های حذف‌شده، تغییریافته و جدید هنگام ذخیره با سند موجود تطبیق داده می‌شوند.'
+            : 'سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند.'
+        }
       />
 
-      <Stepper activeStep={createdHeadId ? 1 : 0} sx={{ mb: 3 }}>
-        <Step completed={!!createdHeadId}>
-          <StepLabel>سرسند سند</StepLabel>
-        </Step>
-        <Step>
-          <StepLabel>ردیف‌ها و ثبت نهایی</StepLabel>
-        </Step>
-      </Stepper>
+      {/* The stepper narrates the two-request create flow (head, then lines). Editing has no such
+          sequence — the head already exists — so showing it would describe something that is not
+          happening. */}
+      {!isEditing && (
+        <Stepper activeStep={createdHeadId ? 1 : 0} sx={{ mb: 3 }}>
+          <Step completed={!!createdHeadId}>
+            <StepLabel>سرسند سند</StepLabel>
+          </Step>
+          <Step>
+            <StepLabel>ردیف‌ها و ثبت نهایی</StepLabel>
+          </Step>
+        </Stepper>
+      )}
 
       {globalError !== null && <ErrorBanner error={globalError} />}
 
@@ -546,7 +654,7 @@ export function VoucherEntryPage() {
         <FormActions
           onCancel={() => navigate('/operation/voucher-heads')}
           pending={formState.isSubmitting}
-          submitLabel="ذخیره سند"
+          submitLabel={isEditing ? 'ذخیره تغییرات' : 'ذخیره سند'}
           errorCount={Object.keys(formState.errors).length}
         />
       </Box>

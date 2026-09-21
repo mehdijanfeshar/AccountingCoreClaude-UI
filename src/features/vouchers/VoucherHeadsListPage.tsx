@@ -28,12 +28,14 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ListToolbar } from '../../components/ListToolbar';
 import { MonoCode } from '../../components/MonoCode';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { sysTypesApi } from '../../lib/api/sysTypesApi';
@@ -127,6 +129,7 @@ export function VoucherHeadsListPage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [filters, setFilters] = useState<Filters>({ year: financialYear, ...EMPTY_FILTERS });
   const [statusTab, setStatusTab] = useState<StatusTab>('');
+  const [pendingDelete, setPendingDelete] = useState<VoucherHeadDto | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // The top-bar fiscal year seeds this page; changing it there resets the page's year filter.
@@ -148,6 +151,25 @@ export function VoucherHeadsListPage() {
       previous.includes(id) ? previous.filter((x) => x !== id) : [...previous, id],
     );
   }
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => voucherHeadsApi.remove(id),
+    onSuccess: async () => {
+      // The head's lines and their تفصیلی links go with it — the backend cascades the soft delete
+      // three levels down (phase 9), so nothing is left orphaned and there is nothing to clean up
+      // from here.
+      await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
+      await queryClient.invalidateQueries({ queryKey: ['voucher-details'] });
+      notify('سند حذف شد.');
+      setPendingDelete(null);
+    },
+    onError: (error) => {
+      notify({
+        message: error instanceof Error ? error.message : 'حذف سند با خطا مواجه شد.',
+        severity: 'error',
+      });
+    },
+  });
 
   const changeStateMutation = useMutation({
     mutationFn: (newState: number) => changeVoucherState(selectedIds, newState),
@@ -248,17 +270,30 @@ export function VoucherHeadsListPage() {
     {
       key: 'rowActions',
       header: 'عملیات',
-      render: () => (
+      render: (row) => (
         <Stack direction="row" spacing={0.5}>
-          {/* Both actions exist in the old system and neither is built yet — shown disabled with
-              the reason, rather than omitted, so the gap is visible where it will be filled. */}
-          <Tooltip title="ویرایش سند — هنوز ساخته نشده است">
-            <span>
-              <IconButton size="small" aria-label="ویرایش سند" disabled>
-                <EditOutlinedIcon fontSize="small" />
-              </IconButton>
-            </span>
+          <Tooltip title="ویرایش سند">
+            <IconButton
+              size="small"
+              aria-label="ویرایش سند"
+              component={RouterLink}
+              to={`/operation/vouchers/${row.id}/edit`}
+            >
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
+          <Tooltip title="حذف سند">
+            <IconButton
+              size="small"
+              aria-label="حذف سند"
+              color="error"
+              onClick={() => setPendingDelete(row)}
+            >
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          {/* Still unbuilt, and shown disabled with the reason rather than omitted so the gap
+              stays visible where it will be filled. */}
           <Tooltip title="سند معکوس — هنوز ساخته نشده است">
             <span>
               <IconButton size="small" aria-label="سند معکوس" disabled>
@@ -557,6 +592,19 @@ export function VoucherHeadsListPage() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="حذف سند"
+        description={
+          pendingDelete
+            ? `سند شماره «${pendingDelete.docNum ?? '—'}» به همراه همهٔ ردیف‌ها و تفصیلی‌هایش حذف می‌شود. ادامه می‌دهید؟`
+            : undefined
+        }
+        pending={deleteMutation.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
+      />
     </section>
   );
 }
