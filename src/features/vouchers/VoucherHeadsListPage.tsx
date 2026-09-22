@@ -27,9 +27,9 @@ import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import { PageHeader } from '../../components/PageHeader';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ListToolbar } from '../../components/ListToolbar';
 import { MonoCode } from '../../components/MonoCode';
@@ -48,6 +48,7 @@ import {
   getDocLifeLabel,
   getDocLifeTone,
   isKnownDocLife,
+  isVoucherEditable,
   voucherHeadsApi,
 } from './api';
 import type { VoucherHeadDto } from '../../types/voucherHead';
@@ -285,39 +286,56 @@ export function VoucherHeadsListPage() {
     {
       key: 'rowActions',
       header: 'عملیات',
-      render: (row) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="ویرایش سند">
-            <IconButton
-              size="small"
-              aria-label="ویرایش سند"
-              component={RouterLink}
-              to={`/operation/vouchers/${row.id}/edit`}
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="حذف سند">
-            <IconButton
-              size="small"
-              aria-label="حذف سند"
-              color="error"
-              onClick={() => setPendingDelete(row)}
-            >
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {/* Still unbuilt, and shown disabled with the reason rather than omitted so the gap
-              stays visible where it will be filled. */}
-          <Tooltip title="سند معکوس — هنوز ساخته نشده است">
-            <span>
-              <IconButton size="small" aria-label="سند معکوس" disabled>
-                <SwapVertOutlinedIcon fontSize="small" />
+      render: (row) => {
+        // Two independent reasons a row offers view only:
+        //   1. its state — only یادداشت/موقت may be changed. This mirrors the server's
+        //      VoucherEditability; it does not enforce it. The API answers 409 for a locked
+        //      voucher no matter what this column renders.
+        //   2. the «همه» tab, which mixes states. Acting destructively from a list that is not
+        //      filtered to a single state is how the wrong voucher gets deleted.
+        const stateAllowsEditing = isVoucherEditable(row.docLife);
+        const showWriteActions = stateAllowsEditing && statusTab !== '';
+
+        return (
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="نمایش سند">
+              <IconButton
+                size="small"
+                aria-label="نمایش سند"
+                component={RouterLink}
+                to={`/operation/vouchers/${row.id}/view`}
+              >
+                <VisibilityOutlinedIcon fontSize="small" />
               </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
-      ),
+            </Tooltip>
+
+            {showWriteActions && (
+              <>
+                <Tooltip title="ویرایش سند">
+                  <IconButton
+                    size="small"
+                    aria-label="ویرایش سند"
+                    component={RouterLink}
+                    to={`/operation/vouchers/${row.id}/edit`}
+                  >
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="حذف سند">
+                  <IconButton
+                    size="small"
+                    aria-label="حذف سند"
+                    color="error"
+                    onClick={() => setPendingDelete(row)}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Stack>
+        );
+      },
     },
   ];
 

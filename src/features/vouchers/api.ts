@@ -176,3 +176,20 @@ export function getDocLifeTone(value: number | null | undefined): 'default' | 'w
       return 'default';
   }
 }
+
+/**
+ * وضعیت‌هایی که سند در آن‌ها قابل ویرایش و حذف است — یادداشت و موقت.
+ *
+ * ⚠️ **Mirrors `Accounting.Application.Common.Security.VoucherEditability`, it does not define
+ * the rule.** The server enforces this independently and answers **409** with a Persian detail
+ * for a locked voucher (phase 38). This copy exists only so the cartable can hide actions that
+ * would fail — never as the enforcement point. If the two ever disagree, the server wins.
+ *
+ * Fails closed exactly like the server does: an absent or out-of-enum `DOCLIFE` (the Oracle
+ * column has `DEFAULT 0`, which has no known meaning) counts as NOT editable.
+ */
+export const EDITABLE_DOC_LIFE_VALUES: readonly number[] = [1, 2];
+
+export function isVoucherEditable(docLife: number | null | undefined): boolean {
+  return docLife !== null && docLife !== undefined && EDITABLE_DOC_LIFE_VALUES.includes(docLife);
+}

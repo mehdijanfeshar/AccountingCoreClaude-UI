@@ -10,7 +10,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
@@ -27,11 +26,15 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutlineOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
 import { useSession } from '../lib/session/SessionContext';
 import { NAV_GROUPS, type NavItem } from '../lib/navConfig';
+import { InitialSettingsDialog } from '../features/session/InitialSettingsDialog';
+import { useSessionDefaults } from '../features/session/useSessionDefaults';
+import { toPersianDigits } from '../lib/format/numbers';
 import { SHELL } from '../theme';
 
 const DRAWER_WIDTH = 260;
@@ -220,20 +223,40 @@ function UserMenu() {
   );
 }
 
-function YearSelector() {
-  const { financialYear, setFinancialYear } = useSession();
+/**
+ * Replaces the hand-typed year textbox with the «تغییر سال مالی و واحد» entry point, mirroring
+ * the old Angular app's header: the unit name as the label, the financial year as a badge, and
+ * the whole thing opening the picker.
+ */
+function SessionScopeButton() {
+  const { financialYear, unitName } = useSession();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // First visit (or cleared storage): adopt the server's own defaults rather than showing "—"
+  // until the user happens to open the picker. Mirrors the old Angular app, which did exactly
+  // this on bootstrap — the year flagged isCurrent, the unit flagged isDefault.
+  useSessionDefaults();
 
   return (
-    <TextField
-      label="سال مالی"
-      inputMode="numeric"
-      placeholder="مثلاً ۱۴۰۳"
-      size="small"
-      variant="standard"
-      value={financialYear}
-      onChange={(e) => setFinancialYear(e.target.value)}
-      sx={{ width: 110 }}
-    />
+    <>
+      <Button
+        onClick={() => setDialogOpen(true)}
+        color="inherit"
+        startIcon={<SwapHorizOutlinedIcon fontSize="small" />}
+        sx={{ textAlign: 'start', lineHeight: 1.3, px: 1.5 }}
+      >
+        <Stack sx={{ alignItems: 'flex-start' }}>
+          <Box component="span" sx={{ fontSize: 13, fontWeight: 600 }}>
+            {unitName || 'انتخاب واحد'}
+          </Box>
+          <Box component="span" sx={{ fontSize: 11, opacity: 0.8 }}>
+            سال مالی: {financialYear ? toPersianDigits(financialYear) : '—'}
+          </Box>
+        </Stack>
+      </Button>
+
+      <InitialSettingsDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+    </>
   );
 }
 
@@ -296,7 +319,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </Box>
           </Stack>
           <Box sx={{ flexGrow: 1 }} />
-          <YearSelector />
+          <SessionScopeButton />
           <UserMenu />
         </Toolbar>
       </AppBar>

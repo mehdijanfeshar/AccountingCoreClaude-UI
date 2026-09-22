@@ -5,6 +5,8 @@ import { AccountCodingPage } from './AccountCodingPage';
 import { AccountCodeFormPage } from '../features/chart-of-accounts/AccountCodeFormPage';
 import { TafsilGroupsListPage } from '../features/tafsil-groups/TafsilGroupsListPage';
 import { TafsilGroupFormPage } from '../features/tafsil-groups/TafsilGroupFormPage';
+import { LevelTafsilsListPage } from '../features/level-tafsils/LevelTafsilsListPage';
+import { LevelTafsilFormPage } from '../features/level-tafsils/LevelTafsilFormPage';
 import { BankPage } from './BankPage';
 import { BankAccountFormPage } from '../features/bank-accounts/BankAccountFormPage';
 import { ExpensesListPage } from '../features/expenses/ExpensesListPage';
@@ -21,6 +23,7 @@ import { WorkShopsListPage } from '../features/work-shops/WorkShopsListPage';
 import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
 import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
+import { VoucherViewPage } from '../features/vouchers/VoucherViewPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
@@ -40,6 +43,11 @@ export const routes: RouteObject[] = [
   { path: '/base/tafsil-groups', element: <TafsilGroupsListPage /> },
   { path: '/base/tafsil-groups/new', element: <TafsilGroupFormPage /> },
   { path: '/base/tafsil-groups/:id/edit', element: <TafsilGroupFormPage /> },
+
+  // سطوح تفصیلی — the lookup that «ارتباط معین با گروه تفصیلی» and the voucher form both read.
+  { path: '/base/level-tafsils', element: <LevelTafsilsListPage /> },
+  { path: '/base/level-tafsils/new', element: <LevelTafsilFormPage /> },
+  { path: '/base/level-tafsils/:id/edit', element: <LevelTafsilFormPage /> },
 
   // بانک — یک صفحهٔ تب‌دار (حساب‌ها / دسته‌چک)، چون دسته‌چک FK اجباری به حساب دارد.
   { path: '/base/bank', element: <BankPage /> },
@@ -76,6 +84,8 @@ export const routes: RouteObject[] = [
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
   { path: '/operation/vouchers/:id/edit', element: <VoucherEntryPage /> },
+  // Read-only. The only way into a reviewed/accepted voucher, which the edit route refuses.
+  { path: '/operation/vouchers/:id/view', element: <VoucherViewPage /> },
 
   { path: '/operation/pay-recive-heads', element: <PayReciveHeadsListPage /> },
   { path: '/operation/pay-recive-heads/new', element: <PayReciveHeadFormPage /> },

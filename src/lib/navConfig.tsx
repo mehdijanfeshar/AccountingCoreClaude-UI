@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
@@ -60,6 +61,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'گروه‌بندی حساب‌های تفصیلی',
         to: '/base/tafsil-groups',
         icon: <CategoryOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'سطوح تفصیلی',
+        description: 'سطح‌هایی که تفصیلی هر معین در قالب آن‌ها خواسته می‌شود',
+        to: '/base/level-tafsils',
+        icon: <LayersOutlinedIcon fontSize="small" />,
       },
       {
         label: 'بانک',
