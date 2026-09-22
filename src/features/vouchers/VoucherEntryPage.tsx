@@ -3,9 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
-import DatePicker from 'react-multi-date-picker';
-import persian from 'react-date-object/calendars/persian';
-import persian_fa from 'react-date-object/locales/persian_fa';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
@@ -33,10 +30,10 @@ import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import { FormActions } from '../../components/FormActions';
+import { JalaliDateField } from '../../components/JalaliDateField';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
@@ -520,38 +517,14 @@ export function VoucherEntryPage() {
                 control={control}
                 name="dateDoc"
                 render={({ field, fieldState }) => (
-                  <DatePicker
-                    calendar={persian}
-                    locale={persian_fa}
-                    format="YYYYMMDD"
+                  <JalaliDateField
+                    label="تاریخ سند"
+                    value={field.value}
+                    onChange={field.onChange}
                     disabled={!!createdHeadId}
-                    value={field.value || undefined}
-                    // ⚠️ `persian_fa`'s locale digit glyphs are Persian (۰-۹), so
-                    // `date.format(...)` returns Persian-digit text — `toLatinDigits` is
-                    // required here, not optional, per the hard rule in
-                    // `src/lib/format/numbers.ts` (only Latin digits may reach the API).
-                    onChange={(date) => field.onChange(date ? toLatinDigits(date.format('YYYYMMDD')) : '')}
-                    render={(value, openCalendar) => (
-                      <TextField
-                        label="تاریخ سند"
-                        required
-                        fullWidth
-                        value={value}
-                        onClick={openCalendar}
-                        onFocus={openCalendar}
-                        inputRef={field.ref}
-                        disabled={!!createdHeadId}
-                        error={!!fieldState.error}
-                        helperText={
-                          fieldState.error?.message ??
-                          'فرمت YYYYMMDD (فرض — رجوع به «تصمیمات باز» در گزارش تحویل)'
-                        }
-                        slotProps={{
-                          htmlInput: { readOnly: true },
-                          input: { startAdornment: <InputAdornment position="start"><EventOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
-                        }}
-                      />
-                    )}
+                    required
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
                   />
                 )}
               />

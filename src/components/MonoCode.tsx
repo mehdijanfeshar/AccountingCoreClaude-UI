@@ -10,10 +10,17 @@ export function MonoCode({ value, muted }: { value: string | null | undefined; m
     <Box
       component="span"
       sx={{
-        fontFamily: 'monospace',
-        fontSize: '0.9rem',
-        fontWeight: 700,
-        letterSpacing: '0.05em',
+        // A named stack, not the bare `monospace` keyword. That keyword resolves to the browser's
+        // default fixed font — on Windows, Courier New: thin, dated, and visibly smaller on the
+        // line than the Vazirmatn text beside it. Consolas ships with every Windows install and is
+        // what makes these codes look deliberate; the rest cover macOS and Linux.
+        fontFamily: '"Cascadia Mono", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
+        fontSize: '0.86rem',
+        fontWeight: 600,
+        // Monospace already fixes the advance width, so the wide tracking this used to carry only
+        // made codes look stretched. A hair is enough to keep long digit runs from blurring.
+        letterSpacing: '0.02em',
+        fontVariantNumeric: 'tabular-nums lining-nums',
         color: muted ? 'text.secondary' : 'inherit',
       }}
     >

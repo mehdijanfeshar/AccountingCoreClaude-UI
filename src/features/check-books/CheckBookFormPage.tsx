@@ -3,10 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
-import DatePicker from 'react-multi-date-picker';
-import DateObject from 'react-date-object';
-import persian from 'react-date-object/calendars/persian';
-import persian_fa from 'react-date-object/locales/persian_fa';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -14,11 +10,11 @@ import Autocomplete from '@mui/material/Autocomplete';
 import MenuItem from '@mui/material/MenuItem';
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import DriveFileRenameOutlineOutlinedIcon from '@mui/icons-material/DriveFileRenameOutlineOutlined';
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import NumbersOutlinedIcon from '@mui/icons-material/NumbersOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
+import { JalaliDateField } from '../../components/JalaliDateField';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
@@ -205,36 +201,13 @@ export function CheckBookFormPage() {
               control={control}
               name="checkBookDate"
               render={({ field, fieldState }) => (
-                <DatePicker
-                  calendar={persian}
-                  locale={persian_fa}
-                  // Display "۱۴۰۴/۰۶/۱۳" while the stored value stays the Legacy 8-char
-                  // `YYYYMMDD` Latin-digit string — hence the explicit DateObject on the way in
-                  // (it parses with its own `format`) and the explicit `.format('YYYYMMDD')` out.
-                  format="YYYY/MM/DD"
-                  value={
-                    field.value
-                      ? new DateObject({ date: field.value, format: 'YYYYMMDD', calendar: persian, locale: persian_fa })
-                      : undefined
-                  }
-                  onChange={(date) => field.onChange(date ? toLatinDigits(date.format('YYYYMMDD')) : '')}
-                  render={(value, openCalendar) => (
-                    <TextField
-                      label="تاریخ صدور"
-                      fullWidth
-                      required
-                      value={value}
-                      onClick={openCalendar}
-                      onFocus={openCalendar}
-                      inputRef={field.ref}
-                      error={!!fieldState.error}
-                      helperText={fieldState.error?.message}
-                      slotProps={{
-                        htmlInput: { readOnly: true },
-                        input: { startAdornment: <InputAdornment position="start"><EventOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
-                      }}
-                    />
-                  )}
+                <JalaliDateField
+                  label="تاریخ صدور"
+                  value={field.value}
+                  onChange={field.onChange}
+                  required
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
                 />
               )}
             />

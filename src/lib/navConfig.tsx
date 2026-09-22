@@ -21,6 +21,7 @@ import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -144,10 +145,26 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <BarChartOutlinedIcon fontSize="small" />,
       },
       { label: 'دفتر کل', icon: <MenuBookOutlinedIcon fontSize="small" /> },
-      { label: 'دفتر روزنامه', icon: <ArticleOutlinedIcon fontSize="small" /> },
+      {
+        label: 'دفتر روزنامه',
+        description: 'همهٔ ردیف‌های اسناد، به ترتیب تاریخ و شماره سند',
+        to: '/reports/account-journal',
+        icon: <ArticleOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'مرور اسناد',
+        description: 'اسناد با جمع بدهکار و بستانکار هرکدام — برای یافتن سند نامتوازن',
+        to: '/reports/voucher-review',
+        icon: <FactCheckOutlinedIcon fontSize="small" />,
+      },
       { label: 'مرور حساب‌ها', icon: <ManageSearchOutlinedIcon fontSize="small" /> },
       { label: 'ترازنامه', icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
-      { label: 'گزارش ماتریسی', icon: <GridOnOutlinedIcon fontSize="small" /> },
+      {
+        label: 'گزارش ماتریسی',
+        description: 'گردش اسناد، تجمیع‌شده در هر سطح از کدینگ یا تفصیلی',
+        to: '/reports/matrix',
+        icon: <GridOnOutlinedIcon fontSize="small" />,
+      },
     ],
   },
 ];

@@ -28,6 +28,9 @@ import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHe
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 import { TrialBalancePage } from '../features/reports/trial-balance/TrialBalancePage';
+import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
+import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
+import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -92,5 +95,8 @@ export const routes: RouteObject[] = [
   { path: '/operation/pay-recive-heads/:id/edit', element: <PayReciveHeadFormPage /> },
 
   { path: '/reports/trial-balance', element: <TrialBalancePage /> },
+  { path: '/reports/matrix', element: <MatrixReportPage /> },
+  { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
+  { path: '/reports/account-journal', element: <AccountJournalPage /> },
 
 ];

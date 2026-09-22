@@ -47,9 +47,14 @@ export const theme = createTheme(
     typography: {
       fontFamily: ['Vazirmatn', 'Tahoma', 'Segoe UI', 'system-ui', 'sans-serif'].join(','),
       // A real scale, not just h1/h2 — undifferentiated type is what made every page read flat.
-      h1: { fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.35 },
-      h2: { fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.4 },
-      h3: { fontSize: '1.125rem', fontWeight: 700, lineHeight: 1.45 },
+      //
+      // Headings carry a very slight negative tracking. At 700 weight Vazirmatn's default spacing
+      // reads a touch loose for a title, and tightening it is what makes a heading look *set*
+      // rather than merely bigger. Body text is left alone: tightening running Persian text hurts
+      // it, because the connected forms already supply the rhythm.
+      h1: { fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.35, letterSpacing: '-0.012em' },
+      h2: { fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.4, letterSpacing: '-0.01em' },
+      h3: { fontSize: '1.125rem', fontWeight: 700, lineHeight: 1.45, letterSpacing: '-0.008em' },
       h4: { fontSize: '1.05rem', fontWeight: 700, lineHeight: 1.5 },
       h5: { fontSize: '1rem', fontWeight: 700, lineHeight: 1.5 },
       h6: { fontSize: '0.95rem', fontWeight: 700, lineHeight: 1.5 },
@@ -105,12 +110,22 @@ export const theme = createTheme(
           root: { borderBottomColor: BORDER },
           head: {
             fontWeight: 700,
-            fontSize: '0.8rem',
-            color: '#334155',
-            backgroundColor: '#F1F5F9',
+            fontSize: '0.78rem',
+            color: '#475569',
+            backgroundColor: '#F4F7FA',
             whiteSpace: 'nowrap',
+            // Headers are labels, not data. Letting them sit slightly wider and quieter than the
+            // body separates the two without needing a heavier rule between them.
+            letterSpacing: '0.02em',
           },
-          body: { fontSize: '0.875rem' },
+          body: {
+            fontSize: '0.875rem',
+            // The single biggest legibility win in an accounting grid: tabular figures give every
+            // digit the same advance width, so amounts and voucher numbers line up as columns and
+            // a wrong order of magnitude is visible by shape alone. Proportional digits (the
+            // default) let ۱ sit narrower than ۸ and the column edge wander.
+            fontVariantNumeric: 'tabular-nums lining-nums',
+          },
         },
       },
       MuiTableRow: {
@@ -180,8 +195,53 @@ export const theme = createTheme(
           },
         },
       },
+      /*
+       * Status badges — وضعیت سند, «تکراری», «واحد شما», «به‌زودی».
+       *
+       * MUI's filled chips are solid, fully-saturated blocks. In a dense accounting grid a column
+       * of them reads as a stripe of loud colour that pulls the eye off the numbers, and
+       * white-on-mid-green/amber sits near the contrast floor at this size.
+       *
+       * These are tonal instead: a pale wash of the hue, with the dark end of the same hue for the
+       * text. The state stays instantly readable by colour, contrast is far higher than
+       * white-on-fill, and the badge stops competing with the data. The hairline border is what
+       * keeps a pale chip from dissolving into a hovered row.
+       */
       MuiChip: {
-        styleOverrides: { root: { fontWeight: 600 } },
+        styleOverrides: {
+          root: {
+            fontWeight: 600,
+            borderRadius: 7,
+            // Chips live inside table rows; MUI's default 32px forces the row taller than its text.
+            height: 24,
+            letterSpacing: 0,
+            border: '1px solid transparent',
+            '& .MuiChip-label': { paddingInline: 9 },
+
+            // Neutral (یادداشت) is styled deliberately rather than left as MUI's grey default, so
+            // "no strong signal yet" reads as a considered state, not a missing one.
+            '&.MuiChip-filled': { backgroundColor: '#F1F5F9', color: '#334155', borderColor: '#DDE5EE' },
+            '&.MuiChip-colorPrimary.MuiChip-filled': {
+              backgroundColor: '#E8EDFB', color: '#1E3A8A', borderColor: '#CCD8F4',
+            },
+            '&.MuiChip-colorSecondary.MuiChip-filled': {
+              backgroundColor: '#FBF3DF', color: '#7A4A0B', borderColor: '#F2E0B4',
+            },
+            '&.MuiChip-colorSuccess.MuiChip-filled': {
+              backgroundColor: '#E4F6E9', color: '#166534', borderColor: '#C3E9CE',
+            },
+            '&.MuiChip-colorWarning.MuiChip-filled': {
+              backgroundColor: '#FDF0DB', color: '#92400E', borderColor: '#F6DDB4',
+            },
+            '&.MuiChip-colorInfo.MuiChip-filled': {
+              backgroundColor: '#E3EDFC', color: '#1E40AF', borderColor: '#C6D9F7',
+            },
+            '&.MuiChip-colorError.MuiChip-filled': {
+              backgroundColor: '#FCE7E7', color: '#991B1B', borderColor: '#F6C9C9',
+            },
+          },
+          sizeSmall: { height: 22, fontSize: '0.72rem' },
+        },
       },
       MuiTooltip: {
         styleOverrides: {

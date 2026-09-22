@@ -193,3 +193,50 @@ export const EDITABLE_DOC_LIFE_VALUES: readonly number[] = [1, 2];
 export function isVoucherEditable(docLife: number | null | undefined): boolean {
   return docLife !== null && docLife !== undefined && EDITABLE_DOC_LIFE_VALUES.includes(docLife);
 }
+
+/**
+ * معکوس سند — `POST /api/voucher-heads/{id}/reverse`.
+ *
+ * Creates a NEW draft voucher mirroring this one with بدهکار/بستانکار swapped; the source is
+ * untouched. Allowed in **any** state, including تأیید دائم — that is the point of the operation,
+ * and why it is not gated by `isVoucherEditable`. Returns the new voucher's id.
+ */
+export function reverseVoucher(id: string): Promise<string> {
+  return apiClient
+    .post<{ id: string }>(`/voucher-heads/${id}/reverse`)
+    .then((res) => res.data.id);
+}
+
+/** مرتب‌سازی — range expressed either by شماره سند or by تاریخ سند. Mirrors `VoucherSortType`. */
+export const VOUCHER_SORT_TYPE = { docNum: 1, docDate: 2 } as const;
+
+export interface SortVouchersPayload {
+  sortType: number;
+  docNumFrom?: string | null;
+  docNumTo?: string | null;
+  dateDocFrom?: string | null;
+  dateDocTo?: string | null;
+  year: string;
+}
+
+/**
+ * مرتب‌سازی اسناد — `POST /api/voucher-heads/sort`.
+ *
+ * Renumbers the selected range into تاریخ سند order. `vahedCode` is server-assigned; `year` is a
+ * real parameter. Answers **409** if any voucher in the range is بررسی‌شده or تأیید دائم.
+ * Returns how many were renumbered (0 for an empty range).
+ */
+export function sortVouchers(payload: SortVouchersPayload): Promise<number> {
+  return apiClient
+    .post<{ renumberedCount: number }>('/voucher-heads/sort', payload)
+    .then((res) => res.data.renumberedCount);
+}
+
+/**
+ * تأیید دائم — the terminal state. A voucher here cannot be edited, deleted, or moved to another
+ * state; the only way to undo its effect is معکوس سند.
+ *
+ * Mirrors the server's rule (`VoucherStateChangeDeniedException`); it does not enforce it — the
+ * API answers 409 regardless of what the UI shows.
+ */
+export const DOC_LIFE_ACCEPTED = 4;

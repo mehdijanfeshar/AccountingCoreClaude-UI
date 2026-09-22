@@ -3,9 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
-import DatePicker from 'react-multi-date-picker';
-import persian from 'react-date-object/calendars/persian';
-import persian_fa from 'react-date-object/locales/persian_fa';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -15,8 +12,8 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import { JalaliDateField } from '../../components/JalaliDateField';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
@@ -230,28 +227,12 @@ export function BankAccountFormPage() {
               control={control}
               name="accountOpeningDate"
               render={({ field, fieldState }) => (
-                <DatePicker
-                  calendar={persian}
-                  locale={persian_fa}
-                  format="YYYYMMDD"
-                  value={field.value || undefined}
-                  onChange={(date) => field.onChange(date ? toLatinDigits(date.format('YYYYMMDD')) : '')}
-                  render={(value, openCalendar) => (
-                    <TextField
-                      label="تاریخ افتتاح حساب"
-                      fullWidth
-                      value={value}
-                      onClick={openCalendar}
-                      onFocus={openCalendar}
-                      inputRef={field.ref}
-                      error={!!fieldState.error}
-                      helperText={fieldState.error?.message}
-                      slotProps={{
-                        htmlInput: { readOnly: true },
-                        input: { startAdornment: <InputAdornment position="start"><EventOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
-                      }}
-                    />
-                  )}
+                <JalaliDateField
+                  label="تاریخ افتتاح حساب"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message}
                 />
               )}
             />

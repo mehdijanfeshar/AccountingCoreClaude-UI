@@ -1,10 +1,6 @@
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
-import DatePicker from 'react-multi-date-picker';
-import DateObject from 'react-date-object';
-import persian from 'react-date-object/calendars/persian';
-import persian_fa from 'react-date-object/locales/persian_fa';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -15,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
+import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -22,14 +19,17 @@ import Typography from '@mui/material/Typography';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
+import { JalaliDateField } from '../../components/JalaliDateField';
 import { PageHeader } from '../../components/PageHeader';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import SwapVertOutlinedIcon from '@mui/icons-material/SwapVertOutlined';
+import SortOutlinedIcon from '@mui/icons-material/SortOutlined';
+import PublishedWithChangesOutlinedIcon from '@mui/icons-material/PublishedWithChangesOutlined';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ListToolbar } from '../../components/ListToolbar';
 import { MonoCode } from '../../components/MonoCode';
@@ -44,13 +44,16 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { StatTiles, type StatTile, type StatTileTone } from '../../components/StatTiles';
 import {
   changeVoucherState,
+  DOC_LIFE_ACCEPTED,
   DOC_LIFE_OPTIONS,
   getDocLifeLabel,
   getDocLifeTone,
   isKnownDocLife,
   isVoucherEditable,
+  reverseVoucher,
   voucherHeadsApi,
 } from './api';
+import { SortVouchersDialog } from './SortVouchersDialog';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 
 const PAGE_SIZE = 20;
@@ -83,35 +86,19 @@ const EMPTY_FILTERS: Omit<Filters, 'year'> = {
   systemTypeId: '',
 };
 
-/** Compact Jalali date field storing the Legacy `YYYYMMDD` string the API expects. */
+/**
+ * Compact Jalali filter field. Thin wrapper over the shared `JalaliDateField` — the parsing rule
+ * (and the bug it fixes) lives there, in one place.
+ */
 function DateFilterField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <DatePicker
-      calendar={persian}
-      locale={persian_fa}
-      format="YYYY/MM/DD"
-      value={value ? new DateObject({ date: value, format: 'YYYYMMDD', calendar: persian, locale: persian_fa }) : undefined}
-      onChange={(date) => onChange(date ? toLatinDigits(date.format('YYYYMMDD')) : '')}
-      render={(shown, openCalendar) => (
-        <TextField
-          size="small"
-          label={label}
-          value={shown}
-          onClick={openCalendar}
-          onFocus={openCalendar}
-          sx={{ width: 148 }}
-          slotProps={{
-            htmlInput: { readOnly: true },
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <CalendarMonthOutlinedIcon fontSize="small" color="action" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-      )}
+    <JalaliDateField
+      label={label}
+      value={value}
+      onChange={onChange}
+      size="small"
+      fullWidth={false}
+      sx={{ width: 168 }}
     />
   );
 }
@@ -133,6 +120,9 @@ export function VoucherHeadsListPage() {
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [pendingDelete, setPendingDelete] = useState<VoucherHeadDto | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pendingReverse, setPendingReverse] = useState<VoucherHeadDto | null>(null);
+  const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [stateMenu, setStateMenu] = useState<{ anchor: HTMLElement; row: VoucherHeadDto } | null>(null);
 
   // The top-bar fiscal year seeds this page; changing it there resets the page's year filter.
   useEffect(() => {
@@ -170,6 +160,38 @@ export function VoucherHeadsListPage() {
         message: error instanceof Error ? error.message : 'حذف سند با خطا مواجه شد.',
         severity: 'error',
       });
+    },
+  });
+
+  const reverseMutation = useMutation({
+    mutationFn: (id: string) => reverseVoucher(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
+      notify('سند معکوس ایجاد شد. سند جدید در وضعیت «یادداشت» است.');
+      setPendingReverse(null);
+    },
+    onError: (error) => {
+      notify({
+        message: error instanceof Error ? error.message : 'ایجاد سند معکوس با خطا مواجه شد.',
+        severity: 'error',
+      });
+    },
+  });
+
+  /** Single-row state change, from the per-row menu. */
+  const rowStateMutation = useMutation({
+    mutationFn: ({ id, newState }: { id: string; newState: number }) => changeVoucherState([id], newState),
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
+      notify(`سند به وضعیت «${getDocLifeLabel(variables.newState)}» منتقل شد.`);
+      setStateMenu(null);
+    },
+    onError: (error) => {
+      notify({
+        message: error instanceof Error ? error.message : 'انتقال وضعیت با خطا مواجه شد.',
+        severity: 'error',
+      });
+      setStateMenu(null);
     },
   });
 
@@ -296,6 +318,11 @@ export function VoucherHeadsListPage() {
         const stateAllowsEditing = isVoucherEditable(row.docLife);
         const showWriteActions = stateAllowsEditing && statusTab !== '';
 
+        // تأیید دائم is terminal — «دائم» is the point of the state, and the server refuses to
+        // move it (409). The way to undo such a voucher is معکوس, not a state change. The «همه»
+        // tab is excluded for the same reason the write actions are: it mixes states.
+        const canChangeState = row.docLife !== DOC_LIFE_ACCEPTED && statusTab !== '';
+
         return (
           <Stack direction="row" spacing={0.5}>
             <Tooltip title="نمایش سند">
@@ -306,6 +333,35 @@ export function VoucherHeadsListPage() {
                 to={`/operation/vouchers/${row.id}/view`}
               >
                 <VisibilityOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Per-row state change. The bulk bar below still moves many at once, but it only
+                appears inside a status tab AND after a selection, which made the operation hard
+                to find at all. */}
+            {canChangeState && (
+              <Tooltip title="تغییر وضعیت سند">
+                <IconButton
+                  size="small"
+                  aria-label="تغییر وضعیت سند"
+                  onClick={(e) => setStateMenu({ anchor: e.currentTarget, row })}
+                >
+                  <PublishedWithChangesOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {/* Reversal is offered in EVERY state, unlike edit/delete: it does not modify this
+                voucher, it creates a new draft beside it — which is exactly how a finalized
+                voucher is undone. */}
+            <Tooltip title="معکوس سند">
+              <IconButton
+                size="small"
+                aria-label="معکوس سند"
+                onClick={() => setPendingReverse(row)}
+                disabled={reverseMutation.isPending}
+              >
+                <SwapVertOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -362,6 +418,10 @@ export function VoucherHeadsListPage() {
   /** The states a selection can move to — every state except the tab it is already in. */
   const moveTargets = DOC_LIFE_OPTIONS.filter((option) => String(option.value) !== statusTab);
 
+  // Every row in the تأیید دائم tab is terminal, so there is nothing to move and the server would
+  // refuse the whole batch (409). Hiding the bar is clearer than offering buttons that all fail.
+  const bulkMoveAvailable = statusTab !== '' && statusTab !== String(DOC_LIFE_ACCEPTED);
+
   /**
    * One tile per state. Each is also the filter for that state, so the number and the way to see
    * the rows behind it are the same control — clicking a tile switches to its tab.
@@ -405,9 +465,19 @@ export function VoucherHeadsListPage() {
         title="کارتابل اسناد"
         description="اسناد بر اساس وضعیت — همهٔ فیلترها و تب‌ها روی کل اسناد واحد شما اعمال می‌شوند، نه فقط صفحهٔ جاری."
         actions={
-          <Button variant="contained" color="secondary" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/vouchers/new">
-            صدور سند جدید
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<SortOutlinedIcon />}
+              onClick={() => setSortDialogOpen(true)}
+              disabled={!isConfigured}
+            >
+              مرتب‌سازی اسناد
+            </Button>
+            <Button variant="contained" color="secondary" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/vouchers/new">
+              صدور سند جدید
+            </Button>
+          </Stack>
         }
       />
 
@@ -582,7 +652,7 @@ export function VoucherHeadsListPage() {
             )}
           </ListToolbar>
 
-          {statusTab && selectedIds.length > 0 && (
+          {bulkMoveAvailable && selectedIds.length > 0 && (
             <Paper
               variant="outlined"
               sx={{ mb: 2, p: 1.5, borderRadius: 2, display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}
@@ -658,6 +728,46 @@ export function VoucherHeadsListPage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
+
+      <ConfirmDialog
+        open={pendingReverse !== null}
+        title="معکوس سند"
+        confirmColor="primary"
+        confirmLabel="ایجاد سند معکوس"
+        description={
+          pendingReverse
+            ? `یک سند جدید در وضعیت «یادداشت» ساخته می‌شود که بدهکار و بستانکار سند شماره «${pendingReverse.docNum ?? '—'}» در آن جابه‌جا شده است. خودِ این سند تغییر نمی‌کند. ردیف‌های متصل به رسید یا چک منتقل نمی‌شوند.`
+            : undefined
+        }
+        pending={reverseMutation.isPending}
+        onCancel={() => setPendingReverse(null)}
+        onConfirm={() => pendingReverse && reverseMutation.mutate(pendingReverse.id)}
+      />
+
+      <SortVouchersDialog
+        open={sortDialogOpen}
+        year={filters.year}
+        onClose={() => setSortDialogOpen(false)}
+      />
+
+      <Menu
+        anchorEl={stateMenu?.anchor ?? null}
+        open={stateMenu !== null}
+        onClose={() => setStateMenu(null)}
+      >
+        {DOC_LIFE_OPTIONS.map((option) => (
+          <MenuItem
+            key={option.value}
+            // The voucher's current state is not a move.
+            disabled={stateMenu?.row.docLife === option.value || rowStateMutation.isPending}
+            onClick={() =>
+              stateMenu && rowStateMutation.mutate({ id: stateMenu.row.id, newState: option.value })
+            }
+          >
+            {option.label}
+          </MenuItem>
+        ))}
+      </Menu>
     </section>
   );
 }
