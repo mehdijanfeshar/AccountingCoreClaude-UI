@@ -15,6 +15,7 @@ import { RevolvingFundsListPage } from '../features/revolving-funds/RevolvingFun
 import { RevolvingFundFormPage } from '../features/revolving-funds/RevolvingFundFormPage';
 import { AttribForAccountCodesListPage } from '../features/attrib-for-account-codes/AttribForAccountCodesListPage';
 import { AttribForAccountCodeFormPage } from '../features/attrib-for-account-codes/AttribForAccountCodeFormPage';
+import { CodingPermissionsListPage } from '../features/coding-permissions/CodingPermissionsListPage';
 import { FeaturesPage } from './FeaturesPage';
 import { IdentityGroupFormPage } from '../features/identity/IdentityGroupFormPage';
 import { IdentitySubGroupFormPage } from '../features/identity/IdentitySubGroupFormPage';
@@ -70,6 +71,10 @@ export const routes: RouteObject[] = [
   { path: '/base/attrib-for-account-codes', element: <AttribForAccountCodesListPage /> },
   { path: '/base/attrib-for-account-codes/new', element: <AttribForAccountCodeFormPage /> },
   { path: '/base/attrib-for-account-codes/:id/edit', element: <AttribForAccountCodeFormPage /> },
+
+  // دسترسی کدینگ — یک صفحه است، نه صفحهٔ فرم جدا: ساخت و فعال‌سازی مجدد هر دو دیالوگ‌اند، چون
+  // ساخت یک عملیات دسته‌ای روی ضرب دکارتی است و به یک ردیف مشخص گره نمی‌خورد.
+  { path: '/base/coding-permissions', element: <CodingPermissionsListPage /> },
 
   // ویژگی — یک صفحهٔ تب‌دار (گروه / اجزا / ثبت‌شده‌ها) مثل کدینگ، نه چند منوی خواهر.
   { path: '/base/features', element: <FeaturesPage /> },

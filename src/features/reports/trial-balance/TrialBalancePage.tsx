@@ -21,6 +21,8 @@ import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
+import { BalanceBar } from '../_shared/BalanceBar';
+import { MagnitudeBarList } from '../_shared/MagnitudeBarList';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { useSession } from '../../../lib/session/SessionContext';
 import { formatThousands, toPersianDigits, normalizeNumericInput } from '../../../lib/format/numbers';
@@ -105,6 +107,23 @@ export function TrialBalancePage() {
 
   const rows = query.data ?? [];
   const totals = useMemo(() => (rows.length > 0 ? sumTotals(rows) : emptyTotals()), [rows]);
+
+  /**
+   * Feeds the magnitude chart. Ranking is on **total turnover** (بدهکار + بستانکار), not on the
+   * net balance: an account that moved a large amount in both directions and nets to zero is
+   * still one of the busiest accounts in the period, and ranking on the net would hide exactly
+   * those. The chart's caption says which of the two it is, so the number is not ambiguous.
+   */
+  const topAccounts = useMemo(
+    () =>
+      rows.map((row) => ({
+        key: row.code,
+        code: row.code,
+        name: row.description,
+        value: row.debtor + row.creditor,
+      })),
+    [rows],
+  );
 
   // A trial balance that does not balance is the most useful thing this page can say, and the
   // backend guarantees nothing of the sort (open risk #3) — so it is measured, not assumed.
@@ -330,6 +349,25 @@ export function TrialBalancePage() {
         {isConfigured && (
           <Box className="tb-no-print">
             <StatTiles tiles={tiles} isLoading={query.isLoading} />
+
+            {/* On screen only. The printed report is the table — a bar is a reading aid for a
+                scrollable page, and on paper it would cost a third of the first sheet to repeat
+                two numbers the totals row already carries. */}
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1.2fr)' },
+                alignItems: 'start',
+              }}
+            >
+              <BalanceBar debtor={totals.debtor} creditor={totals.creditor} hasRows={hasRows} />
+              <MagnitudeBarList
+                title="بزرگ‌ترین حساب‌ها بر اساس گردش"
+                caption="مجموع گردش بدهکار و بستانکار در همین بازه و همین فیلترها"
+                items={topAccounts}
+              />
+            </Box>
           </Box>
         )}
 

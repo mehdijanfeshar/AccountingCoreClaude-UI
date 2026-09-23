@@ -28,6 +28,7 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
+import { BalanceBar } from '../_shared/BalanceBar';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
@@ -331,6 +332,10 @@ export function AccountJournalPage() {
         </Paper>
 
         <StatTiles tiles={tiles} isLoading={report.isLoading} />
+
+        {/* Screen-only. On paper the totals row under the table already carries these figures, and a
+            bar would spend a third of the first sheet repeating them. */}
+        <BalanceBar debtor={totalDebtor} creditor={totalCreditor} hasRows={rows.length > 0} />
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>

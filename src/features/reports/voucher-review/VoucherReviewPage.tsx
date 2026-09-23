@@ -33,6 +33,7 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
+import { BalanceBar } from '../_shared/BalanceBar';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { sysTypesApi } from '../../../lib/api/sysTypesApi';
@@ -347,6 +348,11 @@ export function VoucherReviewPage() {
         </Paper>
 
         <StatTiles tiles={tiles} isLoading={report.isLoading} />
+
+        {/* Whether the set balances is the whole point of this screen, so it gets a shape and not
+            only two numbers sitting in separate tiles. Screen-only: the print root below carries
+            the table, which is where a printed report's totals belong. */}
+        <BalanceBar debtor={totalDebtor} creditor={totalCreditor} hasRows={rows.length > 0} />
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>

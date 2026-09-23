@@ -39,6 +39,8 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
+import { BalanceBar } from '../_shared/BalanceBar';
+import { MagnitudeBarList } from '../_shared/MagnitudeBarList';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
@@ -146,6 +148,17 @@ export function MatrixReportPage() {
   );
 
   const totals = useMemo(() => sumMatrixRows(rows), [rows]);
+
+  /**
+   * Feeds the magnitude chart. Ranked on total turnover (بدهکار + بستانکار) rather than on the net
+   * balance: a row that moved a large amount both ways and nets to zero is still one of the
+   * busiest rows at this level, and ranking on the net would hide exactly those. Built from the
+   * filtered row set, not the current page, so the chart describes the same set the totals do.
+   */
+  const topRows = useMemo(
+    () => rows.map((r) => ({ key: r.code, code: r.code, name: r.name, value: r.debtor + r.creditor })),
+    [rows],
+  );
   const isBalanced = totals.debtor === totals.creditor;
   const childLevel = nextMatrixLevel(level);
   const canDrill = childLevel !== null && availableLevels.includes(childLevel);
@@ -457,6 +470,24 @@ export function MatrixReportPage() {
         </Collapse>
 
         <StatTiles tiles={tiles} isLoading={report.isLoading} />
+
+        {/* Screen-only: the printed report is the table. The two charts answer the questions the
+            table makes you compute — does it balance, and which rows dominate. */}
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1.2fr)' },
+            alignItems: 'start',
+          }}
+        >
+          <BalanceBar debtor={totals.debtor} creditor={totals.creditor} hasRows={rows.length > 0} />
+          <MagnitudeBarList
+            title={`بزرگ‌ترین ردیف‌ها در سطح ${matrixLevelLabel(level)}`}
+            caption="مجموع گردش بدهکار و بستانکار، بر اساس همین فیلترها"
+            items={topRows}
+          />
+        </Box>
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>

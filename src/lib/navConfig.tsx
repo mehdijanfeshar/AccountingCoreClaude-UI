@@ -6,6 +6,7 @@ import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlin
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import LockPersonOutlinedIcon from '@mui/icons-material/LockPersonOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
@@ -98,6 +99,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'حساب‌های معین دارای شناسه',
         to: '/base/attrib-for-account-codes',
         icon: <BadgeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'دسترسی کدینگ حسابداری',
+        description: 'هر معین را کدام نوع واحدها می‌توانند استفاده کنند',
+        to: '/base/coding-permissions',
+        icon: <LockPersonOutlinedIcon fontSize="small" />,
       },
       {
         label: 'کارگاه',
