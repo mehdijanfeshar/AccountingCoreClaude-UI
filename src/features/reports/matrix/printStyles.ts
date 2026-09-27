@@ -1,25 +1,27 @@
 /**
  * Print rules for گزارش ماتریسی, scoped to this page.
  *
- * Everything printed here also becomes the PDF (via "Save as PDF"), so these rules are not
- * cosmetic — they are what separates a usable financial report from a screenshot of an app with a
- * sidebar in the corner. Same approach as the trial balance's own stylesheet, kept separate
- * because the two reports have different roots and column counts and would otherwise have to agree
- * forever on both.
+ * <b>Why this is not the matrix report's stylesheet with a different id.</b> That report has seven
+ * fixed columns and fits A4 portrait. This one's column count comes from the data, so a pivot of
+ * eight معین values is already sixteen amount columns plus the two row columns. Portrait would
+ * either overflow the page or shrink the digits past reading size, so this sheet is **landscape**
+ * and lets the browser scale a wide grid down rather than clipping it.
  *
- * The parts that matter:
- * - `thead { display: table-header-group }` repeats the header on every page; without it, page two
- *   of a معین-level report is a wall of unlabelled numbers.
+ * Everything else follows the same reasoning as the matrix stylesheet:
+ * - `thead { display: table-header-group }` repeats the header on every page — and here that matters
+ *   more than anywhere else, because without it page two of a cross-tab is a grid of numbers with no
+ *   way to tell which column is which.
  * - `break-inside: avoid` stops a row being sliced across a page boundary.
  * - App chrome is hidden by visibility rather than by each component remembering to hide itself.
  * - Colours are forced to print: browsers strip backgrounds by default, which would erase the
- *   header tint and the totals rule.
+ *   header tint that separates the بدهکار/بستانکار pairs from each other.
  */
 export const MATRIX_REPORT_PRINT_STYLES = `
 @media print {
   @page {
-    size: A4 portrait;
-    margin: 12mm 10mm;
+    /* Landscape, unlike every other report here — the grid is as wide as the data makes it. */
+    size: A4 landscape;
+    margin: 10mm 8mm;
   }
 
   body * {
@@ -45,10 +47,25 @@ export const MATRIX_REPORT_PRINT_STYLES = `
     display: none !important;
   }
 
+  /* On screen the grid scrolls inside a bounded box; on paper it must be allowed its full width
+     instead of being clipped to the box it happened to have on screen. */
+  #matrix-report-print-root .matrix-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Sticky columns are a scrolling affordance. On paper there is no scrolling, and a sticky cell
+     can end up painted over its neighbour. */
+  #matrix-report-print-root th,
+  #matrix-report-print-root td {
+    position: static !important;
+  }
+
   #matrix-report-print-root table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 10pt;
+    /* Smaller than the other reports on purpose: the column count is not ours to choose. */
+    font-size: 8pt;
   }
 
   #matrix-report-print-root thead {
@@ -61,8 +78,8 @@ export const MATRIX_REPORT_PRINT_STYLES = `
 
   #matrix-report-print-root th,
   #matrix-report-print-root td {
-    border-bottom: 1px solid #cbd5e1;
-    padding: 4px 6px;
+    border: 1px solid #cbd5e1;
+    padding: 3px 4px;
   }
 
   * {

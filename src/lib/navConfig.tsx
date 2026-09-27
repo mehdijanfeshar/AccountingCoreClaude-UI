@@ -18,7 +18,7 @@ import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
-import GridOnOutlinedIcon from '@mui/icons-material/GridOnOutlined';
+import PivotTableChartOutlinedIcon from '@mui/icons-material/PivotTableChartOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
@@ -164,13 +164,18 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/reports/voucher-review',
         icon: <FactCheckOutlinedIcon fontSize="small" />,
       },
-      { label: 'مرور حساب‌ها', icon: <ManageSearchOutlinedIcon fontSize="small" /> },
+      {
+        label: 'مرور حساب‌ها',
+        description: 'گردش و ماندهٔ حساب‌ها در هر سطح، با پیمایش از کل به جزء',
+        to: '/reports/account-review',
+        icon: <ManageSearchOutlinedIcon fontSize="small" />,
+      },
       { label: 'ترازنامه', icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
       {
         label: 'گزارش ماتریسی',
-        description: 'گردش اسناد، تجمیع‌شده در هر سطح از کدینگ یا تفصیلی',
+        description: 'تقاطع دو بُعد — یکی روی سطر، یکی روی ستون، با بدهکار/بستانکار در هر خانه',
         to: '/reports/matrix',
-        icon: <GridOnOutlinedIcon fontSize="small" />,
+        icon: <PivotTableChartOutlinedIcon fontSize="small" />,
       },
     ],
   },

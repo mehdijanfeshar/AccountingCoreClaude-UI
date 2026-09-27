@@ -1,27 +1,18 @@
-/** Mirrors Accounting.Api's `MatrixReportRowDto` exactly — `GET /api/reports/matrix`. */
-export interface MatrixReportRow {
-  code: string;
-  name: string;
-  /** Persian label of the level this row was grouped at — «گروه»/«کل»/«معین»/«تفصیلی ۳». */
-  levelLabel: string;
-  debtor: number;
-  creditor: number;
-  /** One-sided: exactly one of the two balances is non-zero for any row. */
-  debtorBalance: number;
-  creditorBalance: number;
-  /**
-   * Whether drilling into this row would show anything. Computed server-side per row, not assumed
-   * from the level — a معین with no تفصیلی assignment is normal, and offering a drill-down that
-   * lands on an empty table reads as a broken report.
-   */
-  hasChildren: boolean;
-}
+/**
+ * Mirrors the backend's گزارش ماتریسی contract — `GET /api/reports/matrix`.
+ *
+ * <b>Why this does not share `accountReview.ts`'s level type.</b> The backend deliberately declares
+ * its own `MatrixDimension` rather than reusing `AccountReviewLevel`, and the reason carries over
+ * here: there a level is «در چه سطحی تجمیع کنم» and there is exactly one; here it is «روی این محور
+ * چه بگذارم» and there are two independent choices. The numeric values are identical on purpose so
+ * the two are trivially comparable, but the types stay separate so the two reports can grow apart.
+ */
 
 /**
- * Mirrors `MatrixReportLevel`. The numbers are the wire contract — they match the reference
- * system's `typeShow` (1..10), so the same selection produces comparable output in both.
+ * Mirrors `MatrixDimension`. The numbers are the wire contract and match `ACCOUNT_REVIEW_LEVEL` one for
+ * one — every one of them is a plain column of `VW_CONSOLIDATE_REPORT`.
  */
-export const MATRIX_LEVEL = {
+export const MATRIX_DIMENSION = {
   group: 1,
   kol: 2,
   moin: 3,
@@ -34,80 +25,112 @@ export const MATRIX_LEVEL = {
   tafsili7: 10,
 } as const;
 
-export type MatrixLevelValue = (typeof MATRIX_LEVEL)[keyof typeof MATRIX_LEVEL];
+export type MatrixDimensionValue =
+  (typeof MATRIX_DIMENSION)[keyof typeof MATRIX_DIMENSION];
 
 /**
- * The level picker's options, split into the two families they actually belong to. Keeping the
- * split explicit is what lets the picker group them instead of showing ten flat entries where
- * «معین» and «تفصیلی ۴» look like the same kind of thing.
+ * The axis pickers' options, split into the two families they belong to — the same split the matrix
+ * report's level picker uses, for the same reason: ten flat entries make «معین» and «تفصیلی ۴» look
+ * like the same kind of thing.
  */
-export const MATRIX_CODING_LEVELS: { value: MatrixLevelValue; label: string }[] = [
-  { value: MATRIX_LEVEL.group, label: 'گروه' },
-  { value: MATRIX_LEVEL.kol, label: 'کل' },
-  { value: MATRIX_LEVEL.moin, label: 'معین' },
+export const MATRIX_CODING_DIMENSIONS: { value: MatrixDimensionValue; label: string }[] = [
+  { value: MATRIX_DIMENSION.group, label: 'گروه' },
+  { value: MATRIX_DIMENSION.kol, label: 'کل' },
+  { value: MATRIX_DIMENSION.moin, label: 'معین' },
 ];
 
-export const MATRIX_TAFSILI_LEVELS: { value: MatrixLevelValue; label: string }[] = [
-  { value: MATRIX_LEVEL.tafsili1, label: 'تفصیلی ۱' },
-  { value: MATRIX_LEVEL.tafsili2, label: 'تفصیلی ۲' },
-  { value: MATRIX_LEVEL.tafsili3, label: 'تفصیلی ۳' },
-  { value: MATRIX_LEVEL.tafsili4, label: 'تفصیلی ۴' },
-  { value: MATRIX_LEVEL.tafsili5, label: 'تفصیلی ۵' },
-  { value: MATRIX_LEVEL.tafsili6, label: 'تفصیلی ۶' },
-  { value: MATRIX_LEVEL.tafsili7, label: 'تفصیلی ۷' },
+export const MATRIX_TAFSILI_DIMENSIONS: { value: MatrixDimensionValue; label: string }[] = [
+  { value: MATRIX_DIMENSION.tafsili1, label: 'تفصیلی ۱' },
+  { value: MATRIX_DIMENSION.tafsili2, label: 'تفصیلی ۲' },
+  { value: MATRIX_DIMENSION.tafsili3, label: 'تفصیلی ۳' },
+  { value: MATRIX_DIMENSION.tafsili4, label: 'تفصیلی ۴' },
+  { value: MATRIX_DIMENSION.tafsili5, label: 'تفصیلی ۵' },
+  { value: MATRIX_DIMENSION.tafsili6, label: 'تفصیلی ۶' },
+  { value: MATRIX_DIMENSION.tafsili7, label: 'تفصیلی ۷' },
 ];
 
-export const MATRIX_ALL_LEVELS = [...MATRIX_CODING_LEVELS, ...MATRIX_TAFSILI_LEVELS];
+export const MATRIX_ALL_DIMENSIONS = [
+  ...MATRIX_CODING_DIMENSIONS,
+  ...MATRIX_TAFSILI_DIMENSIONS,
+];
 
-export function matrixLevelLabel(value: MatrixLevelValue): string {
-  return MATRIX_ALL_LEVELS.find((o) => o.value === value)?.label ?? '—';
+export function matrixDimensionLabel(value: MatrixDimensionValue): string {
+  return MATRIX_ALL_DIMENSIONS.find((o) => o.value === value)?.label ?? '—';
 }
 
-/** One step of the drill-down path — mirrors `MatrixReportScopeItem`. */
-export interface MatrixScopeStep {
-  level: MatrixLevelValue;
+/** Mirrors `MatrixColumnDto` — one distinct value of the column dimension, plus its total. */
+export interface MatrixColumn {
   code: string;
-}
-
-/** Mirrors `MatrixReportScopeDto` — a resolved step, with its name, for the breadcrumb. */
-export interface MatrixScopeCrumb {
-  level: MatrixLevelValue;
-  levelLabel: string;
-  code: string;
-  /** Empty when the code matches no lines — the step is still echoed back rather than dropped. */
   name: string;
+  debtor: number;
+  creditor: number;
 }
 
-/** Mirrors `MatrixReportResultDto`. */
-export interface MatrixReportResult {
-  rows: MatrixReportRow[];
-  level: MatrixLevelValue;
-  levelLabel: string;
-  /** The path that led here, shallowest first. */
-  scope: MatrixScopeCrumb[];
-  /** Levels that actually carry data inside the current scope — the answer to «کدام سطوح؟». */
-  availableLevels: MatrixLevelValue[];
+/**
+ * Mirrors `MatrixCellDto`. Only populated intersections are sent — a cross-tab is nearly always
+ * sparse — so a column code absent from a row's `cells` means zero, not missing data.
+ */
+export interface MatrixCell {
+  columnCode: string;
+  debtor: number;
+  creditor: number;
 }
 
-export interface MatrixReportParams {
+/** Mirrors `MatrixRowDto`. */
+export interface MatrixRow {
+  code: string;
+  name: string;
+  cells: MatrixCell[];
+  debtor: number;
+  creditor: number;
+}
+
+/** Mirrors `MatrixResultDto`. */
+export interface MatrixResult {
+  rowDimension: MatrixDimensionValue;
+  rowDimensionLabel: string;
+  columnDimension: MatrixDimensionValue;
+  columnDimensionLabel: string;
+  /** In code order, already truncated server-side if there were too many. */
+  columns: MatrixColumn[];
+  rows: MatrixRow[];
+  /** Grand total بدهکار — over the **whole** filtered set, see `columnsTruncated`. */
+  debtor: number;
+  /** Grand total بستانکار — over the whole filtered set. */
+  creditor: number;
+  /** How many distinct column values existed before the cap. */
+  totalColumnCount: number;
+  /**
+   * True when `columns` holds fewer than `totalColumnCount`.
+   *
+   * ⚠️ When this is set the grand totals still cover everything while the visible cells do not, so
+   * the row and column totals will not add up to them. The backend does that on purpose — rebasing
+   * the totals onto the visible slice would make a truncated report look complete — which makes it
+   * **this page's job** to say so on screen.
+   */
+  columnsTruncated: boolean;
+}
+
+export interface MatrixParams {
   year: string;
-  level: MatrixLevelValue;
-  scope?: MatrixScopeStep[];
+  rowDimension: MatrixDimensionValue;
+  columnDimension: MatrixDimensionValue;
   fromDate?: string;
   toDate?: string;
-  fromVoucherNo?: string;
-  toVoucherNo?: string;
   docLife?: number;
   systemTypeId?: string;
+  /** «شروع با» on the row dimension's code. */
+  rowCodeFilter?: string;
+  /** «شروع با» on the column dimension's code — the practical fix for a pivot that is too wide. */
+  columnCodeFilter?: string;
 }
 
 /**
- * The level immediately below `level`, or null at the deepest one.
+ * Looks a cell up by column code.
  *
- * Drilling always descends exactly one step, which is why this is a successor function rather than
- * a lookup: the hierarchy is گروه → کل → معین → تفصیلی ۱ … ۷ and the wire values are consecutive
- * by construction.
+ * Rows arrive with a sparse `cells` array rather than a map, so the grid would otherwise do a
+ * linear scan per cell — O(rows × columns × cells). This builds the lookup once per row.
  */
-export function nextMatrixLevel(level: MatrixLevelValue): MatrixLevelValue | null {
-  return level < MATRIX_LEVEL.tafsili7 ? ((level + 1) as MatrixLevelValue) : null;
+export function cellsByColumn(row: MatrixRow): Map<string, MatrixCell> {
+  return new Map(row.cells.map((cell) => [cell.columnCode, cell]));
 }

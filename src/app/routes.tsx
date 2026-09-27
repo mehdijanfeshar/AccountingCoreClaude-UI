@@ -29,6 +29,7 @@ import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHe
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 import { TrialBalancePage } from '../features/reports/trial-balance/TrialBalancePage';
+import { AccountReviewPage } from '../features/reports/account-review/AccountReviewPage';
 import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
 import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
 import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
@@ -100,6 +101,7 @@ export const routes: RouteObject[] = [
   { path: '/operation/pay-recive-heads/:id/edit', element: <PayReciveHeadFormPage /> },
 
   { path: '/reports/trial-balance', element: <TrialBalancePage /> },
+  { path: '/reports/account-review', element: <AccountReviewPage /> },
   { path: '/reports/matrix', element: <MatrixReportPage /> },
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
