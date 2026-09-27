@@ -4,14 +4,12 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import LockPersonOutlinedIcon from '@mui/icons-material/LockPersonOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import FactoryOutlinedIcon from '@mui/icons-material/FactoryOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
-import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
@@ -93,12 +91,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <ReceiptLongOutlinedIcon fontSize="small" />,
       },
       {
-        label: 'تنخواه',
-        description: 'تعریف تنخواه‌گردان‌ها',
-        to: '/base/revolving-funds',
-        icon: <SavingsOutlinedIcon fontSize="small" />,
-      },
-      {
         label: 'ویژگی',
         description: 'گروه ویژگی، اجزای آن، و ویژگی‌های ثبت‌شده',
         to: '/base/features',
@@ -141,12 +133,6 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'ثبت سند جدید با ردیف‌های تفصیلی',
         to: '/operation/vouchers/new',
         icon: <PostAddOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: 'دریافت و پرداخت',
-        description: 'فهرست سرسند اسناد دریافت و پرداخت',
-        to: '/operation/pay-recive-heads',
-        icon: <SwapHorizOutlinedIcon fontSize="small" />,
       },
     ],
   },
@@ -191,11 +177,12 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   /**
    * تنخواه و خزانه‌داری — ماژول جدید و جدا (`docs/tankhah-khazaneh-module.md`، تصمیم صاحب پروژه
-   * ۲۰۲۶-۰۹-۲۷، بخش ۰-۱). منوهای قدیمی «تنخواه» (`اطلاعات پایه`)، «هزینه» و «دریافت و پرداخت»
-   * عمداً دست نمی‌خورند — این گروه در کنارشان اضافه شده، نه به‌جایشان؛ وقتی این ماژول تأیید نهایی
-   * شد آن‌ها غیرفعال می‌شوند (هنوز نه). ترتیب موارد دقیقاً به ترتیب پاورپوینت (سند مرجع §۶) است.
-   * بخش ۱ فقط سه مورد را ساخته (تعریف تنخواه، ثبت صورت‌هزینه، کارتابل تنخواه)؛ بقیه تا اطلاع
-   * ثانوی «به‌زودی»‌اند.
+   * ۲۰۲۶-۰۹-۲۷، بخش ۰-۱). منوی قدیمی «تنخواه» (`اطلاعات پایه`) و «دریافت و پرداخت» (`عملیات`)
+   * طبق تصمیم صاحب پروژه در ۲۰۲۶-۰۹-۲۷ از منو حذف شدند (روت‌هاشان دست‌نخورده مانده — صفحهٔ «تعریف
+   * تنخواه» همچنان مستقیم به `/base/revolving-funds` لینک می‌دهد). «هزینه» عمداً دست نخورد، چون
+   * هنوز به‌عنوان دادهٔ مرجع لازم است. ترتیب موارد این گروه دقیقاً به ترتیب پاورپوینت (سند مرجع
+   * §۶) است. بخش ۱ فقط سه مورد را ساخته (تعریف تنخواه، ثبت صورت‌هزینه، کارتابل تنخواه)؛ بقیه تا
+   * اطلاع ثانوی «به‌زودی»‌اند.
    */
   {
     title: 'تنخواه و خزانه‌داری',
