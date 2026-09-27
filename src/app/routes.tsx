@@ -33,6 +33,9 @@ import { AccountReviewPage } from '../features/reports/account-review/AccountRev
 import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
 import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
 import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
+import { PettyCashFundsListPage } from '../features/petty-cash/PettyCashFundsListPage';
+import { PettyCashCartablePage } from '../features/petty-cash/PettyCashCartablePage';
+import { ExpenseDocFormPage } from '../features/petty-cash/ExpenseDocFormPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -106,4 +109,10 @@ export const routes: RouteObject[] = [
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
 
+  // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه»؛ بقیهٔ موارد
+  // منو در `navConfig.tsx` عمداً بدون `to` مانده‌اند تا «به‌زودی» نمایش داده شوند).
+  { path: '/treasury/petty-cash/funds', element: <PettyCashFundsListPage /> },
+  { path: '/treasury/petty-cash/cartable', element: <PettyCashCartablePage /> },
+  { path: '/treasury/petty-cash/expense-docs/new', element: <ExpenseDocFormPage /> },
+  { path: '/treasury/petty-cash/expense-docs/:id/edit', element: <ExpenseDocFormPage /> },
 ];

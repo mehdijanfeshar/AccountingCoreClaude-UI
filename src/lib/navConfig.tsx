@@ -23,6 +23,16 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import WalletOutlinedIcon from '@mui/icons-material/WalletOutlined';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import CurrencyExchangeOutlinedIcon from '@mui/icons-material/CurrencyExchangeOutlined';
+import EventRepeatOutlinedIcon from '@mui/icons-material/EventRepeatOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined';
+import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
+import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
+import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -177,6 +187,49 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/reports/matrix',
         icon: <PivotTableChartOutlinedIcon fontSize="small" />,
       },
+    ],
+  },
+  /**
+   * تنخواه و خزانه‌داری — ماژول جدید و جدا (`docs/tankhah-khazaneh-module.md`، تصمیم صاحب پروژه
+   * ۲۰۲۶-۰۹-۲۷، بخش ۰-۱). منوهای قدیمی «تنخواه» (`اطلاعات پایه`)، «هزینه» و «دریافت و پرداخت»
+   * عمداً دست نمی‌خورند — این گروه در کنارشان اضافه شده، نه به‌جایشان؛ وقتی این ماژول تأیید نهایی
+   * شد آن‌ها غیرفعال می‌شوند (هنوز نه). ترتیب موارد دقیقاً به ترتیب پاورپوینت (سند مرجع §۶) است.
+   * بخش ۱ فقط سه مورد را ساخته (تعریف تنخواه، ثبت صورت‌هزینه، کارتابل تنخواه)؛ بقیه تا اطلاع
+   * ثانوی «به‌زودی»‌اند.
+   */
+  {
+    title: 'تنخواه و خزانه‌داری',
+    icon: <WalletOutlinedIcon fontSize="small" />,
+    color: 'secondary',
+    items: [
+      { label: 'داشبورد تنخواه', icon: <DashboardOutlinedIcon fontSize="small" /> },
+      {
+        label: 'کارتابل تنخواه',
+        description: 'صورت‌هزینه‌ها بر اساس وضعیت — پیش‌نویس تا تسویه‌شده',
+        to: '/treasury/petty-cash/cartable',
+        icon: <InboxOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'ثبت صورت‌هزینه',
+        description: 'ثبت هزینه‌کرد از یک تنخواه، با فاکتور/رسید پشتوانه',
+        to: '/treasury/petty-cash/expense-docs/new',
+        icon: <ReceiptLongOutlinedIcon fontSize="small" />,
+      },
+      { label: 'شارژ و ترمیم', icon: <CurrencyExchangeOutlinedIcon fontSize="small" /> },
+      { label: 'تسویه دوره', icon: <EventRepeatOutlinedIcon fontSize="small" /> },
+      { label: 'گزارش گردش تنخواه', icon: <TrendingUpOutlinedIcon fontSize="small" /> },
+      {
+        label: 'تعریف تنخواه',
+        description: 'تنظیمات هر تنخواه — سقف هر سند، آستانهٔ هشدار، تنخواه‌دار و دورهٔ تسویه',
+        to: '/treasury/petty-cash/funds',
+        icon: <SettingsSuggestOutlinedIcon fontSize="small" />,
+      },
+      { label: 'داشبورد خزانه', icon: <AccountBalanceOutlinedIcon fontSize="small" /> },
+      { label: 'درخواست پرداخت', icon: <RequestQuoteOutlinedIcon fontSize="small" /> },
+      { label: 'کارتابل تأیید', icon: <FactCheckOutlinedIcon fontSize="small" /> },
+      { label: 'اجرای پرداخت', icon: <PaymentsOutlinedIcon fontSize="small" /> },
+      { label: 'دریافت و انتقال', icon: <CompareArrowsOutlinedIcon fontSize="small" /> },
+      { label: 'مغایرت بانکی', icon: <RuleOutlinedIcon fontSize="small" /> },
     ],
   },
 ];
