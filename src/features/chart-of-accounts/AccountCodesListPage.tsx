@@ -6,12 +6,11 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
-import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZE_OPTIONS, Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { accountCodesApi } from './api';
 import type { AccountCodeDto } from '../../types/accountCode';
 
-const PAGE_SIZE = 20;
 
 const columns: DataTableColumn<AccountCodeDto>[] = [
   { key: 'accCode', header: 'کد حساب', render: (row) => row.accCode ?? '—' },
@@ -34,10 +33,18 @@ const columns: DataTableColumn<AccountCodeDto>[] = [
  */
 export function AccountCodesListPage() {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Changing the size invalidates the current page: page 7 of a 20-row listing usually does
+  // not exist once a page holds 200, and an empty page reads as «داده‌ای نیست».
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
 
   const query = useQuery({
-    queryKey: ['account-codes', pageNumber, PAGE_SIZE],
-    queryFn: () => accountCodesApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['account-codes', pageNumber, pageSize],
+    queryFn: () => accountCodesApi.list({ pageNumber, pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -72,6 +79,7 @@ export function AccountCodesListPage() {
               pageSize={query.data.pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
+              onPageSizeChange={changePageSize}
             />
           )}
         </>

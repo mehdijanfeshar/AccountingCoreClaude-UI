@@ -12,7 +12,7 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
-import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZE_OPTIONS, Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
@@ -23,7 +23,6 @@ import { tafsilGroupsApi } from './api';
 import type { TafsilGroupDto } from '../../types/tafsilGroup';
 import { getPersonTypeLabel } from '../../types/legacyEnums';
 
-const PAGE_SIZE = 20;
 
 function personTypeChip(value: number | null) {
   if (value === null) return <Chip size="small" variant="outlined" label="تعیین‌نشده" />;
@@ -34,12 +33,20 @@ export function TafsilGroupsListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Changing the size invalidates the current page: page 7 of a 20-row listing usually does
+  // not exist once a page holds 200, and an empty page reads as «داده‌ای نیست».
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<TafsilGroupDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['tafsil-groups', pageNumber, PAGE_SIZE],
-    queryFn: () => tafsilGroupsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['tafsil-groups', pageNumber, pageSize],
+    queryFn: () => tafsilGroupsApi.list({ pageNumber, pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -139,6 +146,7 @@ export function TafsilGroupsListPage() {
               pageSize={query.data.pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
+              onPageSizeChange={changePageSize}
             />
           )}
         </>

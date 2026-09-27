@@ -15,7 +15,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
-import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZE_OPTIONS, Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
@@ -38,7 +38,6 @@ import {
 } from './schema';
 import type { AccountCodeDto } from '../../types/accountCode';
 
-const PAGE_SIZE = 20;
 
 interface AccountCodeLevelTabProps {
   title: string;
@@ -80,6 +79,14 @@ export function AccountCodeLevelTab({
 
   const [search, setSearch] = useState('');
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Changing the size invalidates the current page: page 7 of a 20-row listing usually does
+  // not exist once a page holds 200, and an empty page reads as «داده‌ای نیست».
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
   const [editingRow, setEditingRow] = useState<AccountCodeDto | 'new' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AccountCodeDto | null>(null);
 
@@ -98,7 +105,7 @@ export function AccountCodeLevelTab({
     );
   }, [levelRows, search]);
 
-  const pageRows = filteredRows.slice((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE);
+  const pageRows = filteredRows.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => accountCodesApi.remove(id),
@@ -238,9 +245,10 @@ export function AccountCodeLevelTab({
           {filteredRows.length > 0 && (
             <Pagination
               pageNumber={pageNumber}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               totalCount={filteredRows.length}
               onPageChange={setPageNumber}
+              onPageSizeChange={changePageSize}
             />
           )}
         </>

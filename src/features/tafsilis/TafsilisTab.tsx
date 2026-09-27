@@ -27,7 +27,7 @@ import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
-import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZE_OPTIONS, Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { FormDialog } from '../../components/FormDialog';
@@ -64,19 +64,26 @@ function toEnumFieldValue(raw: string): number | null {
   return raw === UNSET ? null : Number(raw);
 }
 
-const PAGE_SIZE = 20;
 
 export function TafsilisTab() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Changing the size invalidates the current page: page 7 of a 20-row listing usually does
+  // not exist once a page holds 200, and an empty page reads as «داده‌ای نیست».
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
   const [filter, setFilter] = useState('');
   const [editingRow, setEditingRow] = useState<TafsiliDto | 'new' | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TafsiliDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['tafsilis', pageNumber, PAGE_SIZE],
-    queryFn: () => tafsilisApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['tafsilis', pageNumber, pageSize],
+    queryFn: () => tafsilisApi.list({ pageNumber, pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -213,6 +220,7 @@ export function TafsilisTab() {
               pageSize={query.data.pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
+              onPageSizeChange={changePageSize}
             />
           )}
         </>

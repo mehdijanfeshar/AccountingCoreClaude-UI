@@ -10,7 +10,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
-import { Pagination } from '../../components/Pagination';
+import { PAGE_SIZE_OPTIONS, Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
@@ -21,7 +21,6 @@ import { formatThousands } from '../../lib/format/numbers';
 import { bankAccountsApi } from './api';
 import type { BankAccountDto } from '../../types/bankAccount';
 
-const PAGE_SIZE = 20;
 
 /**
  * تب «حساب‌های بانکی» — `TB_ACCOUNT`.
@@ -32,12 +31,20 @@ export function BankAccountsTab({ onOpenCheckBooks }: { onOpenCheckBooks: (accou
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+
+  // Changing the size invalidates the current page: page 7 of a 20-row listing usually does
+  // not exist once a page holds 200, and an empty page reads as «داده‌ای نیست».
+  function changePageSize(size: number) {
+    setPageSize(size);
+    setPageNumber(1);
+  }
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<BankAccountDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['bank-accounts', pageNumber, PAGE_SIZE],
-    queryFn: () => bankAccountsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['bank-accounts', pageNumber, pageSize],
+    queryFn: () => bankAccountsApi.list({ pageNumber, pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -145,6 +152,7 @@ export function BankAccountsTab({ onOpenCheckBooks }: { onOpenCheckBooks: (accou
               pageSize={query.data.pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
+              onPageSizeChange={changePageSize}
             />
           )}
         </>
