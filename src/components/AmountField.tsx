@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { formatThousands, normalizeNumericInput } from '../lib/format/numbers';
 
 interface AmountFieldProps<TFieldValues extends FieldValues> {
@@ -12,6 +13,7 @@ interface AmountFieldProps<TFieldValues extends FieldValues> {
   helperText?: string;
   disabled?: boolean;
   icon?: ReactNode;
+  sx?: SxProps<Theme>;
 }
 
 /**
@@ -32,6 +34,7 @@ export function AmountField<TFieldValues extends FieldValues>({
   helperText,
   disabled,
   icon,
+  sx,
 }: AmountFieldProps<TFieldValues>) {
   return (
     <Controller
@@ -43,6 +46,7 @@ export function AmountField<TFieldValues extends FieldValues>({
           fullWidth
           required={required}
           disabled={disabled}
+          sx={sx}
           inputMode="decimal"
           value={field.value ? formatThousands(String(field.value)) : ''}
           onChange={(e) => field.onChange(normalizeNumericInput(e.target.value))}

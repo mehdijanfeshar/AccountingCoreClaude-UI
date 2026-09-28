@@ -3,6 +3,7 @@ import type { CreateResponse } from '../../lib/api/createResourceApi';
 import type { PagedResult } from '../../types/pagedResult';
 import type {
   PettyCashAttachmentDto,
+  PettyCashDocEventDto,
   PettyCashExpenseDocDetailDto,
   PettyCashExpenseDocDto,
   PettyCashFundDto,
@@ -38,6 +39,8 @@ export interface PettyCashFundWritePayload {
   custodianName: string | null;
   ceiling: number;
   perDocLimit: number;
+  /** سقف اختیار تأیید نهایی نقش مدیر مالی — تکمیل بخش ۲ (۲۰۲۶-۰۹-۲۸)، الزامی و باید `> 0` باشد. */
+  financeManagerApprovalLimit: number;
   alertThresholdPercent: number | null;
   accountCodeId: string | null;
   settlementPeriod: PettyCashSettlementPeriodValue | null;
@@ -137,26 +140,42 @@ export const pettyCashExpenseDocsApi = {
   startReview(id: string): Promise<CreateResponse> {
     return apiClient.post<CreateResponse>(`/petty-cash/expense-docs/${id}/start-review`).then((res) => res.data);
   },
-  /** بخش ۲ — در انتظار بررسی → تأییدشده. */
+  /**
+   * تکمیل بخش ۲ (۲۰۲۶-۰۹-۲۸) — «تأیید کنترل» توسط بازرس، گام اول تأیید دومرحله‌ای. وضعیت سند
+   * تغییر نمی‌کند؛ فقط `verifiedByUserId`/`verifiedDate` ست می‌شود.
+   */
+  verify(id: string, note?: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/petty-cash/expense-docs/${id}/verify`, { note: note?.trim() || null })
+      .then((res) => res.data);
+  },
+  /** بخش ۲ — «تأیید نهایی»، در انتظار بررسی → تأییدشده. فقط پس از `verify`. */
   approve(id: string, note?: string): Promise<CreateResponse> {
     return apiClient
       .post<CreateResponse>(`/petty-cash/expense-docs/${id}/approve`, { note: note?.trim() || null })
       .then((res) => res.data);
   },
-  /** بخش ۲ — در انتظار بررسی → برگشتی، با یک یا چند دلیل و مهلت اصلاح الزامی. */
+  /**
+   * بخش ۲ — در انتظار بررسی → برگشتی، با یک یا چند دلیل، مهلت اصلاح و توضیح برای تنخواه‌دار —
+   * هر سه الزامی (تصمیم ۲۰۲۶-۰۹-۲۸، صفحهٔ ۸ پاورپوینت؛ `ReturnPettyCashExpenseDocCommandValidator`
+   * سمت سرور با ۴۰۰ همین را اجرا می‌کند).
+   */
   returnDoc(id: string, payload: PettyCashReturnPayload): Promise<CreateResponse> {
     return apiClient
       .post<CreateResponse>(`/petty-cash/expense-docs/${id}/return`, {
         reasonCodes: payload.reasonCodes,
         deadline: payload.deadline,
-        note: payload.note?.trim() || null,
+        note: payload.note.trim(),
       })
       .then((res) => res.data);
   },
-  /** بخش ۲ — در انتظار بررسی → ردشده (پایانی، بدون ترمیم). */
-  reject(id: string, note?: string): Promise<CreateResponse> {
+  /**
+   * بخش ۲ — در انتظار بررسی → ردشده (پایانی، بدون ترمیم). `note` («دلیل رد») الزامی است
+   * (۲۰۲۶-۰۹-۲۸؛ `RejectPettyCashExpenseDocCommandValidator` سمت سرور با ۴۰۰ همین را اجرا می‌کند).
+   */
+  reject(id: string, note: string): Promise<CreateResponse> {
     return apiClient
-      .post<CreateResponse>(`/petty-cash/expense-docs/${id}/reject`, { note: note?.trim() || null })
+      .post<CreateResponse>(`/petty-cash/expense-docs/${id}/reject`, { note: note.trim() })
       .then((res) => res.data);
   },
   /**
@@ -175,7 +194,8 @@ export const pettyCashExpenseDocsApi = {
 export interface PettyCashReturnPayload {
   reasonCodes: number[];
   deadline: string;
-  note?: string;
+  /** «توضیح برای تنخواه‌دار» — الزامی (۲۰۲۶-۰۹-۲۸). */
+  note: string;
 }
 
 export interface BulkApproveResult {
@@ -196,11 +216,15 @@ export const pettyCashFundReviewersApi = {
       .then((res) => res.data);
   },
   /**
-   * Upsert کلیدی روی `(fundId, reviewerUserId)` است، نه `id` — فراخوانی دوباره با همان کد کاربری
-   * نام را به‌روزرسانی (یا رکورد نرم‌حذف‌شده را فعال) می‌کند؛ کد کاربری متفاوت همیشه رکورد جدید
+   * Upsert کلیدی روی `(fundId, reviewerUserId, role)` است، نه `id` — تکمیل بخش ۲ (۲۰۲۶-۰۹-۲۸):
+   * یک کاربر می‌تواند روی یک تنخواه بیش از یک نقش داشته باشد. فراخوانی دوباره با همان سه‌تایی نام
+   * را به‌روزرسانی (یا رکورد نرم‌حذف‌شده را فعال) می‌کند؛ تغییر کد کاربری یا نقش همیشه رکورد جدید
    * می‌سازد. به همین دلیل امضای این تابع `id` نمی‌گیرد.
    */
-  upsert(fundId: string, payload: { reviewerUserId: string; reviewerName: string | null }): Promise<CreateResponse> {
+  upsert(
+    fundId: string,
+    payload: { reviewerUserId: string; reviewerName: string | null; role: number },
+  ): Promise<CreateResponse> {
     return apiClient
       .post<CreateResponse>(`/petty-cash/funds/${fundId}/reviewers`, payload)
       .then((res) => res.data);
@@ -254,10 +278,31 @@ export const pettyCashAttachmentsApi = {
     const fileName = extractContentDispositionFileName(response.headers['content-disposition']) ?? fallbackFileName;
     downloadBlob(response.data, fileName);
   },
+  /**
+   * صفحهٔ بررسی (ص ۷) — بایت‌ها را برای پیش‌نمایش inline (`<img>`/`<iframe>`) به‌صورت blob می‌گیرد،
+   * بدون کلیک ساختگی/دانلود فایل. لینک مستقیم `<a href>` اینجا هم کار نمی‌کند (هدر `Authorization`/
+   * `X-Vahed-Code` را از دست می‌دهد)؛ فراخوان مسئول `URL.revokeObjectURL` روی خروجی است.
+   */
+  async getBlob(expenseDocId: string, attachmentId: string): Promise<{ blob: Blob; contentType: string | null }> {
+    const response = await apiClient.get<Blob>(
+      `/petty-cash/expense-docs/${expenseDocId}/attachments/${attachmentId}/download`,
+      { responseType: 'blob' },
+    );
+    return { blob: response.data, contentType: (response.headers['content-type'] as string | undefined) ?? null };
+  },
   // Intentionally POST, never DELETE — see module docblock. Soft-delete.
   remove(expenseDocId: string, attachmentId: string): Promise<CreateResponse> {
     return apiClient
       .post<CreateResponse>(`/petty-cash/expense-docs/${expenseDocId}/attachments/${attachmentId}/delete`)
+      .then((res) => res.data);
+  },
+};
+
+/** «گردش عملیات» — تاریخچهٔ کامل یک صورت‌هزینه (`docs/tankhah-khazaneh-module.md` §۵). */
+export const pettyCashDocEventsApi = {
+  list(expenseDocId: string): Promise<PettyCashDocEventDto[]> {
+    return apiClient
+      .get<PettyCashDocEventDto[]>(`/petty-cash/expense-docs/${expenseDocId}/events`)
       .then((res) => res.data);
   },
 };

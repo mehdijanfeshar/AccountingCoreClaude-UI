@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
+import { useMemo, useState, type SyntheticEvent } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -9,9 +9,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormGroup from '@mui/material/FormGroup';
-import FormHelperText from '@mui/material/FormHelperText';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -40,7 +37,6 @@ import { MonoCode } from '../../components/MonoCode';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { JalaliDateField } from '../../components/JalaliDateField';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
@@ -53,7 +49,8 @@ import {
   isExpenseDocDeletable,
   isExpenseDocEditable,
 } from './pettyCashDocState';
-import { RETURN_REASON_OPTIONS, getBulkApproveFailureReasonLabel } from './pettyCashReturnReason';
+import { getBulkApproveFailureReasonLabel } from './pettyCashReturnReason';
+import { PettyCashReviewDialogs, type PettyCashApprovalAction } from './PettyCashReviewDialogs';
 import type { PettyCashExpenseDocDto, PettyCashStateCount } from '../../types/pettyCash';
 
 const PAGE_SIZE = 20;
@@ -108,17 +105,12 @@ export function PettyCashCartablePage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApproveFailures, setBulkApproveFailures] = useState<BulkApproveFailure[] | null>(null);
 
-  // تأیید/رد تک‌سندی — یک دیالوگ مشترک با یادداشت اختیاری.
-  const [actionTarget, setActionTarget] = useState<{ doc: PettyCashExpenseDocDto; action: 'approve' | 'reject' } | null>(
+  // تأیید/رد تک‌سندی و برگشت — دیالوگ‌های مشترک `PettyCashReviewDialogs`؛ این صفحه فقط تعیین
+  // می‌کند کدام سند هدف است.
+  const [actionTarget, setActionTarget] = useState<{ doc: PettyCashExpenseDocDto; action: PettyCashApprovalAction } | null>(
     null,
   );
-  const [actionNote, setActionNote] = useState('');
-
-  // برگشت — دیالوگ جدا چون فیلدهای متفاوتی دارد (دلایل چندگزینه‌ای + مهلت الزامی).
   const [returnTarget, setReturnTarget] = useState<PettyCashExpenseDocDto | null>(null);
-  const [returnReasons, setReturnReasons] = useState<number[]>([]);
-  const [returnDeadline, setReturnDeadline] = useState('');
-  const [returnNote, setReturnNote] = useState('');
 
   function clearSelection() {
     setSelectedIds(new Set());
@@ -138,18 +130,6 @@ export function PettyCashCartablePage() {
       return next;
     });
   }
-
-  useEffect(() => {
-    if (!actionTarget) setActionNote('');
-  }, [actionTarget]);
-
-  useEffect(() => {
-    if (!returnTarget) {
-      setReturnReasons([]);
-      setReturnDeadline('');
-      setReturnNote('');
-    }
-  }, [returnTarget]);
 
   const fundsQuery = useQuery({ queryKey: ['petty-cash-funds'], queryFn: () => pettyCashFundsApi.list() });
   const funds = fundsQuery.data ?? [];
@@ -174,43 +154,6 @@ export function PettyCashCartablePage() {
     },
     onError: (error) => {
       notify({ message: error instanceof Error ? error.message : 'شروع بررسی با خطا مواجه شد.', severity: 'error' });
-    },
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: ({ id, note }: { id: string; note?: string }) => pettyCashExpenseDocsApi.approve(id, note),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
-      notify('سند تأیید شد.');
-      setActionTarget(null);
-    },
-    onError: (error) => {
-      notify({ message: error instanceof Error ? error.message : 'تأیید سند با خطا مواجه شد.', severity: 'error' });
-    },
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: ({ id, note }: { id: string; note?: string }) => pettyCashExpenseDocsApi.reject(id, note),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
-      notify('سند رد شد.');
-      setActionTarget(null);
-    },
-    onError: (error) => {
-      notify({ message: error instanceof Error ? error.message : 'رد سند با خطا مواجه شد.', severity: 'error' });
-    },
-  });
-
-  const returnMutation = useMutation({
-    mutationFn: ({ id, reasonCodes, deadline, note }: { id: string; reasonCodes: number[]; deadline: string; note: string }) =>
-      pettyCashExpenseDocsApi.returnDoc(id, { reasonCodes, deadline, note }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
-      notify('سند برگشت داده شد.');
-      setReturnTarget(null);
-    },
-    onError: (error) => {
-      notify({ message: error instanceof Error ? error.message : 'برگشت سند با خطا مواجه شد.', severity: 'error' });
     },
   });
 
@@ -292,15 +235,27 @@ export function PettyCashCartablePage() {
       key: 'select',
       header: '',
       width: 40,
-      render: (row) =>
-        row.state === PETTY_CASH_DOC_STATE.pendingReview ? (
+      render: (row) => {
+        if (row.state !== PETTY_CASH_DOC_STATE.pendingReview) return null;
+        // تأیید گروهی = تأیید نهایی؛ فقط روی اسناد کنترل‌شده توسط بازرس فعال است (تکمیل بخش ۲،
+        // ۲۰۲۶-۰۹-۲۸) — بقیه چک‌باکسشان غیرفعال است تا کاربر بی‌جهت با ۴۰۹ `not-verified` مواجه نشود.
+        const checkbox = (
           <Checkbox
             size="small"
             aria-label="انتخاب برای تأیید گروهی"
             checked={selectedIds.has(row.id)}
+            disabled={!row.verifiedByUserId}
             onChange={(event) => toggleSelected(row.id, event.target.checked)}
           />
-        ) : null,
+        );
+        return row.verifiedByUserId ? (
+          checkbox
+        ) : (
+          <Tooltip title="هنوز کنترل بازرس انجام نشده است">
+            <span>{checkbox}</span>
+          </Tooltip>
+        );
+      },
     },
     { key: 'docNumber', header: 'سند', render: (row) => <MonoCode value={row.docNumber} /> },
     { key: 'registerDate', header: 'تاریخ', render: (row) => formatLegacyJalaliDate(row.registerDate) },
@@ -316,7 +271,16 @@ export function PettyCashCartablePage() {
     {
       key: 'state',
       header: 'وضعیت',
-      render: (row) => <Chip size="small" color={getPettyCashStateColor(row.state)} label={getPettyCashStateLabel(row.state)} />,
+      render: (row) => (
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+          <Chip size="small" color={getPettyCashStateColor(row.state)} label={getPettyCashStateLabel(row.state)} />
+          {row.state === PETTY_CASH_DOC_STATE.pendingReview && row.verifiedByUserId && (
+            <Tooltip title={`کنترل‌شده توسط ${row.verifiedByUserId}`}>
+              <FactCheckOutlinedIcon fontSize="small" color="primary" />
+            </Tooltip>
+          )}
+        </Stack>
+      ),
     },
     {
       key: 'age',
@@ -338,6 +302,9 @@ export function PettyCashCartablePage() {
         const deletable = isExpenseDocDeletable(row.state);
         const isNew = row.state === PETTY_CASH_DOC_STATE.new;
         const isPendingReview = row.state === PETTY_CASH_DOC_STATE.pendingReview;
+        // صفحهٔ بررسی (ص ۷) — «سند قبلی/بعدی» را از همین لیست فعلی جدول می‌سازد؛ صفحهٔ سند با
+        // `location.state.reviewQueue` تشخیص می‌دهد از کارتابل باز شده و ناوبری قبلی/بعدی را نشان می‌دهد.
+        const reviewQueueState = { reviewQueue: rows.map((r) => r.id) };
         return (
           <Stack direction="row" spacing={0.5}>
             {editable ? (
@@ -347,6 +314,7 @@ export function PettyCashCartablePage() {
                   aria-label="ویرایش"
                   component={RouterLink}
                   to={`/treasury/petty-cash/expense-docs/${row.id}/edit`}
+                  state={reviewQueueState}
                 >
                   <EditOutlinedIcon fontSize="small" />
                 </IconButton>
@@ -358,6 +326,7 @@ export function PettyCashCartablePage() {
                   aria-label="نمایش"
                   component={RouterLink}
                   to={`/treasury/petty-cash/expense-docs/${row.id}/edit`}
+                  state={reviewQueueState}
                 >
                   <VisibilityOutlinedIcon fontSize="small" />
                 </IconButton>
@@ -385,16 +354,29 @@ export function PettyCashCartablePage() {
             )}
             {isPendingReview && (
               <>
-                <Tooltip title="تأیید">
-                  <IconButton
-                    size="small"
-                    color="success"
-                    aria-label="تأیید"
-                    onClick={() => setActionTarget({ doc: row, action: 'approve' })}
-                  >
-                    <CheckCircleOutlineOutlinedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {row.verifiedByUserId ? (
+                  <Tooltip title="تأیید نهایی">
+                    <IconButton
+                      size="small"
+                      color="success"
+                      aria-label="تأیید نهایی"
+                      onClick={() => setActionTarget({ doc: row, action: 'approve' })}
+                    >
+                      <CheckCircleOutlineOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="تأیید کنترل">
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label="تأیید کنترل"
+                      onClick={() => setActionTarget({ doc: row, action: 'verify' })}
+                    >
+                      <FactCheckOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title="برگشت">
                   <IconButton size="small" color="warning" aria-label="برگشت" onClick={() => setReturnTarget(row)}>
                     <KeyboardReturnOutlinedIcon fontSize="small" />
@@ -594,122 +576,13 @@ export function PettyCashCartablePage() {
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
 
-      {/* بخش ۲ — تأیید/رد تک‌سندی، یک دیالوگ مشترک با یادداشت اختیاری. */}
-      <Dialog open={actionTarget !== null} onClose={() => setActionTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>{actionTarget?.action === 'approve' ? 'تأیید صورت‌هزینه' : 'رد صورت‌هزینه'}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            سند «{actionTarget?.doc.docNumber ?? '—'}»
-            {actionTarget?.action === 'reject' && ' — رد نهایی است و برخلاف برگشتی، امکان اصلاح و ارسال دوباره ندارد.'}
-          </Typography>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={2}
-            label="یادداشت (اختیاری)"
-            value={actionNote}
-            onChange={(event) => setActionNote(event.target.value)}
-            slotProps={{ htmlInput: { maxLength: 1000 } }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setActionTarget(null)}
-            color="inherit"
-            disabled={approveMutation.isPending || rejectMutation.isPending}
-          >
-            انصراف
-          </Button>
-          <Button
-            variant="contained"
-            color={actionTarget?.action === 'approve' ? 'success' : 'error'}
-            disabled={approveMutation.isPending || rejectMutation.isPending}
-            onClick={() => {
-              if (!actionTarget) return;
-              const note = actionNote.trim() || undefined;
-              if (actionTarget.action === 'approve') approveMutation.mutate({ id: actionTarget.doc.id, note });
-              else rejectMutation.mutate({ id: actionTarget.doc.id, note });
-            }}
-          >
-            {actionTarget?.action === 'approve' ? 'تأیید سند' : 'رد سند'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* بخش ۲ — برگشت: یک یا چند دلیل چندگزینه‌ای (الزامی) + مهلت اصلاح (الزامی) + یادداشت (اختیاری). */}
-      <Dialog open={returnTarget !== null} onClose={() => setReturnTarget(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>برگشت صورت‌هزینه «{returnTarget?.docNumber ?? '—'}»</DialogTitle>
-        <DialogContent>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            دلیل برگشت
-          </Typography>
-          <FormGroup>
-            {RETURN_REASON_OPTIONS.map((option) => (
-              <FormControlLabel
-                key={option.value}
-                control={
-                  <Checkbox
-                    checked={returnReasons.includes(option.value)}
-                    onChange={(event) =>
-                      setReturnReasons((prev) =>
-                        event.target.checked ? [...prev, option.value] : prev.filter((v) => v !== option.value),
-                      )
-                    }
-                  />
-                }
-                label={option.label}
-              />
-            ))}
-          </FormGroup>
-          {returnReasons.length === 0 && (
-            <FormHelperText error>حداقل یک دلیل را انتخاب کنید.</FormHelperText>
-          )}
-
-          <Box sx={{ mt: 2 }}>
-            <JalaliDateField
-              label="مهلت اصلاح"
-              value={returnDeadline}
-              onChange={setReturnDeadline}
-              required
-              helperText={returnDeadline ? undefined : 'الزامی است'}
-              error={!returnDeadline}
-            />
-          </Box>
-
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            label="یادداشت (اختیاری)"
-            value={returnNote}
-            onChange={(event) => setReturnNote(event.target.value)}
-            slotProps={{ htmlInput: { maxLength: 1000 } }}
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReturnTarget(null)} color="inherit" disabled={returnMutation.isPending}>
-            انصراف
-          </Button>
-          <Button
-            variant="contained"
-            color="warning"
-            disabled={returnReasons.length === 0 || !returnDeadline || returnMutation.isPending}
-            onClick={() =>
-              returnTarget &&
-              returnMutation.mutate({
-                id: returnTarget.id,
-                reasonCodes: returnReasons,
-                deadline: returnDeadline,
-                note: returnNote.trim(),
-              })
-            }
-          >
-            {returnMutation.isPending ? 'در حال ثبت…' : 'برگشت سند'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* بخش ۲ — تأیید/رد/برگشت، دیالوگ‌های مشترک با نوار اقدام خود سند (`ExpenseDocFormPage`). */}
+      <PettyCashReviewDialogs
+        approveRejectTarget={actionTarget}
+        onCloseApproveReject={() => setActionTarget(null)}
+        returnTarget={returnTarget}
+        onCloseReturn={() => setReturnTarget(null)}
+      />
 
       {/*
        * بخش ۲ — شکست تأیید گروهی (۴۰۹). تمام‌یا‌هیچ: هیچ سندی تأیید نشده، پس این فقط اطلاع‌رسانی

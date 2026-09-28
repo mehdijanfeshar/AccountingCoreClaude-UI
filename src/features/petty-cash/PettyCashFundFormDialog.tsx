@@ -213,6 +213,15 @@ export function PettyCashFundFormDialog({ fund, open, onClose }: PettyCashFundFo
             <AmountField control={control} name="perDocLimit" label="سقف هر سند (ریال)" required />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
+            <AmountField
+              control={control}
+              name="financeManagerApprovalLimit"
+              label="سقف اختیار مدیر مالی (ریال)"
+              required
+              helperText="تا این مبلغ، نقش «مدیر مالی» هم می‌تواند تأیید نهایی کند؛ بیشتر از آن فقط مدیرعامل."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               {...register('alertThresholdPercent', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
               label="آستانهٔ هشدار"

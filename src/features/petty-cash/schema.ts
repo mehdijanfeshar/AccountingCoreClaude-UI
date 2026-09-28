@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { EVIDENCE_TYPE_OPTIONS, SETTLEMENT_PERIOD_OPTIONS } from './pettyCashDocState';
+import { PETTY_CASH_ROLE_OPTIONS } from './pettyCashRole';
 import type { ExpenseDocWritePayload, PettyCashFundWritePayload } from './api';
 import type {
   PettyCashExpenseDocDetailDto,
@@ -10,6 +11,10 @@ import type {
 
 const EVIDENCE_TYPE_VALUES = EVIDENCE_TYPE_OPTIONS.map((o) => o.value);
 const SETTLEMENT_PERIOD_VALUES = SETTLEMENT_PERIOD_OPTIONS.map((o) => o.value);
+const PETTY_CASH_ROLE_VALUES = PETTY_CASH_ROLE_OPTIONS.map((o) => o.value);
+
+/** پیش‌فرض پیشنهادی فرم — «تا ۵۰۰ م» (تصمیم تکمیل بخش ۲، ۲۰۲۶-۰۹-۲۸). کاربر آزاد است عوضش کند. */
+export const DEFAULT_FINANCE_MANAGER_APPROVAL_LIMIT = '500000000';
 
 /* ------------------------------------------------------------------------------------------- *
  * تعریف تنخواه — ساخت/ویرایش (`TB_PC_FUND`، ۲۰۲۶-۰۹-۲۸: جدول مستقل خودِ این ماژول)
@@ -24,6 +29,11 @@ export const fundFormSchema = z
     custodianName: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
     ceiling: z.string().trim().min(1, 'سقف تنخواه الزامی است'),
     perDocLimit: z.string().trim().min(1, 'سقف هر سند الزامی است'),
+    financeManagerApprovalLimit: z
+      .string()
+      .trim()
+      .min(1, 'سقف اختیار مدیر مالی الزامی است')
+      .refine((v) => Number(v) > 0, 'باید بزرگ‌تر از صفر باشد'),
     alertThresholdPercent: z
       .string()
       .optional()
@@ -57,6 +67,7 @@ export function buildEmptyFundFormValues(): FundFormValues {
     custodianName: '',
     ceiling: '',
     perDocLimit: '',
+    financeManagerApprovalLimit: DEFAULT_FINANCE_MANAGER_APPROVAL_LIMIT,
     alertThresholdPercent: '',
     accountCodeId: null,
     accountCodeLabel: null,
@@ -73,6 +84,10 @@ export function fundDtoToFormValues(dto: PettyCashFundDto, accountCodeLabel: str
     custodianName: dto.custodianName ?? '',
     ceiling: dto.ceiling != null ? String(dto.ceiling) : '',
     perDocLimit: dto.perDocLimit != null ? String(dto.perDocLimit) : '',
+    financeManagerApprovalLimit:
+      dto.financeManagerApprovalLimit != null
+        ? String(dto.financeManagerApprovalLimit)
+        : DEFAULT_FINANCE_MANAGER_APPROVAL_LIMIT,
     alertThresholdPercent: dto.alertThresholdPercent != null ? String(dto.alertThresholdPercent) : '',
     accountCodeId: dto.accountCodeId ?? null,
     accountCodeLabel,
@@ -89,6 +104,7 @@ export function fundFormValuesToPayload(values: FundFormValues): PettyCashFundWr
     custodianName: values.custodianName?.trim() ? values.custodianName.trim() : null,
     ceiling: Number(values.ceiling || 0),
     perDocLimit: Number(values.perDocLimit || 0),
+    financeManagerApprovalLimit: Number(values.financeManagerApprovalLimit || 0),
     alertThresholdPercent: values.alertThresholdPercent ? Number(values.alertThresholdPercent) : null,
     accountCodeId: values.accountCodeId ?? null,
     settlementPeriod: values.settlementPeriod as PettyCashSettlementPeriodValue | null,
@@ -104,12 +120,13 @@ export function fundFormValuesToPayload(values: FundFormValues): PettyCashFundWr
 export const reviewerFormSchema = z.object({
   reviewerUserId: z.string().trim().min(1, 'کد کاربری الزامی است').max(50, 'حداکثر ۵۰ کاراکتر است'),
   reviewerName: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
+  role: nonNullableEnumFieldSchema(PETTY_CASH_ROLE_VALUES, 'نقش را انتخاب کنید'),
 });
 
 export type ReviewerFormValues = z.infer<typeof reviewerFormSchema>;
 
 export function buildEmptyReviewerFormValues(): ReviewerFormValues {
-  return { reviewerUserId: '', reviewerName: '' };
+  return { reviewerUserId: '', reviewerName: '', role: PETTY_CASH_ROLE_OPTIONS[0].value };
 }
 
 /* ------------------------------------------------------------------------------------------- *

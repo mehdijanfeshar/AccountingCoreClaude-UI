@@ -93,6 +93,12 @@ export function PettyCashFundsListPage() {
       render: (row) => (row.perDocLimit != null ? formatThousands(row.perDocLimit) : '—'),
     },
     {
+      key: 'financeManagerApprovalLimit',
+      header: 'سقف اختیار مدیر مالی',
+      render: (row) =>
+        row.financeManagerApprovalLimit != null ? formatThousands(row.financeManagerApprovalLimit) : '—',
+    },
+    {
       key: 'alertThreshold',
       header: 'آستانهٔ هشدار',
       render: (row) => (row.alertThresholdPercent != null ? `${toPersianDigits(row.alertThresholdPercent)}٪` : '—'),

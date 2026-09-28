@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -11,6 +11,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -19,12 +20,15 @@ import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { toLatinDigits } from '../../lib/format/numbers';
+import { meApi } from '../../lib/api/meApi';
 import { pettyCashFundReviewersApi } from './api';
+import { PETTY_CASH_ROLE_OPTIONS, getPettyCashRoleLabel } from './pettyCashRole';
 import { buildEmptyReviewerFormValues, reviewerFormSchema, type ReviewerFormValues } from './schema';
 import type { PettyCashFundDto, PettyCashFundReviewerDto } from '../../types/pettyCash';
 
@@ -55,10 +59,16 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
     enabled: open && fund !== null,
   });
 
+  // «افزودن خودم» — کد کاربری کاربر جاری را از همین کوئری موجود در پروژه می‌گیرد (همان الگوی
+  // `ExpenseDocFormPage`)؛ فقط فیلد کد کاربری فرم را پر می‌کند، ارسال دستی باقی می‌ماند.
+  const currentUserQuery = useQuery({ queryKey: ['me'], queryFn: () => meApi.getCurrentUser(), enabled: open });
+
   const {
+    control,
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<ReviewerFormValues>({
     resolver: zodResolver(reviewerFormSchema),
@@ -69,7 +79,7 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
     if (!open) return;
     reset(
       editing
-        ? { reviewerUserId: editing.reviewerUserId, reviewerName: editing.reviewerName ?? '' }
+        ? { reviewerUserId: editing.reviewerUserId, reviewerName: editing.reviewerName ?? '', role: editing.role }
         : buildEmptyReviewerFormValues(),
     );
   }, [open, editing, reset]);
@@ -84,6 +94,7 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
       pettyCashFundReviewersApi.upsert(fund!.id, {
         reviewerUserId: values.reviewerUserId.trim(),
         reviewerName: values.reviewerName?.trim() ? values.reviewerName.trim() : null,
+        role: values.role,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['petty-cash-fund-reviewers', fund?.id] });
@@ -115,6 +126,7 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
   const columns: DataTableColumn<PettyCashFundReviewerDto>[] = [
     { key: 'reviewerUserId', header: 'کد کاربری', render: (row) => row.reviewerUserId },
     { key: 'reviewerName', header: 'نام', render: (row) => row.reviewerName ?? '—' },
+    { key: 'role', header: 'نقش', render: (row) => getPettyCashRoleLabel(row.role) },
     {
       key: 'action',
       header: 'عملیات',
@@ -175,8 +187,33 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
                 error={!!errors.reviewerUserId}
                 helperText={
                   errors.reviewerUserId?.message ??
-                  (editing ? 'کد کاربری قابل تغییر نیست؛ برای تغییر آن یک بررسی‌کنندهٔ جدید بسازید.' : undefined)
+                  (editing ? 'کد کاربری/نقش قابل تغییر نیستند؛ برای تغییر آن‌ها یک بررسی‌کنندهٔ جدید بسازید.' : undefined)
                 }
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Controller
+                control={control}
+                name="role"
+                render={({ field }) => (
+                  <TextField
+                    select
+                    fullWidth
+                    required
+                    label="نقش"
+                    disabled={editing !== null}
+                    value={field.value}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    error={!!errors.role}
+                    helperText={errors.role?.message}
+                  >
+                    {PETTY_CASH_ROLE_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -188,6 +225,24 @@ export function PettyCashReviewersDialog({ fund, open, onClose }: PettyCashRevie
                 error={!!errors.reviewerName}
                 helperText={errors.reviewerName?.message}
               />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Tooltip title={currentUserQuery.data ? '' : 'در حال بارگذاری کاربر جاری…'}>
+                <span>
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<HowToRegOutlinedIcon fontSize="small" />}
+                    disabled={editing !== null || !currentUserQuery.data}
+                    onClick={() => {
+                      if (!currentUserQuery.data) return;
+                      setValue('reviewerUserId', currentUserQuery.data.userId, { shouldValidate: true, shouldDirty: true });
+                    }}
+                  >
+                    افزودن خودم
+                  </Button>
+                </span>
+              </Tooltip>
             </Grid>
             <Grid size={12}>
               <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>

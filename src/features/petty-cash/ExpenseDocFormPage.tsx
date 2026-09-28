@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
@@ -13,8 +13,11 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
+import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -31,6 +34,11 @@ import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalance
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutlineOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import KeyboardReturnOutlinedIcon from '@mui/icons-material/KeyboardReturnOutlined';
+import NavigateBeforeOutlinedIcon from '@mui/icons-material/NavigateBeforeOutlined';
+import NavigateNextOutlinedIcon from '@mui/icons-material/NavigateNextOutlined';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
@@ -42,17 +50,24 @@ import { JalaliDateField } from '../../components/JalaliDateField';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, toPersianDigits, formatThousands } from '../../lib/format/numbers';
+import { formatLegacyJalaliDate, formatPersianDateTime } from '../../lib/format/dates';
 import { amountInWordsRial } from '../../lib/format/numberToWords';
 import { meApi } from '../../lib/api/meApi';
 import { expensesApi } from '../expenses/api';
 import { pettyCashExpenseDocsApi, pettyCashFundsApi } from './api';
 import { PettyCashAttachmentsPanel } from './PettyCashAttachmentsPanel';
+import { PettyCashAttachmentPreview } from './PettyCashAttachmentPreview';
+import { PettyCashDocEventsPanel, usePettyCashDocEvents } from './PettyCashDocEventsPanel';
+import { PettyCashReviewDialogs, type PettyCashApprovalAction, type PettyCashReviewDocTarget } from './PettyCashReviewDialogs';
+import { PETTY_CASH_DOC_ACTION } from './pettyCashDocAction';
 import {
   EVIDENCE_TYPE_OPTIONS,
+  PETTY_CASH_DOC_STATE,
   SUGGESTED_VAT_RATE,
   getPettyCashStateLabel,
   isExpenseDocEditable,
 } from './pettyCashDocState';
+import { getReturnReasonLabels } from './pettyCashReturnReason';
 import {
   buildEmptyExpenseDocFormValues,
   expenseDocDtoToFormValues,
@@ -103,14 +118,43 @@ export function ExpenseDocFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const notify = useNotify();
   const { financialYear } = useSession();
   const [submitError, setSubmitError] = useState<unknown>(null);
+  // نوار اقدام بررسی (ص ۷) — تأیید/رد یک دیالوگ مشترک؛ برگشت جدا (دلایل چندگزینه‌ای + مهلت).
+  const [reviewActionTarget, setReviewActionTarget] = useState<
+    { doc: PettyCashReviewDocTarget; action: PettyCashApprovalAction } | null
+  >(null);
+  const [reviewReturnTarget, setReviewReturnTarget] = useState<PettyCashReviewDocTarget | null>(null);
+  const [reviewActionError, setReviewActionError] = useState<unknown>(null);
   const vatTouchedRef = useRef(false);
   // Tracks the last value WE wrote into `vatAmount`, so a manual edit can be told apart from our
   // own auto-suggestion without needing an onChange hook into the shared `AmountField`.
   const lastAutoVatRef = useRef<string | null>(null);
+
+  // صفحهٔ بررسی (ص ۷) — «سند قبلی/بعدی». کارتابل هنگام باز کردن سند، idهای ردیف‌های فعلی جدولش را
+  // با `navigate(..., { state: { reviewQueue } })` می‌فرستد؛ این صفحه فقط وقتی از آن مسیر باز شده
+  // باشد ناوبری قبلی/بعدی را نشان می‌دهد.
+  const reviewQueue = (location.state as { reviewQueue?: string[] } | null)?.reviewQueue ?? null;
+  const queueIndex = reviewQueue && id ? reviewQueue.indexOf(id) : -1;
+  const hasReviewQueue = Boolean(reviewQueue && reviewQueue.length > 0 && queueIndex >= 0);
+  const prevQueueId = hasReviewQueue && queueIndex > 0 ? reviewQueue![queueIndex - 1] : null;
+  const nextQueueId = hasReviewQueue && queueIndex < (reviewQueue?.length ?? 0) - 1 ? reviewQueue![queueIndex + 1] : null;
+
+  function goToQueueDoc(targetId: string) {
+    navigate(`/treasury/petty-cash/expense-docs/${targetId}/edit`, { state: { reviewQueue } });
+  }
+
+  /** «تأیید و سند بعدی» — بعد از تأیید کنترل/تأیید نهایی/برگشت/رد موفق. */
+  function goToNextInQueueOrCartable() {
+    if (nextQueueId) {
+      goToQueueDoc(nextQueueId);
+    } else {
+      navigate('/treasury/petty-cash/cartable');
+    }
+  }
 
   const existingQuery = useQuery({
     queryKey: ['petty-cash-expense-docs', id],
@@ -201,7 +245,87 @@ export function ExpenseDocFormPage() {
   const balanceAfter = selectedFund?.cashBalance != null ? selectedFund.cashBalance - totalAmount : null;
 
   const readOnly = isEdit && existingQuery.data !== undefined && !isExpenseDocEditable(existingQuery.data.state);
-  const canEditAttachments = isEdit && !readOnly && isDocOwner;
+
+  // «قفل فیلدبه‌فیلد» (تکمیل بخش ۲، ص ۸) — فقط وقتی سند برگشتی است و بازرس دلیل مشخصی زده باشد
+  // غیر `null` است؛ اینجا فقط چیزی را که سرور از قبل تصمیم گرفته اجرا می‌کند (۴۰۹ روی خطای واقعی
+  // سمت سرور اگر این کپی UI با آن اختلاف پیدا کند).
+  const editableFields = existingQuery.data?.editableFields ?? null;
+  function isFieldEditable(fieldName: string): boolean {
+    if (readOnly) return false;
+    if (editableFields === null) return true;
+    return editableFields.includes(fieldName);
+  }
+  /** فیلدهای مجاز (وقتی محدودیت فعال است) را با کادر رنگی هایلایت می‌کند. */
+  function fieldHighlightSx(fieldName: string) {
+    return editableFields !== null && isFieldEditable(fieldName)
+      ? { '& .MuiOutlinedInput-notchedOutline': { borderColor: 'primary.main', borderWidth: 2 } }
+      : undefined;
+  }
+  const attachmentsEditable = editableFields === null || editableFields.includes('attachments');
+  const canEditAttachments = isEdit && !readOnly && isDocOwner && attachmentsEditable;
+
+  // «گردش عملیات» — هم برای بنر سند برگشتی (آخرین رویداد Return) و هم پنل تاریخچه؛ هر دو از همین
+  // یک کوئری استفاده می‌کنند (کلید مشترک در `PettyCashDocEventsPanel`)، پس درخواست تکراری نمی‌رود.
+  const eventsQuery = usePettyCashDocEvents(isEdit ? (id as string) : undefined);
+  const lastReturnEvent = useMemo(() => {
+    const events = eventsQuery.data ?? [];
+    for (let i = events.length - 1; i >= 0; i -= 1) {
+      if (events[i].action === PETTY_CASH_DOC_ACTION.return) return events[i];
+    }
+    return null;
+  }, [eventsQuery.data]);
+
+  // نوار اقدام بررسی (ص ۷) — فقط سند خواندنی در وضعیت «جدید»/«در انتظار بررسی» را نشان می‌دهد.
+  // نمایش دکمه‌ها بر اساس نقش حدس زده نمی‌شود؛ سرور با ۴۰۳/۴۰۹ تصمیم واقعی را می‌گیرد.
+  const canStartReview = readOnly && existingQuery.data?.state === PETTY_CASH_DOC_STATE.new;
+  const canReview = readOnly && existingQuery.data?.state === PETTY_CASH_DOC_STATE.pendingReview;
+  const isVerified = Boolean(existingQuery.data?.verifiedByUserId);
+  /** «تأیید کنترل» اگر هنوز بازرس کنترل نکرده، وگرنه «تأیید نهایی» — هرکدام الان در دسترس است. */
+  const primaryApprovalAction: PettyCashApprovalAction = isVerified ? 'approve' : 'verify';
+
+  // «کنترل‌های سند» (ص ۷، فقط در حالت خواندنیِ بررسی) — همان دو کنترل بالا (سقف هر سند/دورهٔ جاری)
+  // به‌علاوهٔ ایجادکننده≠بررسی‌کننده و بررسی‌کننده≠تأییدکننده. فقط نمایشی؛ تصمیم واقعی سمت سرور است.
+  const creatorNotReviewer =
+    !currentUserQuery.data || !existingQuery.data?.addUserId
+      ? null
+      : currentUserQuery.data.userId !== existingQuery.data.addUserId;
+  const reviewerNotApprover =
+    !currentUserQuery.data || !existingQuery.data?.verifiedByUserId
+      ? null
+      : currentUserQuery.data.userId !== existingQuery.data.verifiedByUserId;
+
+  // میانبر کیبورد (ص ۷): «A» = تأیید (کنترل یا نهایی، هرکدام در دسترس است)، «R» = برگشت — فقط وقتی
+  // فوکوس داخل یک input/textarea/select نیست و هیچ دیالوگی باز نیست.
+  useEffect(() => {
+    if (!canReview || !existingQuery.data) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (reviewActionTarget !== null || reviewReturnTarget !== null) return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      const doc = existingQuery.data!;
+      if (event.key === 'a' || event.key === 'A') {
+        event.preventDefault();
+        setReviewActionTarget({ doc: { id: doc.id, docNumber: doc.docNumber }, action: primaryApprovalAction });
+      } else if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        setReviewReturnTarget({ id: doc.id, docNumber: doc.docNumber });
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canReview, existingQuery.data, primaryApprovalAction, reviewActionTarget, reviewReturnTarget]);
+
+  const startReviewMutation = useMutation({
+    mutationFn: () => pettyCashExpenseDocsApi.startReview(id as string),
+    onSuccess: async () => {
+      setReviewActionError(null);
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-doc-events'] });
+      notify('بررسی سند آغاز شد.');
+    },
+    onError: (error) => setReviewActionError(error),
+  });
 
   async function invalidateLists() {
     await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
@@ -272,10 +396,131 @@ export function ExpenseDocFormPage() {
         }
       />
 
+      {/* بخش ۲ — بنر سند برگشتی (صفحهٔ ۸ پاورپوینت، «آنچه تنخواه‌دار می‌بیند»). */}
+      {isEdit && existingQuery.data?.state === PETTY_CASH_DOC_STATE.returned && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <AlertTitle>این سند برای اصلاح برگشت خورده است</AlertTitle>
+          <Stack spacing={0.5}>
+            {existingQuery.data.returnDeadline && (
+              <Typography variant="body2">
+                مهلت اصلاح: {formatLegacyJalaliDate(existingQuery.data.returnDeadline)}
+              </Typography>
+            )}
+            {lastReturnEvent && getReturnReasonLabels(lastReturnEvent.returnReasons).length > 0 && (
+              <Typography variant="body2">
+                دلایل برگشت: {getReturnReasonLabels(lastReturnEvent.returnReasons).join('، ')}
+              </Typography>
+            )}
+            {lastReturnEvent?.note && (
+              <Typography variant="body2">توضیح بررسی‌کننده: {lastReturnEvent.note}</Typography>
+            )}
+          </Stack>
+        </Alert>
+      )}
+
       {readOnly && (
         <Alert severity="info" sx={{ mb: 2 }}>
           این سند در وضعیت «{getPettyCashStateLabel(existingQuery.data?.state)}» است و دیگر قابل
           ویرایش نیست — فقط اسناد «پیش‌نویس» و «برگشتی» قابل ویرایش‌اند.
+        </Alert>
+      )}
+
+      {/* صفحهٔ بررسی (ص ۷) — سند قبلی/بعدی؛ فقط وقتی از کارتابل با یک صف باز شده باشد. */}
+      {hasReviewQueue && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+          <IconButton size="small" disabled={!prevQueueId} onClick={() => prevQueueId && goToQueueDoc(prevQueueId)} aria-label="سند قبلی">
+            <NavigateNextOutlinedIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="body2" color="text.secondary">
+            سند {toPersianDigits(queueIndex + 1)} از {toPersianDigits(reviewQueue?.length ?? 0)}
+          </Typography>
+          <IconButton size="small" disabled={!nextQueueId} onClick={() => nextQueueId && goToQueueDoc(nextQueueId)} aria-label="سند بعدی">
+            <NavigateBeforeOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      )}
+
+      {/* بخش ۲ — نوار اقدام بررسی (صفحهٔ ۷ پاورپوینت). دکمه‌ها بر اساس نقش حدس زده نمی‌شوند —
+          سرور با ۴۰۳/۴۰۹ تصمیم واقعی را می‌گیرد. */}
+      {(canStartReview || canReview) && existingQuery.data && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+          {reviewActionError !== null && <ErrorBanner error={reviewActionError} />}
+          {isVerified && (
+            <Chip
+              size="small"
+              color="info"
+              icon={<FactCheckIcon fontSize="small" />}
+              label={`کنترل‌شده توسط ${existingQuery.data.verifiedByUserId}${
+                existingQuery.data.verifiedDate ? ` — ${formatPersianDateTime(existingQuery.data.verifiedDate)}` : ''
+              }`}
+              sx={{ mb: 1.5 }}
+            />
+          )}
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+            {canStartReview && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<FactCheckOutlinedIcon />}
+                disabled={startReviewMutation.isPending}
+                onClick={() => startReviewMutation.mutate()}
+              >
+                {startReviewMutation.isPending ? 'در حال ثبت…' : 'شروع بررسی'}
+              </Button>
+            )}
+            {canReview && (
+              <>
+                <Button
+                  variant="contained"
+                  color={isVerified ? 'success' : 'primary'}
+                  startIcon={isVerified ? <CheckCircleOutlineIcon /> : <FactCheckOutlinedIcon />}
+                  onClick={() =>
+                    setReviewActionTarget({
+                      doc: { id: existingQuery.data!.id, docNumber: existingQuery.data!.docNumber },
+                      action: primaryApprovalAction,
+                    })
+                  }
+                >
+                  {isVerified ? 'تأیید نهایی' : 'تأیید کنترل'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<KeyboardReturnOutlinedIcon />}
+                  onClick={() =>
+                    setReviewReturnTarget({ id: existingQuery.data!.id, docNumber: existingQuery.data!.docNumber })
+                  }
+                >
+                  برگشت برای اصلاح
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<CancelOutlinedIcon />}
+                  onClick={() =>
+                    setReviewActionTarget({
+                      doc: { id: existingQuery.data!.id, docNumber: existingQuery.data!.docNumber },
+                      action: 'reject',
+                    })
+                  }
+                >
+                  رد سند…
+                </Button>
+              </>
+            )}
+          </Stack>
+          {canReview && (
+            <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+              میانبر: A تأیید | R برگشت
+            </Typography>
+          )}
+        </Paper>
+      )}
+
+      {/* «قفل فیلدبه‌فیلد» (تکمیل بخش ۲، ص ۸) — سند برگشتی با دلیل مشخص. */}
+      {editableFields !== null && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          فقط فیلدهای علامت‌خورده (کادر رنگی) توسط بازرس قابل ویرایش‌اند.
         </Alert>
       )}
 
@@ -302,7 +547,8 @@ export function ExpenseDocFormPage() {
                       fullWidth
                       required
                       label="تنخواه"
-                      disabled={readOnly}
+                      disabled={readOnly || !isFieldEditable('fundId')}
+                      sx={fieldHighlightSx('fundId')}
                       value={field.value}
                       onChange={(e) => field.onChange(e.target.value)}
                       error={!!errors.fundId}
@@ -342,7 +588,8 @@ export function ExpenseDocFormPage() {
                       label="تاریخ ثبت"
                       value={field.value}
                       onChange={field.onChange}
-                      disabled={readOnly}
+                      disabled={readOnly || !isFieldEditable('registerDate')}
+                      sx={fieldHighlightSx('registerDate')}
                       error={!!errors.registerDate}
                       helperText={errors.registerDate?.message}
                     />
@@ -359,7 +606,8 @@ export function ExpenseDocFormPage() {
                   label="فروشنده"
                   fullWidth
                   required
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('vendorName')}
+                  sx={fieldHighlightSx('vendorName')}
                   slotProps={{
                     htmlInput: { maxLength: 200 },
                     input: {
@@ -379,7 +627,8 @@ export function ExpenseDocFormPage() {
                   {...register('vendorNationalId', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
                   label="شناسه ملی فروشنده"
                   fullWidth
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('vendorNationalId')}
+                  sx={fieldHighlightSx('vendorNationalId')}
                   slotProps={{
                     htmlInput: { maxLength: 11, inputMode: 'numeric' },
                     input: {
@@ -404,7 +653,8 @@ export function ExpenseDocFormPage() {
                       required
                       value={field.value}
                       onChange={field.onChange}
-                      disabled={readOnly}
+                      disabled={readOnly || !isFieldEditable('invoiceDate')}
+                      sx={fieldHighlightSx('invoiceDate')}
                       error={!!errors.invoiceDate}
                       helperText={errors.invoiceDate?.message}
                     />
@@ -417,7 +667,8 @@ export function ExpenseDocFormPage() {
                   label="شماره فاکتور"
                   fullWidth
                   required
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('invoiceNo')}
+                  sx={fieldHighlightSx('invoiceNo')}
                   slotProps={{
                     htmlInput: { maxLength: 50 },
                     input: {
@@ -442,7 +693,8 @@ export function ExpenseDocFormPage() {
                       fullWidth
                       required
                       label="نوع مدرک"
-                      disabled={readOnly}
+                      disabled={readOnly || !isFieldEditable('evidenceType')}
+                      sx={fieldHighlightSx('evidenceType')}
                       value={field.value}
                       onChange={(e) => field.onChange(Number(e.target.value))}
                       error={!!errors.evidenceType}
@@ -471,7 +723,8 @@ export function ExpenseDocFormPage() {
                       fullWidth
                       required
                       label="حساب هزینه"
-                      disabled={readOnly}
+                      disabled={readOnly || !isFieldEditable('expenseId')}
+                      sx={fieldHighlightSx('expenseId')}
                       value={field.value}
                       onChange={(e) => field.onChange(e.target.value)}
                       error={!!errors.expenseId}
@@ -500,7 +753,8 @@ export function ExpenseDocFormPage() {
                   required
                   multiline
                   minRows={1}
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('description')}
+                  sx={fieldHighlightSx('description')}
                   slotProps={{
                     htmlInput: { maxLength: 1000 },
                     input: {
@@ -521,7 +775,8 @@ export function ExpenseDocFormPage() {
                   name="amountBeforeTax"
                   label="مبلغ قبل از مالیات (ریال)"
                   required
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('amountBeforeTax')}
+                  sx={fieldHighlightSx('amountBeforeTax')}
                   icon={<PaidOutlinedIcon fontSize="small" color="action" />}
                 />
               </Grid>
@@ -530,7 +785,8 @@ export function ExpenseDocFormPage() {
                   control={control}
                   name="vatAmount"
                   label="ارزش افزوده (ریال)"
-                  disabled={readOnly}
+                  disabled={readOnly || !isFieldEditable('vatAmount')}
+                  sx={fieldHighlightSx('vatAmount')}
                   helperText="پیش‌فرض ۱۰٪ مبلغ قبل از مالیات — قابل ویرایش"
                   icon={<PaidOutlinedIcon fontSize="small" color="action" />}
                 />
@@ -664,8 +920,59 @@ export function ExpenseDocFormPage() {
               </Typography>
             )}
           </Paper>
+
+          {/* صفحهٔ بررسی (ص ۷) — پیش‌نمایش inline پیوست‌های تصویری/PDF، فقط در حالت خواندنی سند. */}
+          {readOnly && isEdit && existingQuery.data && (
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mt: 2 }}>
+              <PettyCashAttachmentPreview expenseDocId={id as string} />
+            </Paper>
+          )}
+
+          {/* صفحهٔ بررسی (ص ۷) — کنترل‌های سند، فقط نمایشی؛ تصمیم واقعی همیشه سمت سرور است. */}
+          {readOnly && isEdit && existingQuery.data && (
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                کنترل‌های سند
+              </Typography>
+              <List dense disablePadding>
+                <ChecklistItem
+                  ok={withinPerDocLimit}
+                  label={
+                    perDocLimit != null
+                      ? `زیر سقف هر سند (${formatThousands(perDocLimit)} ریال)`
+                      : 'سقف هر سند برای این تنخواه تعیین نشده'
+                  }
+                />
+                <ChecklistItem
+                  ok={invoiceYearMatches}
+                  label={financialYear ? `در دورهٔ جاری (سال مالی ${toPersianDigits(financialYear)})` : 'در دورهٔ جاری'}
+                />
+                <ChecklistItem ok={creatorNotReviewer} label="ایجادکننده ≠ بررسی‌کننده (شما)" />
+                <ChecklistItem ok={reviewerNotApprover} label="بررسی‌کننده ≠ تأییدکننده (شما)" />
+                <ChecklistItem ok={null} label="عدم تکراری بودن: هنگام ارسال کنترل شد" />
+              </List>
+            </Paper>
+          )}
+
+          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mt: 2 }}>
+            {isEdit && existingQuery.data ? (
+              <PettyCashDocEventsPanel expenseDocId={id as string} />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                برای دیدن گردش عملیات ابتدا سند را ذخیره کنید.
+              </Typography>
+            )}
+          </Paper>
         </Grid>
       </Grid>
+
+      <PettyCashReviewDialogs
+        approveRejectTarget={reviewActionTarget}
+        onCloseApproveReject={() => setReviewActionTarget(null)}
+        returnTarget={reviewReturnTarget}
+        onCloseReturn={() => setReviewReturnTarget(null)}
+        onActionSuccess={hasReviewQueue ? () => goToNextInQueueOrCartable() : undefined}
+      />
     </section>
   );
 }

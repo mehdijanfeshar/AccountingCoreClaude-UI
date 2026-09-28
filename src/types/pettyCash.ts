@@ -16,6 +16,12 @@
 export type PettyCashSettlementPeriodValue = 1 | 2;
 
 /**
+ * `TB_PC_REVIEWER.ROLE` — تکمیل بخش ۲ (۲۰۲۶-۰۹-۲۸، `Accounting.Domain.ValueObjects.PettyCashRole`).
+ * ۱=بازرس مالی، ۲=مدیر مالی، ۳=مدیرعامل. تنخواه‌دار نقش جداگانه نیست (`TB_PC_FUND.CUSTODIAN_USERID`).
+ */
+export type PettyCashRoleValue = 1 | 2 | 3;
+
+/**
  * `GET /api/petty-cash/funds` / `GET /api/petty-cash/funds/{fundId}` — یک ردیف به‌ازای هر
  * `TB_PC_FUND` (جدول مستقل خودِ این ماژول، ۲۰۲۶-۰۹-۲۸؛ هیچ ربطی به `TB_REVOLVING_FUND`ندارد)،
  * دقیقاً هم‌شکل با `PettyCashFundDto.cs` سمت سرور — فیلدهای تنظیمات دیگر تودرتو نیستند.
@@ -31,6 +37,11 @@ export interface PettyCashFundDto {
   ceiling: number;
   /** سقف هر سند. */
   perDocLimit: number;
+  /**
+   * سقف اختیار تأیید نهایی نقش مدیر مالی — تکمیل بخش ۲ (۲۰۲۶-۰۹-۲۸). بیشتر از این فقط مدیرعامل
+   * می‌تواند تأیید نهایی کند.
+   */
+  financeManagerApprovalLimit: number;
   alertThresholdPercent: number | null;
   accountCodeId: string | null;
   /** نمایشی: `TB_ACCOUNTCODE.ACCCODENAME` معین متصل. */
@@ -76,6 +87,10 @@ export interface PettyCashExpenseDocDto {
   /** عمر سند به روز، از زمان ارسال؛ `null` تا وقتی ارسال نشده. */
   ageDays: number | null;
   addUserId: string | null;
+  /** تأیید دومرحله‌ای (تکمیل بخش ۲، ۲۰۲۶-۰۹-۲۸) — کاربری که «تأیید کنترل» را انجام داد. */
+  verifiedByUserId: string | null;
+  /** ISO timestamp. */
+  verifiedDate: string | null;
 }
 
 /** `GET /api/petty-cash/expense-docs/{id}` — شکل فهرست به‌علاوهٔ فیلدهای مخصوص فرم/جزئیات. */
@@ -90,6 +105,12 @@ export interface PettyCashExpenseDocDetailDto extends PettyCashExpenseDocDto {
   vatAmount: number | null;
   /** Legacy `YYYYMMDD` — مهلت پاسخ به برگشتی؛ فقط برای اسناد برگشتی مقدار دارد (بخش ۲). */
   returnDeadline: string | null;
+  /**
+   * «قفل فیلدبه‌فیلد» (تکمیل بخش ۲، صفحهٔ ۸ پاورپوینت): نام‌های camelCase فیلدهای بدنهٔ update که
+   * اکنون قابل تغییرند (به‌علاوهٔ `"attachments"`), یا `null` = بدون محدودیت (قاعدهٔ عادی
+   * پیش‌نویس/برگشتی). فقط ممکن است هنگامی که `state === Returned` غیر `null` باشد.
+   */
+  editableFields: string[] | null;
 }
 
 export interface PettyCashStateCount {
@@ -107,6 +128,7 @@ export interface PettyCashFundReviewerDto {
   fundId: string;
   reviewerUserId: string;
   reviewerName: string | null;
+  role: PettyCashRoleValue;
 }
 
 /**
@@ -124,4 +146,29 @@ export interface PettyCashAttachmentDto {
   attachRadif: number;
   addUserId: string;
   createdDate: string;
+}
+
+/**
+ * «گردش عملیات» — `PettyCashDocAction` سمت سرور (`Accounting.Domain.ValueObjects.PettyCashDocAction`).
+ * ۱..۴ از بخش ۱ (ایجاد/ویرایش/ارسال/حذف)، ۵..۸ بخش ۲ (شروع بررسی/تأیید/برگشت/رد، ۶ فقط دادهٔ
+ * تاریخی)، ۹..۱۰ تکمیل بخش ۲ (کنترل بازرس/تأیید نهایی).
+ */
+export type PettyCashDocActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
+/**
+ * `GET /api/petty-cash/expense-docs/{id}/events` — یک ردیف تاریخچه، دقیقاً هم‌شکل با
+ * `PettyCashDocEventDto.cs` سمت سرور.
+ */
+export interface PettyCashDocEventDto {
+  id: string;
+  action: PettyCashDocActionValue;
+  fromState: PettyCashDocStateValue | null;
+  toState: PettyCashDocStateValue | null;
+  note: string | null;
+  /** کدهای دلیل برگشت با `,` جدا (مثلاً `"1,3"`)، یا `null` وقتی اکشن برگشت نبوده. */
+  returnReasons: string | null;
+  userId: string;
+  /** ISO timestamp. */
+  createdDate: string;
+  clientIp: string | null;
 }
