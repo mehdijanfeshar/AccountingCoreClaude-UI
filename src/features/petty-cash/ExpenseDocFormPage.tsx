@@ -43,8 +43,10 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, toPersianDigits, formatThousands } from '../../lib/format/numbers';
 import { amountInWordsRial } from '../../lib/format/numberToWords';
+import { meApi } from '../../lib/api/meApi';
 import { expensesApi } from '../expenses/api';
 import { pettyCashExpenseDocsApi, pettyCashFundsApi } from './api';
+import { PettyCashAttachmentsPanel } from './PettyCashAttachmentsPanel';
 import {
   EVIDENCE_TYPE_OPTIONS,
   SUGGESTED_VAT_RATE,
@@ -121,8 +123,18 @@ export function ExpenseDocFormPage() {
     queryKey: ['expenses', 'for-petty-cash-select'],
     queryFn: () => expensesApi.list({ pageNumber: 1, pageSize: 200 }),
   });
-  const funds = fundsQuery.data ?? [];
+  const allFunds = fundsQuery.data ?? [];
   const expenseOptions = expensesQuery.data?.items ?? [];
+
+  // پیوست‌ها فقط برای مالک سند و فقط در وضعیت پیش‌نویس/برگشتی قابل افزودن/حذف‌اند (بخش ۲-ب). این
+  // فقط UX است — تصمیم واقعی سمت سرور با ۴۰۳/۴۰۹ گرفته می‌شود؛ اگر شناسهٔ کاربر جاری در دسترس نبود
+  // (که اینجا هست، از `GET /api/me`) به‌جای مخفی‌کردن دکمه، فقط روی وضعیت سند تکیه می‌کردیم و اجازه
+  // می‌دادیم خطای واقعی سرور را `ErrorBanner` نشان دهد.
+  const currentUserQuery = useQuery({ queryKey: ['me'], queryFn: () => meApi.getCurrentUser() });
+  const isDocOwner =
+    !existingQuery.data?.addUserId || !currentUserQuery.data
+      ? true
+      : currentUserQuery.data.userId === existingQuery.data.addUserId;
 
   const {
     control,
@@ -151,6 +163,11 @@ export function ExpenseDocFormPage() {
   const vatAmount = watch('vatAmount');
   const invoiceDate = watch('invoiceDate');
 
+  // تنخواه‌های غیرفعال برای ساخت/انتخاب سند جدید نمایش داده نمی‌شوند — مگر سندی که در حال ویرایش
+  // آن هستیم از قبل به همان تنخواه (که از وقتی ساخته شده غیرفعال شده) وصل باشد؛ آن یک مورد باید در
+  // فهرست بماند (غیرقابل‌انتخاب) تا مقدار فعلی فرم گم نشود.
+  const funds = allFunds.filter((f) => f.isActive || f.id === fundId);
+
   // ارزش افزوده پیشنهادی — فقط پیشنهاد اولیه، هرگز سمت سرور hardcode نمی‌شود (سند مرجع §۴).
   // کاربر با اولین ویرایش دستی فیلد، پیشنهاد خودکار را برای همیشه غیرفعال می‌کند: یک ویرایش دستی
   // یعنی مقدار فعلی `vatAmount` با آخرین چیزی که خودمان اینجا نوشته‌ایم فرق دارد — تشخیص این تفاوت
@@ -176,7 +193,7 @@ export function ExpenseDocFormPage() {
   const totalAmount = Number(amountBeforeTax || 0) + Number(vatAmount || 0);
 
   // «کنترل‌های لحظه‌ای» — سند مرجع بخش ۴٫ هر سه فقط راهنما هستند؛ منبع حقیقت سرور است.
-  const perDocLimit = selectedFund?.settings?.perDocLimit ?? null;
+  const perDocLimit = selectedFund?.perDocLimit ?? null;
   const withinPerDocLimit = perDocLimit == null ? null : totalAmount <= perDocLimit;
   const balanceSufficient = selectedFund?.cashBalance == null ? null : totalAmount <= selectedFund.cashBalance;
   const invoiceYearMatches =
@@ -184,6 +201,7 @@ export function ExpenseDocFormPage() {
   const balanceAfter = selectedFund?.cashBalance != null ? selectedFund.cashBalance - totalAmount : null;
 
   const readOnly = isEdit && existingQuery.data !== undefined && !isExpenseDocEditable(existingQuery.data.state);
+  const canEditAttachments = isEdit && !readOnly && isDocOwner;
 
   async function invalidateLists() {
     await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
@@ -305,9 +323,10 @@ export function ExpenseDocFormPage() {
                         </MenuItem>
                       )}
                       {funds.map((fund) => (
-                        <MenuItem key={fund.id} value={fund.id}>
+                        <MenuItem key={fund.id} value={fund.id} disabled={!fund.isActive}>
                           {fund.code ? `${fund.code} — ` : ''}
                           {fund.name ?? '—'}
+                          {!fund.isActive ? ' (غیرفعال)' : ''}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -634,6 +653,16 @@ export function ExpenseDocFormPage() {
             <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
               این‌ها فقط راهنمای سریع‌اند؛ تصمیم نهایی و پیام خطای واقعی همیشه از سرور می‌آید.
             </Typography>
+          </Paper>
+
+          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mt: 2 }}>
+            {isEdit && existingQuery.data ? (
+              <PettyCashAttachmentsPanel expenseDocId={id as string} canEdit={canEditAttachments} />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                برای افزودن پیوست ابتدا سند را ذخیره کنید.
+              </Typography>
+            )}
           </Paper>
         </Grid>
       </Grid>

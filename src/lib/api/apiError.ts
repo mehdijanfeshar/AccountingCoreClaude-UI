@@ -14,6 +14,12 @@ export class ApiError extends Error {
   readonly instance?: string;
   /** Only populated for 400 HttpValidationProblemDetails responses. */
   readonly validationErrors?: Record<string, string[]>;
+  /**
+   * The raw ProblemDetails body, kept around so a caller can read an ad hoc extension member
+   * (e.g. bulk-approve's `failedIds`) without this shared class needing to know about every
+   * feature-specific extension in advance. See `ProblemDetails`'s index signature.
+   */
+  readonly problem?: ProblemDetails;
 
   constructor(status: number, problem: ProblemDetails | undefined, fallbackMessage: string) {
     const title = problem?.title ?? fallbackMessage;
@@ -25,6 +31,7 @@ export class ApiError extends Error {
     this.traceId = problem?.traceId;
     this.instance = problem?.instance;
     this.validationErrors = problem?.errors;
+    this.problem = problem;
   }
 
   get isUnauthorized(): boolean {

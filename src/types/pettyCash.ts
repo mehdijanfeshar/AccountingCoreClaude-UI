@@ -9,34 +9,44 @@
  * the module's wire shapes), then the two `api.ts` call sites that use it.
  */
 
-/** ۱:۱ با یک تنخواه — `TB_PC_FUND_SETTING`. `null` وقتی هنوز برای این تنخواه تنظیم نشده است. */
-export interface PettyCashFundSettingsDto {
-  custodianUserId: string | null;
-  custodianName: string | null;
-  perDocLimit: number | null;
-  alertThresholdPercent: number | null;
-  /** ۱=ماهانه، ۲=فصلی — `SETTLEMENT_PERIOD_OPTIONS`. */
-  settlementPeriod: number | null;
-}
+/**
+ * `TB_PC_FUND.SETTLEMENT_PERIOD` — ۱=ماهانه، ۲=فصلی، `null`=هنوز تعیین نشده. `SETTLEMENT_PERIOD_OPTIONS`
+ * برچسب‌های نمایشی را نگه می‌دارد.
+ */
+export type PettyCashSettlementPeriodValue = 1 | 2;
 
-/** `GET /api/petty-cash/funds` — یک ردیف به‌ازای هر `TB_REVOLVING_FUND`، با تنظیمات و خلاصهٔ موجودی. */
+/**
+ * `GET /api/petty-cash/funds` / `GET /api/petty-cash/funds/{fundId}` — یک ردیف به‌ازای هر
+ * `TB_PC_FUND` (جدول مستقل خودِ این ماژول، ۲۰۲۶-۰۹-۲۸؛ هیچ ربطی به `TB_REVOLVING_FUND`ندارد)،
+ * دقیقاً هم‌شکل با `PettyCashFundDto.cs` سمت سرور — فیلدهای تنظیمات دیگر تودرتو نیستند.
+ */
 export interface PettyCashFundDto {
   id: string;
-  code: string | null;
-  name: string | null;
-  /** سقف تنخواه — `TB_REVOLVING_FUND.DEFAULTAMOUNT`. */
-  ceiling: number | null;
+  code: string;
+  name: string;
+  /** تنخواه‌دار مسئول. */
+  custodianUserId: string;
+  custodianName: string | null;
+  /** سقف تنخواه. */
+  ceiling: number;
+  /** سقف هر سند. */
+  perDocLimit: number;
+  alertThresholdPercent: number | null;
   accountCodeId: string | null;
+  /** نمایشی: `TB_ACCOUNTCODE.ACCCODENAME` معین متصل. */
   accountCodeTitle: string | null;
-  settings: PettyCashFundSettingsDto | null;
-  /** موجودی نقد فعلی — `ceiling − Σ(اسناد در وضعیت جدید/در انتظار بررسی/برگشتی/تأییدشده)`. */
-  cashBalance: number | null;
+  settlementPeriod: PettyCashSettlementPeriodValue | null;
+  /** `false` یعنی ساخت/ارسال صورت‌هزینهٔ جدید برای این تنخواه مسدود است. */
+  isActive: boolean;
+  isDeleted: boolean;
+  /** §۲: `Ceiling − (ApprovedAmount + InFlightAmount)`. */
+  cashBalance: number;
   /** جمع مبلغ اسناد تأییدشدهٔ منتظر ترمیم. */
-  approvedAmount: number | null;
-  approvedCount: number | null;
+  approvedAmount: number;
+  approvedCount: number;
   /** جمع مبلغ اسناد در جریان (جدید + در انتظار بررسی + برگشتی). */
-  inFlightAmount: number | null;
-  inFlightCount: number | null;
+  inFlightAmount: number;
+  inFlightCount: number;
 }
 
 /**
@@ -85,4 +95,33 @@ export interface PettyCashExpenseDocDetailDto extends PettyCashExpenseDocDto {
 export interface PettyCashStateCount {
   state: PettyCashDocStateValue;
   count: number;
+}
+
+/**
+ * بخش ۲ — `GET/POST /api/petty-cash/funds/{fundId}/reviewers` — یک ردیف به‌ازای هر `TB_PC_REVIEWER`
+ * فعال. کلید یکتای upsert روی `(fundId, reviewerUserId)` است، نه `id` — سرور با همان جفت
+ * تشخیص می‌دهد رکورد جدید بسازد یا نام رکورد موجود را به‌روزرسانی/فعال کند.
+ */
+export interface PettyCashFundReviewerDto {
+  id: string;
+  fundId: string;
+  reviewerUserId: string;
+  reviewerName: string | null;
+}
+
+/**
+ * بخش ۲-ب — یک ردیف پیوست، `GET /api/petty-cash/expense-docs/{id}/attachments`. متادیتا فقط —
+ * هرگز بایت فایل (`PettyCashAttachmentDto.cs` سمت سرور). دقیقاً هم‌شکل با DTO واقعی سرور، نه از
+ * سند مرجع حدس زده شده.
+ */
+export interface PettyCashAttachmentDto {
+  id: string;
+  expenseDocId: string;
+  attachName: string;
+  /** حجم به بایت. */
+  attachSize: number;
+  contentType: string | null;
+  attachRadif: number;
+  addUserId: string;
+  createdDate: string;
 }

@@ -1,9 +1,17 @@
-import { useMemo, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormGroup from '@mui/material/FormGroup';
+import FormHelperText from '@mui/material/FormHelperText';
 import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -11,6 +19,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import MenuItem from '@mui/material/MenuItem';
 import InputAdornment from '@mui/material/InputAdornment';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
@@ -19,6 +28,11 @@ import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
+import KeyboardReturnOutlinedIcon from '@mui/icons-material/KeyboardReturnOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DoneAllOutlinedIcon from '@mui/icons-material/DoneAllOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ListToolbar } from '../../components/ListToolbar';
@@ -26,16 +40,20 @@ import { MonoCode } from '../../components/MonoCode';
 import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { JalaliDateField } from '../../components/JalaliDateField';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ApiError } from '../../lib/api/apiError';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toPersianDigits, formatThousands } from '../../lib/format/numbers';
-import { pettyCashExpenseDocsApi, pettyCashFundsApi } from './api';
+import { pettyCashExpenseDocsApi, pettyCashFundsApi, type BulkApproveFailure } from './api';
 import {
+  PETTY_CASH_DOC_STATE,
   getPettyCashStateColor,
   getPettyCashStateLabel,
   isExpenseDocDeletable,
   isExpenseDocEditable,
 } from './pettyCashDocState';
+import { RETURN_REASON_OPTIONS, getBulkApproveFailureReasonLabel } from './pettyCashReturnReason';
 import type { PettyCashExpenseDocDto, PettyCashStateCount } from '../../types/pettyCash';
 
 const PAGE_SIZE = 20;
@@ -74,8 +92,8 @@ function sumCounts(counts: PettyCashStateCount[] | undefined, states: number[]):
 }
 
 /**
- * کارتابل تنخواه — ص ۵. بررسی/تأیید/رد و تأیید گروهی خارج از این بخش‌اند (بخش ۲ سند مرجع) —
- * این کارتابل فقط می‌بیند و مسیر ویرایش/حذف/ساخت را باز می‌کند.
+ * کارتابل تنخواه — ص ۵ + بخش ۲ (بررسی/تأیید/برگشت/رد و تأیید گروهی). ساخت/ویرایش/حذف پیش‌نویس هم
+ * همین‌جا مسیرش باز می‌شود؛ فقط خودِ فرم (`ExpenseDocFormPage`) جداست.
  */
 export function PettyCashCartablePage() {
   const notify = useNotify();
@@ -86,10 +104,52 @@ export function PettyCashCartablePage() {
   const [fundFilter, setFundFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PettyCashExpenseDocDto | null>(null);
 
+  // بخش ۲ — انتخاب چندتایی برای «تأیید گروهی» (فقط ردیف‌های «در انتظار بررسی»).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkApproveFailures, setBulkApproveFailures] = useState<BulkApproveFailure[] | null>(null);
+
+  // تأیید/رد تک‌سندی — یک دیالوگ مشترک با یادداشت اختیاری.
+  const [actionTarget, setActionTarget] = useState<{ doc: PettyCashExpenseDocDto; action: 'approve' | 'reject' } | null>(
+    null,
+  );
+  const [actionNote, setActionNote] = useState('');
+
+  // برگشت — دیالوگ جدا چون فیلدهای متفاوتی دارد (دلایل چندگزینه‌ای + مهلت الزامی).
+  const [returnTarget, setReturnTarget] = useState<PettyCashExpenseDocDto | null>(null);
+  const [returnReasons, setReturnReasons] = useState<number[]>([]);
+  const [returnDeadline, setReturnDeadline] = useState('');
+  const [returnNote, setReturnNote] = useState('');
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   function handleTabChange(_event: SyntheticEvent, value: StatusTab) {
     setStatusTab(value);
     setPageNumber(1);
+    clearSelection();
   }
+
+  function toggleSelected(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (!actionTarget) setActionNote('');
+  }, [actionTarget]);
+
+  useEffect(() => {
+    if (!returnTarget) {
+      setReturnReasons([]);
+      setReturnDeadline('');
+      setReturnNote('');
+    }
+  }, [returnTarget]);
 
   const fundsQuery = useQuery({ queryKey: ['petty-cash-funds'], queryFn: () => pettyCashFundsApi.list() });
   const funds = fundsQuery.data ?? [];
@@ -103,6 +163,72 @@ export function PettyCashCartablePage() {
     },
     onError: (error) => {
       notify({ message: error instanceof Error ? error.message : 'حذف با خطا مواجه شد.', severity: 'error' });
+    },
+  });
+
+  const startReviewMutation = useMutation({
+    mutationFn: (id: string) => pettyCashExpenseDocsApi.startReview(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      notify('بررسی سند آغاز شد.');
+    },
+    onError: (error) => {
+      notify({ message: error instanceof Error ? error.message : 'شروع بررسی با خطا مواجه شد.', severity: 'error' });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => pettyCashExpenseDocsApi.approve(id, note),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      notify('سند تأیید شد.');
+      setActionTarget(null);
+    },
+    onError: (error) => {
+      notify({ message: error instanceof Error ? error.message : 'تأیید سند با خطا مواجه شد.', severity: 'error' });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => pettyCashExpenseDocsApi.reject(id, note),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      notify('سند رد شد.');
+      setActionTarget(null);
+    },
+    onError: (error) => {
+      notify({ message: error instanceof Error ? error.message : 'رد سند با خطا مواجه شد.', severity: 'error' });
+    },
+  });
+
+  const returnMutation = useMutation({
+    mutationFn: ({ id, reasonCodes, deadline, note }: { id: string; reasonCodes: number[]; deadline: string; note: string }) =>
+      pettyCashExpenseDocsApi.returnDoc(id, { reasonCodes, deadline, note }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      notify('سند برگشت داده شد.');
+      setReturnTarget(null);
+    },
+    onError: (error) => {
+      notify({ message: error instanceof Error ? error.message : 'برگشت سند با خطا مواجه شد.', severity: 'error' });
+    },
+  });
+
+  const bulkApproveMutation = useMutation({
+    mutationFn: (ids: string[]) => pettyCashExpenseDocsApi.bulkApprove(ids),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ['petty-cash-expense-docs'] });
+      notify(`${toPersianDigits(result.ids.length)} سند تأیید شد.`);
+      clearSelection();
+      setBulkApproveFailures(null);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        const failures = (error.problem?.failedIds as BulkApproveFailure[] | undefined) ?? [];
+        setBulkApproveFailures(failures);
+        return;
+      }
+      notify({ message: error instanceof Error ? error.message : 'تأیید گروهی با خطا مواجه شد.', severity: 'error' });
     },
   });
 
@@ -162,6 +288,20 @@ export function PettyCashCartablePage() {
   const error = statusTab === 'in-progress' ? inProgressError : singleStateQuery.error;
 
   const columns: DataTableColumn<PettyCashExpenseDocDto>[] = [
+    {
+      key: 'select',
+      header: '',
+      width: 40,
+      render: (row) =>
+        row.state === PETTY_CASH_DOC_STATE.pendingReview ? (
+          <Checkbox
+            size="small"
+            aria-label="انتخاب برای تأیید گروهی"
+            checked={selectedIds.has(row.id)}
+            onChange={(event) => toggleSelected(row.id, event.target.checked)}
+          />
+        ) : null,
+    },
     { key: 'docNumber', header: 'سند', render: (row) => <MonoCode value={row.docNumber} /> },
     { key: 'registerDate', header: 'تاریخ', render: (row) => formatLegacyJalaliDate(row.registerDate) },
     { key: 'fundName', header: 'تنخواه', render: (row) => row.fundName ?? '—' },
@@ -196,6 +336,8 @@ export function PettyCashCartablePage() {
       render: (row) => {
         const editable = isExpenseDocEditable(row.state);
         const deletable = isExpenseDocDeletable(row.state);
+        const isNew = row.state === PETTY_CASH_DOC_STATE.new;
+        const isPendingReview = row.state === PETTY_CASH_DOC_STATE.pendingReview;
         return (
           <Stack direction="row" spacing={0.5}>
             {editable ? (
@@ -228,6 +370,48 @@ export function PettyCashCartablePage() {
                 </IconButton>
               </Tooltip>
             )}
+            {isNew && (
+              <Tooltip title="شروع بررسی">
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="شروع بررسی"
+                  onClick={() => startReviewMutation.mutate(row.id)}
+                  disabled={startReviewMutation.isPending}
+                >
+                  <FactCheckOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {isPendingReview && (
+              <>
+                <Tooltip title="تأیید">
+                  <IconButton
+                    size="small"
+                    color="success"
+                    aria-label="تأیید"
+                    onClick={() => setActionTarget({ doc: row, action: 'approve' })}
+                  >
+                    <CheckCircleOutlineOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="برگشت">
+                  <IconButton size="small" color="warning" aria-label="برگشت" onClick={() => setReturnTarget(row)}>
+                    <KeyboardReturnOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="رد">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="رد"
+                    onClick={() => setActionTarget({ doc: row, action: 'reject' })}
+                  >
+                    <CancelOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
           </Stack>
         );
       },
@@ -241,7 +425,7 @@ export function PettyCashCartablePage() {
         icon={<ReceiptLongOutlinedIcon />}
         accentColor="secondary"
         title="کارتابل تنخواه"
-        description="صورت‌هزینه‌ها بر اساس وضعیت — بررسی، تأیید و رد در بخش بعدی این ماژول اضافه می‌شود."
+        description="صورت‌هزینه‌ها بر اساس وضعیت — شروع بررسی، تأیید، برگشت، رد و تأیید گروهی از همین کارتابل."
         actions={
           <Button
             variant="contained"
@@ -307,6 +491,7 @@ export function PettyCashCartablePage() {
             onSearchChange={(v) => {
               setSearch(v);
               setPageNumber(1);
+              clearSelection();
             }}
             searchLabel="جستجو (فروشنده، شرح، شماره فاکتور)"
             summary={`${toPersianDigits(totalCount)} سند`}
@@ -319,6 +504,7 @@ export function PettyCashCartablePage() {
               onChange={(event) => {
                 setFundFilter(event.target.value);
                 setPageNumber(1);
+                clearSelection();
               }}
               sx={{ width: 200 }}
               slotProps={{
@@ -339,6 +525,29 @@ export function PettyCashCartablePage() {
               ))}
             </TextField>
           </ListToolbar>
+
+          {selectedIds.size > 0 && (
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
+              <Chip
+                size="small"
+                color="primary"
+                label={`${toPersianDigits(selectedIds.size)} سند در انتظار بررسی انتخاب شده`}
+              />
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<DoneAllOutlinedIcon />}
+                onClick={() => bulkApproveMutation.mutate(Array.from(selectedIds))}
+                disabled={bulkApproveMutation.isPending}
+              >
+                {bulkApproveMutation.isPending ? 'در حال تأیید…' : 'تأیید گروهی'}
+              </Button>
+              <Button size="small" variant="text" color="inherit" onClick={clearSelection}>
+                لغو انتخاب
+              </Button>
+            </Stack>
+          )}
 
           <DataTable
             columns={columns}
@@ -364,7 +573,10 @@ export function PettyCashCartablePage() {
             pageNumber={pageNumber}
             pageSize={PAGE_SIZE}
             totalCount={totalCount}
-            onPageChange={setPageNumber}
+            onPageChange={(page) => {
+              setPageNumber(page);
+              clearSelection();
+            }}
           />
         </>
       )}
@@ -381,6 +593,167 @@ export function PettyCashCartablePage() {
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
       />
+
+      {/* بخش ۲ — تأیید/رد تک‌سندی، یک دیالوگ مشترک با یادداشت اختیاری. */}
+      <Dialog open={actionTarget !== null} onClose={() => setActionTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>{actionTarget?.action === 'approve' ? 'تأیید صورت‌هزینه' : 'رد صورت‌هزینه'}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            سند «{actionTarget?.doc.docNumber ?? '—'}»
+            {actionTarget?.action === 'reject' && ' — رد نهایی است و برخلاف برگشتی، امکان اصلاح و ارسال دوباره ندارد.'}
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            label="یادداشت (اختیاری)"
+            value={actionNote}
+            onChange={(event) => setActionNote(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 1000 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setActionTarget(null)}
+            color="inherit"
+            disabled={approveMutation.isPending || rejectMutation.isPending}
+          >
+            انصراف
+          </Button>
+          <Button
+            variant="contained"
+            color={actionTarget?.action === 'approve' ? 'success' : 'error'}
+            disabled={approveMutation.isPending || rejectMutation.isPending}
+            onClick={() => {
+              if (!actionTarget) return;
+              const note = actionNote.trim() || undefined;
+              if (actionTarget.action === 'approve') approveMutation.mutate({ id: actionTarget.doc.id, note });
+              else rejectMutation.mutate({ id: actionTarget.doc.id, note });
+            }}
+          >
+            {actionTarget?.action === 'approve' ? 'تأیید سند' : 'رد سند'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* بخش ۲ — برگشت: یک یا چند دلیل چندگزینه‌ای (الزامی) + مهلت اصلاح (الزامی) + یادداشت (اختیاری). */}
+      <Dialog open={returnTarget !== null} onClose={() => setReturnTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>برگشت صورت‌هزینه «{returnTarget?.docNumber ?? '—'}»</DialogTitle>
+        <DialogContent>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            دلیل برگشت
+          </Typography>
+          <FormGroup>
+            {RETURN_REASON_OPTIONS.map((option) => (
+              <FormControlLabel
+                key={option.value}
+                control={
+                  <Checkbox
+                    checked={returnReasons.includes(option.value)}
+                    onChange={(event) =>
+                      setReturnReasons((prev) =>
+                        event.target.checked ? [...prev, option.value] : prev.filter((v) => v !== option.value),
+                      )
+                    }
+                  />
+                }
+                label={option.label}
+              />
+            ))}
+          </FormGroup>
+          {returnReasons.length === 0 && (
+            <FormHelperText error>حداقل یک دلیل را انتخاب کنید.</FormHelperText>
+          )}
+
+          <Box sx={{ mt: 2 }}>
+            <JalaliDateField
+              label="مهلت اصلاح"
+              value={returnDeadline}
+              onChange={setReturnDeadline}
+              required
+              helperText={returnDeadline ? undefined : 'الزامی است'}
+              error={!returnDeadline}
+            />
+          </Box>
+
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="یادداشت (اختیاری)"
+            value={returnNote}
+            onChange={(event) => setReturnNote(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 1000 } }}
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReturnTarget(null)} color="inherit" disabled={returnMutation.isPending}>
+            انصراف
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            disabled={returnReasons.length === 0 || !returnDeadline || returnMutation.isPending}
+            onClick={() =>
+              returnTarget &&
+              returnMutation.mutate({
+                id: returnTarget.id,
+                reasonCodes: returnReasons,
+                deadline: returnDeadline,
+                note: returnNote.trim(),
+              })
+            }
+          >
+            {returnMutation.isPending ? 'در حال ثبت…' : 'برگشت سند'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/*
+       * بخش ۲ — شکست تأیید گروهی (۴۰۹). تمام‌یا‌هیچ: هیچ سندی تأیید نشده، پس این فقط اطلاع‌رسانی
+       * دلیل رد هر سند است؛ دکمهٔ «تلاش مجدد» اسناد ناموفق را از انتخاب حذف و بقیه را دوباره
+       * می‌فرستد.
+       */}
+      <Dialog open={bulkApproveFailures !== null} onClose={() => setBulkApproveFailures(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>تأیید گروهی ناموفق بود</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            هیچ‌کدام از اسناد انتخاب‌شده تأیید نشدند. دلیل هر سند:
+          </Typography>
+          <Stack spacing={1}>
+            {bulkApproveFailures?.map((failure) => (
+              <Stack key={failure.id} direction="row" spacing={1} sx={{ justifyContent: 'space-between' }}>
+                <Typography variant="body2">
+                  {rows.find((r) => r.id === failure.id)?.docNumber ?? failure.id}
+                </Typography>
+                <Typography variant="body2" color="error.main">
+                  {getBulkApproveFailureReasonLabel(failure.reason)}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkApproveFailures(null)} color="inherit">
+            بستن
+          </Button>
+          <Button
+            variant="contained"
+            disabled={bulkApproveMutation.isPending}
+            onClick={() => {
+              const failedIdSet = new Set((bulkApproveFailures ?? []).map((f) => f.id));
+              const remaining = Array.from(selectedIds).filter((id) => !failedIdSet.has(id));
+              setSelectedIds(new Set(remaining));
+              setBulkApproveFailures(null);
+              if (remaining.length > 0) bulkApproveMutation.mutate(remaining);
+            }}
+          >
+            حذف اسناد ناموفق و تلاش مجدد
+          </Button>
+        </DialogActions>
+      </Dialog>
     </section>
   );
 }

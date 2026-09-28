@@ -37,12 +37,32 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * A request made with `responseType: 'blob'` (attachment download) still gets its ERROR body back
+ * as a `Blob` from axios — the responseType applies uniformly regardless of status code. Without
+ * this, a 403/404 ProblemDetails on a download would arrive as an opaque, unreadable `Blob`
+ * instead of the real title/detail. Only kicks in for the blob case; every other request's
+ * `error.response.data` is already the parsed ProblemDetails object.
+ */
+async function readProblemBody(error: import('axios').AxiosError): Promise<ProblemDetails | undefined> {
+  const data = error.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      return text ? (JSON.parse(text) as ProblemDetails) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return data as ProblemDetails | undefined;
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
+  async (error: unknown) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 0;
-      const problem = error.response?.data as ProblemDetails | undefined;
+      const problem = await readProblemBody(error);
 
       if (status === 401) {
         notifyUnauthorized();

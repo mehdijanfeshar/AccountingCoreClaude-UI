@@ -56,3 +56,17 @@ export function formatThousands(value: number | string): string {
   if (Number.isNaN(numeric)) return String(value);
   return numeric.toLocaleString('fa-IR');
 }
+
+/** Byte count → خوانای فارسی، مثل «۱٫۲ مگابایت» — نمایش حجم پیوست. */
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  const units = ['بایت', 'کیلوبایت', 'مگابایت', 'گیگابایت'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const rounded = unitIndex === 0 ? Math.round(value) : Math.round(value * 10) / 10;
+  return `${toPersianDigits(String(rounded))} ${units[unitIndex]}`;
+}

@@ -1,61 +1,115 @@
 import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { EVIDENCE_TYPE_OPTIONS, SETTLEMENT_PERIOD_OPTIONS } from './pettyCashDocState';
-import type { ExpenseDocWritePayload } from './api';
-import type { PettyCashExpenseDocDetailDto, PettyCashFundSettingsDto } from '../../types/pettyCash';
+import type { ExpenseDocWritePayload, PettyCashFundWritePayload } from './api';
+import type {
+  PettyCashExpenseDocDetailDto,
+  PettyCashFundDto,
+  PettyCashSettlementPeriodValue,
+} from '../../types/pettyCash';
 
 const EVIDENCE_TYPE_VALUES = EVIDENCE_TYPE_OPTIONS.map((o) => o.value);
 const SETTLEMENT_PERIOD_VALUES = SETTLEMENT_PERIOD_OPTIONS.map((o) => o.value);
 
 /* ------------------------------------------------------------------------------------------- *
- * تعریف تنخواه — تنظیمات (`TB_PC_FUND_SETTING`)
+ * تعریف تنخواه — ساخت/ویرایش (`TB_PC_FUND`، ۲۰۲۶-۰۹-۲۸: جدول مستقل خودِ این ماژول)
  * ------------------------------------------------------------------------------------------- */
 
-/** UX-presentation validation only — the backend command is the real authority. */
-export const fundSettingsFormSchema = z.object({
-  custodianUserId: z.string().trim().max(10, 'حداکثر ۱۰ کاراکتر است').optional().or(z.literal('')),
-  custodianName: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
-  perDocLimit: z.string().optional().or(z.literal('')),
-  alertThresholdPercent: z
-    .string()
-    .optional()
-    .or(z.literal(''))
-    .refine((v) => !v || (Number(v) >= 0 && Number(v) <= 100), 'باید عددی بین ۰ تا ۱۰۰ باشد'),
-  // نه هزینه‌کرد نه ترمیم به این ستون وابسته نیستند؛ نبودِ آن (پیش‌فرض) یعنی «هنوز تعیین نشده».
-  settlementPeriod: enumFieldSchema(SETTLEMENT_PERIOD_VALUES, 'دورهٔ تسویه نامعتبر است'),
-});
+/** UX-presentation validation only — `CreatePettyCashFundCommandValidator` سمت سرور مرجع است. */
+export const fundFormSchema = z
+  .object({
+    code: z.string().trim().min(1, 'کد الزامی است').max(20, 'حداکثر ۲۰ کاراکتر است'),
+    name: z.string().trim().min(1, 'عنوان الزامی است').max(200, 'حداکثر ۲۰۰ کاراکتر است'),
+    custodianUserId: z.string().trim().min(1, 'کد کاربری تنخواه‌دار الزامی است').max(50, 'حداکثر ۵۰ کاراکتر است'),
+    custodianName: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
+    ceiling: z.string().trim().min(1, 'سقف تنخواه الزامی است'),
+    perDocLimit: z.string().trim().min(1, 'سقف هر سند الزامی است'),
+    alertThresholdPercent: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((v) => !v || (Number(v) >= 0 && Number(v) <= 100), 'باید عددی بین ۰ تا ۱۰۰ باشد'),
+    accountCodeId: z.string().nullable().optional(),
+    accountCodeLabel: z.string().nullable().optional(),
+    // نه هزینه‌کرد نه ترمیم به این ستون وابسته نیستند؛ نبودِ آن (پیش‌فرض) یعنی «هنوز تعیین نشده».
+    settlementPeriod: enumFieldSchema(SETTLEMENT_PERIOD_VALUES, 'دورهٔ تسویه نامعتبر است'),
+    isActive: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    const ceiling = Number(values.ceiling || 0);
+    const perDocLimit = Number(values.perDocLimit || 0);
+    if (values.perDocLimit && perDocLimit > ceiling) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['perDocLimit'],
+        message: 'سقف هر سند نباید از سقف تنخواه بیشتر باشد',
+      });
+    }
+  });
 
-export type FundSettingsFormValues = z.infer<typeof fundSettingsFormSchema>;
+export type FundFormValues = z.infer<typeof fundFormSchema>;
 
-export function buildEmptyFundSettingsFormValues(): FundSettingsFormValues {
+export function buildEmptyFundFormValues(): FundFormValues {
   return {
+    code: '',
+    name: '',
     custodianUserId: '',
     custodianName: '',
+    ceiling: '',
     perDocLimit: '',
     alertThresholdPercent: '',
+    accountCodeId: null,
+    accountCodeLabel: null,
     settlementPeriod: null,
+    isActive: true,
   };
 }
 
-export function fundSettingsDtoToFormValues(dto: PettyCashFundSettingsDto | null): FundSettingsFormValues {
-  if (!dto) return buildEmptyFundSettingsFormValues();
+export function fundDtoToFormValues(dto: PettyCashFundDto, accountCodeLabel: string | null): FundFormValues {
   return {
+    code: dto.code ?? '',
+    name: dto.name ?? '',
     custodianUserId: dto.custodianUserId ?? '',
     custodianName: dto.custodianName ?? '',
+    ceiling: dto.ceiling != null ? String(dto.ceiling) : '',
     perDocLimit: dto.perDocLimit != null ? String(dto.perDocLimit) : '',
     alertThresholdPercent: dto.alertThresholdPercent != null ? String(dto.alertThresholdPercent) : '',
+    accountCodeId: dto.accountCodeId ?? null,
+    accountCodeLabel,
     settlementPeriod: dto.settlementPeriod ?? null,
+    isActive: dto.isActive,
   };
 }
 
-export function fundSettingsFormValuesToPayload(values: FundSettingsFormValues): PettyCashFundSettingsDto {
+export function fundFormValuesToPayload(values: FundFormValues): PettyCashFundWritePayload {
   return {
-    custodianUserId: values.custodianUserId?.trim() ? values.custodianUserId.trim() : null,
+    code: values.code.trim(),
+    name: values.name.trim(),
+    custodianUserId: values.custodianUserId.trim(),
     custodianName: values.custodianName?.trim() ? values.custodianName.trim() : null,
-    perDocLimit: values.perDocLimit ? Number(values.perDocLimit) : null,
+    ceiling: Number(values.ceiling || 0),
+    perDocLimit: Number(values.perDocLimit || 0),
     alertThresholdPercent: values.alertThresholdPercent ? Number(values.alertThresholdPercent) : null,
-    settlementPeriod: values.settlementPeriod,
+    accountCodeId: values.accountCodeId ?? null,
+    settlementPeriod: values.settlementPeriod as PettyCashSettlementPeriodValue | null,
+    isActive: values.isActive,
   };
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۲ — بررسی‌کنندگان تنخواه (`TB_PC_REVIEWER`)
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `UpsertPettyCashFundReviewerCommandValidator` سمت سرور مرجع است. */
+export const reviewerFormSchema = z.object({
+  reviewerUserId: z.string().trim().min(1, 'کد کاربری الزامی است').max(50, 'حداکثر ۵۰ کاراکتر است'),
+  reviewerName: z.string().trim().max(200, 'حداکثر ۲۰۰ کاراکتر است').optional().or(z.literal('')),
+});
+
+export type ReviewerFormValues = z.infer<typeof reviewerFormSchema>;
+
+export function buildEmptyReviewerFormValues(): ReviewerFormValues {
+  return { reviewerUserId: '', reviewerName: '' };
 }
 
 /* ------------------------------------------------------------------------------------------- *
