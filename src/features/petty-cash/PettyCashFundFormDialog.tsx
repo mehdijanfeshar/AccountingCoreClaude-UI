@@ -29,6 +29,7 @@ import { toLatinDigits } from '../../lib/format/numbers';
 import { accountCodesApi } from '../chart-of-accounts/api';
 import { pettyCashFundsApi } from './api';
 import { SETTLEMENT_PERIOD_OPTIONS } from './pettyCashDocState';
+import { PETTY_CASH_REFUND_RECORDER_OPTIONS } from './pettyCashRefundRecorder';
 import {
   buildEmptyFundFormValues,
   fundDtoToFormValues,
@@ -258,6 +259,32 @@ export function PettyCashFundFormDialog({ fund, open, onClose }: PettyCashFundFo
                 >
                   <MenuItem value={UNSET}>انتخاب نشده</MenuItem>
                   {SETTLEMENT_PERIOD_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Controller
+              control={control}
+              name="refundRecorder"
+              render={({ field }) => (
+                <TextField
+                  select
+                  fullWidth
+                  required
+                  label="ثبت‌کنندهٔ استرداد"
+                  value={field.value}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  error={!!errors.refundRecorder}
+                  helperText={
+                    errors.refundRecorder?.message ?? 'چه نقشی مجاز به ثبت/حذف استرداد وجه این تنخواه است.'
+                  }
+                >
+                  {PETTY_CASH_REFUND_RECORDER_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>

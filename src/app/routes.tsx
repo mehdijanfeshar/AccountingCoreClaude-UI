@@ -36,6 +36,11 @@ import { AccountJournalPage } from '../features/reports/account-journal/AccountJ
 import { PettyCashFundsListPage } from '../features/petty-cash/PettyCashFundsListPage';
 import { PettyCashCartablePage } from '../features/petty-cash/PettyCashCartablePage';
 import { ExpenseDocFormPage } from '../features/petty-cash/ExpenseDocFormPage';
+import { PettyCashDashboardPage } from '../features/petty-cash/PettyCashDashboardPage';
+import { ReplenishmentsListPage } from '../features/petty-cash/ReplenishmentsListPage';
+import { ReplenishmentFormPage } from '../features/petty-cash/ReplenishmentFormPage';
+import { PettyCashLedgerPage } from '../features/petty-cash/PettyCashLedgerPage';
+import { PettyCashSettlementPage } from '../features/petty-cash/PettyCashSettlementPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -109,10 +114,17 @@ export const routes: RouteObject[] = [
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
 
-  // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه»؛ بقیهٔ موارد
-  // منو در `navConfig.tsx` عمداً بدون `to` مانده‌اند تا «به‌زودی» نمایش داده شوند).
+  // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه») + بخش ۳-الف
+  // (داشبورد، شارژ و ترمیم، گزارش گردش). «تسویه دوره» در `navConfig.tsx` عمداً بدون `to` مانده تا
+  // «به‌زودی» نمایش داده شود.
   { path: '/treasury/petty-cash/funds', element: <PettyCashFundsListPage /> },
   { path: '/treasury/petty-cash/cartable', element: <PettyCashCartablePage /> },
   { path: '/treasury/petty-cash/expense-docs/new', element: <ExpenseDocFormPage /> },
   { path: '/treasury/petty-cash/expense-docs/:id/edit', element: <ExpenseDocFormPage /> },
+  { path: '/treasury/petty-cash/dashboard', element: <PettyCashDashboardPage /> },
+  { path: '/treasury/petty-cash/replenishments', element: <ReplenishmentsListPage /> },
+  { path: '/treasury/petty-cash/replenishments/new', element: <ReplenishmentFormPage /> },
+  { path: '/treasury/petty-cash/replenishments/:id', element: <ReplenishmentFormPage /> },
+  { path: '/treasury/petty-cash/ledger', element: <PettyCashLedgerPage /> },
+  { path: '/treasury/petty-cash/settlement', element: <PettyCashSettlementPage /> },
 ];

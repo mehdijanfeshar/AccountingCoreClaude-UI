@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { EVIDENCE_TYPE_OPTIONS, SETTLEMENT_PERIOD_OPTIONS } from './pettyCashDocState';
 import { PETTY_CASH_ROLE_OPTIONS } from './pettyCashRole';
-import type { ExpenseDocWritePayload, PettyCashFundWritePayload } from './api';
+import { DEFAULT_REFUND_RECORDER, PETTY_CASH_REFUND_RECORDER_OPTIONS } from './pettyCashRefundRecorder';
+import { PETTY_CASH_PAYMENT_METHOD_OPTIONS } from './pettyCashPaymentMethod';
+import type {
+  ExpenseDocWritePayload,
+  PettyCashFundWritePayload,
+  PettyCashReplenishmentWritePayload,
+} from './api';
 import type {
   PettyCashExpenseDocDetailDto,
   PettyCashFundDto,
@@ -12,6 +18,8 @@ import type {
 const EVIDENCE_TYPE_VALUES = EVIDENCE_TYPE_OPTIONS.map((o) => o.value);
 const SETTLEMENT_PERIOD_VALUES = SETTLEMENT_PERIOD_OPTIONS.map((o) => o.value);
 const PETTY_CASH_ROLE_VALUES = PETTY_CASH_ROLE_OPTIONS.map((o) => o.value);
+const REFUND_RECORDER_VALUES = PETTY_CASH_REFUND_RECORDER_OPTIONS.map((o) => o.value);
+const PAYMENT_METHOD_VALUES = PETTY_CASH_PAYMENT_METHOD_OPTIONS.map((o) => o.value);
 
 /** پیش‌فرض پیشنهادی فرم — «تا ۵۰۰ م» (تصمیم تکمیل بخش ۲، ۲۰۲۶-۰۹-۲۸). کاربر آزاد است عوضش کند. */
 export const DEFAULT_FINANCE_MANAGER_APPROVAL_LIMIT = '500000000';
@@ -44,6 +52,8 @@ export const fundFormSchema = z
     // نه هزینه‌کرد نه ترمیم به این ستون وابسته نیستند؛ نبودِ آن (پیش‌فرض) یعنی «هنوز تعیین نشده».
     settlementPeriod: enumFieldSchema(SETTLEMENT_PERIOD_VALUES, 'دورهٔ تسویه نامعتبر است'),
     isActive: z.boolean(),
+    // بخش ۳-الف (۲۰۲۶-۰۹-۲۸) — چه نقشی مجاز به ثبت/حذف استرداد وجه این تنخواه است.
+    refundRecorder: nonNullableEnumFieldSchema(REFUND_RECORDER_VALUES, 'ثبت‌کنندهٔ استرداد را انتخاب کنید'),
   })
   .superRefine((values, ctx) => {
     const ceiling = Number(values.ceiling || 0);
@@ -73,6 +83,7 @@ export function buildEmptyFundFormValues(): FundFormValues {
     accountCodeLabel: null,
     settlementPeriod: null,
     isActive: true,
+    refundRecorder: DEFAULT_REFUND_RECORDER,
   };
 }
 
@@ -93,6 +104,7 @@ export function fundDtoToFormValues(dto: PettyCashFundDto, accountCodeLabel: str
     accountCodeLabel,
     settlementPeriod: dto.settlementPeriod ?? null,
     isActive: dto.isActive,
+    refundRecorder: dto.refundRecorder ?? DEFAULT_REFUND_RECORDER,
   };
 }
 
@@ -109,6 +121,7 @@ export function fundFormValuesToPayload(values: FundFormValues): PettyCashFundWr
     accountCodeId: values.accountCodeId ?? null,
     settlementPeriod: values.settlementPeriod as PettyCashSettlementPeriodValue | null,
     isActive: values.isActive,
+    refundRecorder: values.refundRecorder,
   };
 }
 
@@ -219,5 +232,48 @@ export function expenseDocFormValuesToPayload(values: ExpenseDocFormValues, year
     amountBeforeTax: Number(values.amountBeforeTax || 0),
     vatAmount: Number(values.vatAmount || 0),
     description: values.description.trim(),
+  };
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۳-الف (۲۰۲۶-۰۹-۲۸) — درخواست ترمیم/شارژ تنخواه (`TB_PC_REPLENISHMENT`)
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `CreatePettyCashReplenishmentCommandValidator` سمت سرور مرجع است. */
+export const replenishmentFormSchema = z.object({
+  sourceBankAccountId: z.string().trim().min(1, 'انتخاب حساب بانکی مبدأ الزامی است'),
+  /** فقط برای نمایش در `LinkedEntityPickerField` — به بدنهٔ درخواست فرستاده نمی‌شود. */
+  sourceBankAccountLabel: z.string().nullable().optional(),
+  paymentMethod: nonNullableEnumFieldSchema(PAYMENT_METHOD_VALUES, 'روش پرداخت را انتخاب کنید'),
+  registerDate: z.string().trim().min(1, 'تاریخ ثبت الزامی است'),
+  note: z.string().trim().max(1000, 'حداکثر ۱۰۰۰ کاراکتر است').optional().or(z.literal('')),
+});
+
+export type ReplenishmentFormValues = z.infer<typeof replenishmentFormSchema>;
+
+export function buildEmptyReplenishmentFormValues(defaultRegisterDate: string): ReplenishmentFormValues {
+  return {
+    sourceBankAccountId: '',
+    sourceBankAccountLabel: null,
+    paymentMethod: PETTY_CASH_PAYMENT_METHOD_OPTIONS[0].value,
+    registerDate: defaultRegisterDate,
+    note: '',
+  };
+}
+
+export function replenishmentFormValuesToPayload(
+  values: ReplenishmentFormValues,
+  fundId: string,
+  year: string,
+  submit: boolean,
+): PettyCashReplenishmentWritePayload {
+  return {
+    fundId,
+    sourceBankAccountId: values.sourceBankAccountId,
+    paymentMethod: values.paymentMethod,
+    registerDate: values.registerDate.trim(),
+    year,
+    note: values.note?.trim() ? values.note.trim() : null,
+    submit,
   };
 }

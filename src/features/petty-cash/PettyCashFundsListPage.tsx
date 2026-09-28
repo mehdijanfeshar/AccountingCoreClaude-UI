@@ -11,6 +11,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -24,6 +25,7 @@ import { pettyCashFundsApi } from './api';
 import { getSettlementPeriodLabel } from './pettyCashDocState';
 import { PettyCashFundFormDialog } from './PettyCashFundFormDialog';
 import { PettyCashReviewersDialog } from './PettyCashReviewersDialog';
+import { PettyCashFundTafsilisDialog } from './PettyCashFundTafsilisDialog';
 import type { PettyCashFundDto } from '../../types/pettyCash';
 
 /**
@@ -38,6 +40,7 @@ export function PettyCashFundsListPage() {
   const [formFund, setFormFund] = useState<PettyCashFundDto | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [reviewersFund, setReviewersFund] = useState<PettyCashFundDto | null>(null);
+  const [tafsilisFund, setTafsilisFund] = useState<PettyCashFundDto | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PettyCashFundDto | null>(null);
 
   const query = useQuery({
@@ -135,6 +138,11 @@ export function PettyCashFundsListPage() {
               <PeopleAltOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          <Tooltip title="تفصیلی‌های حساب معین">
+            <IconButton size="small" aria-label="تفصیلی‌های حساب معین" onClick={() => setTafsilisFund(row)}>
+              <AccountTreeOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="حذف">
             <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
               <DeleteOutlineIcon fontSize="small" />
@@ -205,6 +213,12 @@ export function PettyCashFundsListPage() {
         fund={reviewersFund}
         open={reviewersFund !== null}
         onClose={() => setReviewersFund(null)}
+      />
+
+      <PettyCashFundTafsilisDialog
+        fund={tafsilisFund}
+        open={tafsilisFund !== null}
+        onClose={() => setTafsilisFund(null)}
       />
 
       <ConfirmDialog

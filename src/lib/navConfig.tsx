@@ -183,7 +183,12 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: <WalletOutlinedIcon fontSize="small" />,
     color: 'secondary',
     items: [
-      { label: 'داشبورد تنخواه', icon: <DashboardOutlinedIcon fontSize="small" /> },
+      {
+        label: 'داشبورد تنخواه',
+        description: 'موجودی نقد، تأییدشدهٔ منتظر ترمیم، در جریان بررسی و برگشتی — به‌ازای هر تنخواه',
+        to: '/treasury/petty-cash/dashboard',
+        icon: <DashboardOutlinedIcon fontSize="small" />,
+      },
       {
         label: 'کارتابل تنخواه',
         description: 'صورت‌هزینه‌ها بر اساس وضعیت — پیش‌نویس تا تسویه‌شده',
@@ -196,9 +201,24 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/treasury/petty-cash/expense-docs/new',
         icon: <ReceiptLongOutlinedIcon fontSize="small" />,
       },
-      { label: 'شارژ و ترمیم', icon: <CurrencyExchangeOutlinedIcon fontSize="small" /> },
-      { label: 'تسویه دوره', icon: <EventRepeatOutlinedIcon fontSize="small" /> },
-      { label: 'گزارش گردش تنخواه', icon: <TrendingUpOutlinedIcon fontSize="small" /> },
+      {
+        label: 'شارژ و ترمیم',
+        description: 'درخواست ترمیم تنخواه از اسناد تأییدشده، با مسیر تأیید مدیر مالی ← خزانه‌دار',
+        to: '/treasury/petty-cash/replenishments',
+        icon: <CurrencyExchangeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'تسویه دوره',
+        description: 'پیش‌نمایش دورهٔ جاری، ثبت شمارش صندوق و صدور سند حسابداری تسویه',
+        to: '/treasury/petty-cash/settlement',
+        icon: <EventRepeatOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'گزارش گردش تنخواه',
+        description: 'تاریخچهٔ حرکت نقد یک تنخواه — ترمیم، هزینه‌کرد، استرداد',
+        to: '/treasury/petty-cash/ledger',
+        icon: <TrendingUpOutlinedIcon fontSize="small" />,
+      },
       {
         label: 'تعریف تنخواه',
         description: 'تنظیمات هر تنخواه — سقف هر سند، آستانهٔ هشدار، تنخواه‌دار و دورهٔ تسویه',

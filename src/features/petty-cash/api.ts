@@ -6,9 +6,20 @@ import type {
   PettyCashDocEventDto,
   PettyCashExpenseDocDetailDto,
   PettyCashExpenseDocDto,
+  PettyCashFundDashboardDto,
   PettyCashFundDto,
+  PettyCashFundLedgerDto,
   PettyCashFundReviewerDto,
+  PettyCashLedgerRowType,
+  PettyCashRefundDto,
+  PettyCashReplenishmentDto,
+  PettyCashReplenishmentListItemDto,
+  PettyCashReplenishmentPreviewDto,
+  PettyCashReplenishmentStateValue,
+  PettyCashSettlementHistoryItemDto,
   PettyCashSettlementPeriodValue,
+  PettyCashSettlementPreviewDto,
+  PettyCashSettlementTafsiliDto,
   PettyCashStateCount,
 } from '../../types/pettyCash';
 
@@ -45,6 +56,12 @@ export interface PettyCashFundWritePayload {
   accountCodeId: string | null;
   settlementPeriod: PettyCashSettlementPeriodValue | null;
   isActive: boolean;
+  /**
+   * بخش ۳-الف (۲۰۲۶-۰۹-۲۸) — چه نقشی مجاز به ثبت/حذف استرداد وجه این تنخواه است. پیش‌فرض سرور
+   * «خزانه‌دار». `number`، نه `PettyCashRefundRecorderValue` — همان الگوی `evidenceType` روی
+   * `ExpenseDocWritePayload`: مقدار فرم از یک Zod enum عمومی (`nonNullableEnumFieldSchema`) می‌آید.
+   */
+  refundRecorder: number;
 }
 
 export const pettyCashFundsApi = {
@@ -303,6 +320,189 @@ export const pettyCashDocEventsApi = {
   list(expenseDocId: string): Promise<PettyCashDocEventDto[]> {
     return apiClient
       .get<PettyCashDocEventDto[]>(`/petty-cash/expense-docs/${expenseDocId}/events`)
+      .then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۳-الف (۲۰۲۶-۰۹-۲۸) — ترمیم/شارژ، استرداد وجه، داشبورد، گزارش گردش
+ * (`docs/tankhah-khazaneh-module.md` §۹).
+ * ------------------------------------------------------------------------------------------- */
+
+/** Exact wire shape of `CreatePettyCashReplenishmentRequest` (`PettyCashController.cs`). */
+export interface PettyCashReplenishmentWritePayload {
+  fundId: string;
+  sourceBankAccountId: string;
+  /** `number`, not `PettyCashPaymentMethodValue` — همان الگوی `refundRecorder` بالا. */
+  paymentMethod: number;
+  /** Legacy `YYYYMMDD`. */
+  registerDate: string;
+  /** سال مالی جلسه — همان الگوی `ExpenseDocWritePayload.year`. */
+  year: string;
+  note: string | null;
+  submit: boolean;
+}
+
+export interface ReplenishmentListParams {
+  pageNumber?: number;
+  pageSize?: number;
+  fundId?: string;
+  state?: PettyCashReplenishmentStateValue;
+}
+
+export const pettyCashReplenishmentsApi = {
+  /**
+   * پیش‌نمایش ترمیم بعدی برای یک تنخواه — همان مبلغ/خطوط/اسنادی که `create` اگر همین الان
+   * فراخوانی شود می‌سازد. `404` اگر تنخواه وجود نداشته باشد.
+   */
+  preview(fundId: string): Promise<PettyCashReplenishmentPreviewDto> {
+    return apiClient
+      .get<PettyCashReplenishmentPreviewDto>(`/petty-cash/funds/${fundId}/replenishment-preview`)
+      .then((res) => res.data);
+  },
+  list(params: ReplenishmentListParams): Promise<PagedResult<PettyCashReplenishmentListItemDto>> {
+    return apiClient
+      .get<PagedResult<PettyCashReplenishmentListItemDto>>('/petty-cash/replenishments', { params })
+      .then((res) => res.data);
+  },
+  getById(id: string): Promise<PettyCashReplenishmentDto> {
+    return apiClient.get<PettyCashReplenishmentDto>(`/petty-cash/replenishments/${id}`).then((res) => res.data);
+  },
+  /** می‌سازد و — در همان لحظه — هر صورت‌هزینهٔ تأییدشدهٔ منتظر ترمیم را لینک می‌کند. ۴۰۹ اگر هیچ صورت‌هزینه‌ای برای ترمیم نیست. */
+  create(payload: PettyCashReplenishmentWritePayload): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/petty-cash/replenishments', payload).then((res) => res.data);
+  },
+  /** Draft → PendingFinanceManager. بدون بدنه. */
+  submit(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/petty-cash/replenishments/${id}/submit`).then((res) => res.data);
+  },
+  /** PendingFinanceManager → PendingTreasurer. فقط نقش FinanceManager همان تنخواه، ≠ ایجادکننده. */
+  approve(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/petty-cash/replenishments/${id}/approve`).then((res) => res.data);
+  },
+  /** در هر دو وضعیت Pending → Rejected؛ لینک‌های اسناد نرم‌حذف می‌شوند تا دوباره قابل ترمیم باشند. */
+  reject(id: string, note?: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/petty-cash/replenishments/${id}/reject`, { note: note?.trim() || null })
+      .then((res) => res.data);
+  },
+  /**
+   * PendingTreasurer → Paid. فقط نقش Treasurer همان تنخواه، ≠ تأییدکننده. ⚠️ موقت — سند GL اینجا
+   * صادر نمی‌شود؛ اجرای پرداخت واقعی به بخش خزانه (بخش ۴+) تعلق دارد.
+   */
+  recordPayment(id: string, paidDate?: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/petty-cash/replenishments/${id}/record-payment`, { paidDate: paidDate || null })
+      .then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. Only a Draft may be deleted.
+  remove(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/petty-cash/replenishments/${id}/delete`).then((res) => res.data);
+  },
+};
+
+export interface PettyCashRefundWritePayload {
+  fundId: string;
+  amount: number;
+  /** Legacy `YYYYMMDD`. */
+  refundDate: string;
+  reason: string | null;
+}
+
+/** استرداد وجه (`TB_PC_REFUND`) — مجاز بودن کاربر را `TB_PC_FUND.REFUND_RECORDER` تعیین می‌کند (۴۰۳ در غیر این صورت). */
+export const pettyCashRefundsApi = {
+  list(fundId: string): Promise<PettyCashRefundDto[]> {
+    return apiClient.get<PettyCashRefundDto[]>(`/petty-cash/funds/${fundId}/refunds`).then((res) => res.data);
+  },
+  create(payload: PettyCashRefundWritePayload): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/petty-cash/refunds', payload).then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. Soft-delete.
+  remove(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/petty-cash/refunds/${id}/delete`).then((res) => res.data);
+  },
+};
+
+/** داشبورد تنخواه (صفحهٔ ۴ پاورپوینت) — `GET /api/petty-cash/funds/{fundId}/dashboard`. */
+export const pettyCashDashboardApi = {
+  get(fundId: string): Promise<PettyCashFundDashboardDto> {
+    return apiClient.get<PettyCashFundDashboardDto>(`/petty-cash/funds/${fundId}/dashboard`).then((res) => res.data);
+  },
+};
+
+export interface PettyCashLedgerParams {
+  /** شمسی YYYYMMDD. */
+  from?: string;
+  /** شمسی YYYYMMDD. */
+  to?: string;
+  type?: PettyCashLedgerRowType;
+}
+
+/** گزارش گردش تنخواه (صفحهٔ ۱۱ پاورپوینت) — `GET /api/petty-cash/funds/{fundId}/ledger?from=&to=&type=`. */
+export const pettyCashLedgerApi = {
+  get(fundId: string, params: PettyCashLedgerParams): Promise<PettyCashFundLedgerDto> {
+    return apiClient
+      .get<PettyCashFundLedgerDto>(`/petty-cash/funds/${fundId}/ledger`, { params })
+      .then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۳-ب (۲۰۲۶-۰۹-۲۸) — تفصیلی(های) حساب معین تنخواه، تسویهٔ دوره و صدور سند حسابداری
+ * (`docs/tankhah-khazaneh-module.md` §۹).
+ * ------------------------------------------------------------------------------------------- */
+
+/** تفصیلی(های) حساب معین تنخواه (`TB_PC_FUND_LINK_TAFSILI`) — بخش ۳-ب. */
+export const pettyCashFundTafsilisApi = {
+  list(fundId: string): Promise<PettyCashSettlementTafsiliDto[]> {
+    return apiClient
+      .get<PettyCashSettlementTafsiliDto[]>(`/petty-cash/funds/${fundId}/tafsilis`)
+      .then((res) => res.data);
+  },
+  /** جایگزینی کامل — آرایهٔ خالی/`null` یعنی همهٔ ردیف‌های موجود نرم‌حذف شوند. */
+  upsert(fundId: string, tafsilis: { tafsiliId: string; levelId: string }[]): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/petty-cash/funds/${fundId}/tafsilis`, { tafsilis })
+      .then((res) => res.data);
+  },
+};
+
+export interface FinalizePettyCashSettlementResult {
+  periodId: string;
+  voucherHeadId: string;
+  voucherDocNum: string;
+  settledDocCount: number;
+}
+
+/** تسویهٔ دوره — بخش ۳-ب (صفحهٔ ۱۰ پاورپوینت). */
+export const pettyCashSettlementApi = {
+  /** پیش‌نمایش دورهٔ جاریِ قابل‌بستن. `404` اگر تنخواه وجود نداشته باشد. */
+  preview(fundId: string): Promise<PettyCashSettlementPreviewDto> {
+    return apiClient
+      .get<PettyCashSettlementPreviewDto>(`/petty-cash/funds/${fundId}/settlement`)
+      .then((res) => res.data);
+  },
+  /** ذخیرهٔ شمارش صندوق دورهٔ جاری — دورهٔ Draft را در صورت نبود می‌سازد. بدون محدودیت نقش. */
+  count(fundId: string, countedBalance: number): Promise<{ periodId: string }> {
+    return apiClient
+      .post<{ periodId: string }>(`/petty-cash/funds/${fundId}/settlement/count`, { countedBalance })
+      .then((res) => res.data);
+  },
+  /**
+   * صدور سند حسابداری و نهایی‌سازی دوره. فقط نقش حسابدار ارشد همان تنخواه، ≠ سازندهٔ اسناد
+   * منظورشده. `acknowledgeInFlightTransfer` الزامی است اگر سند در جریان وجود دارد.
+   */
+  finalize(fundId: string, acknowledgeInFlightTransfer: boolean): Promise<FinalizePettyCashSettlementResult> {
+    return apiClient
+      .post<FinalizePettyCashSettlementResult>(`/petty-cash/funds/${fundId}/settlement/finalize`, {
+        acknowledgeInFlightTransfer,
+      })
+      .then((res) => res.data);
+  },
+  /** تاریخچهٔ دوره‌های نهایی‌شده. */
+  history(fundId: string): Promise<PettyCashSettlementHistoryItemDto[]> {
+    return apiClient
+      .get<PettyCashSettlementHistoryItemDto[]>(`/petty-cash/funds/${fundId}/settlements`)
       .then((res) => res.data);
   },
 };
