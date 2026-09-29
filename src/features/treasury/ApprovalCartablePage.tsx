@@ -30,6 +30,7 @@ import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { approvalCartableApi, type BulkApproveFailure, paymentRequestsApi } from './api';
 import { getBulkApproveFailureReasonLabel } from './treasuryPaymentRequestState';
 import { CartableReviewDialogs, type CartableActionTarget } from './CartableReviewDialogs';
+import { TransferReviewDialogs, type TransferReviewTarget } from './TransferReviewDialogs';
 import type { ApprovalCartableItemDto } from '../../types/treasury';
 
 const PAGE_SIZE = 20;
@@ -52,6 +53,13 @@ export function ApprovalCartablePage() {
   const [approveTarget, setApproveTarget] = useState<CartableActionTarget | null>(null);
   const [rejectTarget, setRejectTarget] = useState<CartableActionTarget | null>(null);
   const [returnTarget, setReturnTarget] = useState<CartableActionTarget | null>(null);
+
+  // بخش ۴-ج (۲۰۲۶-۰۹-۲۹) — انتقال وجه: شکل تأیید/برگشت/رد سرورش با پرداخت/ترمیم فرق دارد (تأیید
+  // شمارهٔ مرجع بانکی می‌خواهد نه یادداشت اختیاری) — دیالوگ‌های جدای `TransferReviewDialogs`، نه
+  // `CartableReviewDialogs`.
+  const [transferApproveTarget, setTransferApproveTarget] = useState<TransferReviewTarget | null>(null);
+  const [transferReturnTarget, setTransferReturnTarget] = useState<TransferReviewTarget | null>(null);
+  const [transferRejectTarget, setTransferRejectTarget] = useState<TransferReviewTarget | null>(null);
 
   function clearSelection() {
     setSelectedIds(new Set());
@@ -119,8 +127,8 @@ export function ApprovalCartablePage() {
         <Chip
           size="small"
           variant="outlined"
-          color={row.nature === 'payment' ? 'secondary' : 'info'}
-          label={row.nature === 'payment' ? 'درخواست پرداخت' : 'ترمیم تنخواه'}
+          color={row.nature === 'payment' ? 'secondary' : row.nature === 'transfer' ? 'warning' : 'info'}
+          label={row.nature === 'payment' ? 'درخواست پرداخت' : row.nature === 'transfer' ? 'انتقال وجه' : 'ترمیم تنخواه'}
         />
       ),
     },
@@ -146,6 +154,43 @@ export function ApprovalCartablePage() {
       key: 'rowActions',
       header: 'اقدام',
       render: (row) => {
+        if (row.nature === 'transfer') {
+          const transferTarget: TransferReviewTarget = { id: row.id, code: row.code };
+          return (
+            <Stack direction="row" spacing={0.5}>
+              <Tooltip title="نمایش">
+                <IconButton
+                  size="small"
+                  aria-label="نمایش"
+                  component={RouterLink}
+                  to={`/treasury/khazaneh/transfers/${row.id}/edit`}
+                >
+                  <VisibilityOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              {row.pendingForMe && (
+                <>
+                  <Tooltip title="تأیید">
+                    <IconButton size="small" color="success" aria-label="تأیید" onClick={() => setTransferApproveTarget(transferTarget)}>
+                      <CheckCircleOutlineOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="برگشت">
+                    <IconButton size="small" color="warning" aria-label="برگشت" onClick={() => setTransferReturnTarget(transferTarget)}>
+                      <KeyboardReturnOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="رد">
+                    <IconButton size="small" color="error" aria-label="رد" onClick={() => setTransferRejectTarget(transferTarget)}>
+                      <CancelOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+            </Stack>
+          );
+        }
+
         const target: CartableActionTarget = { nature: row.nature, id: row.id, code: row.code };
         return (
           <Stack direction="row" spacing={0.5}>
@@ -240,6 +285,15 @@ export function ApprovalCartablePage() {
         onCloseReject={() => setRejectTarget(null)}
         returnTarget={returnTarget}
         onCloseReturn={() => setReturnTarget(null)}
+      />
+
+      <TransferReviewDialogs
+        approveTarget={transferApproveTarget}
+        onCloseApprove={() => setTransferApproveTarget(null)}
+        returnTarget={transferReturnTarget}
+        onCloseReturn={() => setTransferReturnTarget(null)}
+        rejectTarget={transferRejectTarget}
+        onCloseReject={() => setTransferRejectTarget(null)}
       />
 
       <Dialog open={bulkApproveFailures !== null} onClose={() => setBulkApproveFailures(null)} maxWidth="sm" fullWidth>

@@ -4,10 +4,19 @@ import type { PagedResult } from '../../types/pagedResult';
 import type { TafsiliLookupItemDto } from '../../types/tafsili';
 import type {
   ApprovalCartableItemDto,
+  BankAccountBalanceDto,
   PaymentRequestAccountingDto,
   PaymentRequestDto,
   PaymentRequestListResult,
   PaymentRequestStateValue,
+  ReceiptAccountingDto,
+  ReceiptDto,
+  ReceiptListResult,
+  ReceiptStateValue,
+  TransferAccountingDto,
+  TransferDto,
+  TransferListResult,
+  TransferStateValue,
   TreasuryRoleDto,
   TreasurySettingDto,
 } from '../../types/treasury';
@@ -44,6 +53,10 @@ export const treasurySettingsApi = {
     payablesAccountId: string | null;
     vatCreditAccountId: string | null;
     insurancePayableAccountId: string | null;
+    /** بخش ۴-ج (۲۰۲۶-۰۹-۲۹). */
+    receivablesAccountId: string | null;
+    customerTafsilGroupId: string | null;
+    dailyTransferLimit: number | null;
   }): Promise<TreasurySettingDto> {
     return apiClient.post<TreasurySettingDto>('/treasury/settings', payload).then((res) => res.data);
   },
@@ -237,6 +250,161 @@ export const beneficiaryTafsilisApi = {
   list(params: BeneficiaryTafsilisParams): Promise<PagedResult<TafsiliLookupItemDto>> {
     return apiClient
       .get<PagedResult<TafsiliLookupItemDto>>('/treasury/beneficiary-tafsilis', { params })
+      .then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-ج — دریافت وجه
+ * ------------------------------------------------------------------------------------------- */
+
+export interface ReceiptListParams {
+  pageNumber?: number;
+  pageSize?: number;
+  state?: ReceiptStateValue;
+  search?: string;
+}
+
+/** Exact wire shape of `CreateTreasuryReceiptRequest`/`UpdateTreasuryReceiptRequest` (`TreasuryController.cs`). */
+export interface ReceiptWritePayload {
+  payerTafsiliId: string;
+  amount: number;
+  bankAccountId: string;
+  receiptMethod: number;
+  /** Legacy `YYYYMMDD`. */
+  receiptDate: string;
+  bankReference: string;
+  invoiceRef: string | null;
+  description: string | null;
+}
+
+export const receiptsApi = {
+  list(params: ReceiptListParams): Promise<ReceiptListResult> {
+    return apiClient.get<ReceiptListResult>('/treasury/receipts', { params }).then((res) => res.data);
+  },
+  getById(id: string): Promise<ReceiptDto> {
+    return apiClient.get<ReceiptDto>(`/treasury/receipts/${id}`).then((res) => res.data);
+  },
+  /** پیش‌نویس می‌سازد، یا — اگر `register` باشد — بلافاصله ثبت می‌کند (صدور سند GL + Legacy PayReciv). */
+  create(payload: ReceiptWritePayload & { year: string; register: boolean }): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/treasury/receipts', payload).then((res) => res.data);
+  },
+  // Intentionally POST, never PUT — see module docblock. فقط پیش‌نویس.
+  update(id: string, payload: ReceiptWritePayload): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/receipts/${id}/update`, payload).then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. فقط پیش‌نویس.
+  remove(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/receipts/${id}/delete`).then((res) => res.data);
+  },
+  /** صدور سند GL موقت «دریافت» + Legacy TB_PAYRECIVHEAD/DETAIL. فقط خزانه‌دار، فقط از پیش‌نویس. */
+  register(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/receipts/${id}/register`).then((res) => res.data);
+  },
+  /** لغو. فقط پیش‌نویس. */
+  cancel(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/receipts/${id}/cancel`).then((res) => res.data);
+  },
+  /** سند GL «دریافت» (اگر صادر شده باشد) + کد Legacy PayReciv. */
+  getAccounting(id: string): Promise<ReceiptAccountingDto> {
+    return apiClient.get<ReceiptAccountingDto>(`/treasury/receipts/${id}/accounting`).then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-ج — انتقال وجه
+ * ------------------------------------------------------------------------------------------- */
+
+export interface TransferListParams {
+  pageNumber?: number;
+  pageSize?: number;
+  state?: TransferStateValue;
+  search?: string;
+}
+
+/** Exact wire shape of `CreateTransferRequest`/`UpdateTransferRequest` (`TreasuryController.cs`). */
+export interface TransferWritePayload {
+  sourceBankAccountId: string;
+  destBankAccountId: string;
+  amount: number;
+  /** Legacy `YYYYMMDD`. */
+  transferDate: string;
+  transferMethod: number;
+  reason: string;
+}
+
+export const transfersApi = {
+  list(params: TransferListParams): Promise<TransferListResult> {
+    return apiClient.get<TransferListResult>('/treasury/transfers', { params }).then((res) => res.data);
+  },
+  getById(id: string): Promise<TransferDto> {
+    return apiClient.get<TransferDto>(`/treasury/transfers/${id}`).then((res) => res.data);
+  },
+  /** همیشه پیش‌نویس می‌سازد — بر خلاف درخواست پرداخت/دریافت وجه، `create` گزینهٔ ارسال بلافاصله ندارد. */
+  create(payload: TransferWritePayload & { year: string }): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/treasury/transfers', payload).then((res) => res.data);
+  },
+  // Intentionally POST, never PUT — see module docblock. فقط پیش‌نویس یا برگشتی.
+  update(id: string, payload: TransferWritePayload): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/transfers/${id}/update`, payload).then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. فقط پیش‌نویس یا برگشتی.
+  remove(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/transfers/${id}/delete`).then((res) => res.data);
+  },
+  /** پیش‌نویس/برگشتی → در انتظار اقدام خزانه‌دار. بدون بدنه. */
+  submit(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/transfers/${id}/submit`).then((res) => res.data);
+  },
+  /** تأیید — دو کنترل مسدودکننده (موجودی مبدأ، سقف روزانه)، سپس صدور سند GL موقت. فقط خزانه‌دار. */
+  approve(id: string, bankReference: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/treasury/transfers/${id}/approve`, { bankReference: bankReference.trim() })
+      .then((res) => res.data);
+  },
+  /** بازگشت به ثبت‌کننده برای اصلاح. دلیل اجباری. */
+  returnTransfer(id: string, reason: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/treasury/transfers/${id}/return`, { reason: reason.trim() })
+      .then((res) => res.data);
+  },
+  /** رد پایانی. دلیل اجباری. */
+  reject(id: string, reason: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/treasury/transfers/${id}/reject`, { reason: reason.trim() })
+      .then((res) => res.data);
+  },
+  /** سند GL «انتقال» (اگر صادر شده باشد). */
+  getAccounting(id: string): Promise<TransferAccountingDto> {
+    return apiClient.get<TransferAccountingDto>(`/treasury/transfers/${id}/accounting`).then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-ج — موجودی حساب بانکی + تفصیلی مشتریان
+ * ------------------------------------------------------------------------------------------- */
+
+export const bankAccountBalanceApi = {
+  /** موجودی فعلی (سال شمسی جاری) یک حساب بانکی — برای «موجودی فعلی/پس از انتقال» فرم انتقال وجه. */
+  get(bankAccountId: string): Promise<BankAccountBalanceDto> {
+    return apiClient.get<BankAccountBalanceDto>(`/treasury/bank-accounts/${bankAccountId}/balance`).then((res) => res.data);
+  },
+};
+
+export interface CustomerTafsilisParams {
+  search?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export const customerTafsilisApi = {
+  /**
+   * فقط تفصیلی‌های عضو گروه تفصیلی مشتریانِ تعریف‌شده در `TreasurySettingDto.customerTafsilGroupId`
+   * — صفحهٔ خالی (نه خطا) اگر واحد هنوز گروهی تعریف نکرده.
+   */
+  list(params: CustomerTafsilisParams): Promise<PagedResult<TafsiliLookupItemDto>> {
+    return apiClient
+      .get<PagedResult<TafsiliLookupItemDto>>('/treasury/customer-tafsilis', { params })
       .then((res) => res.data);
   },
 };

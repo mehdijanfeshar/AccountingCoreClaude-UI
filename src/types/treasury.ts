@@ -25,12 +25,22 @@ export type PaymentRequestEventActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 /** `TreasuryRole` — ۱=مدیر واحد، ۲=مدیر مالی، ۳=مدیرعامل، ۴=حسابدار ارشد، ۵=خزانه‌دار. */
 export type TreasuryRoleValue = 1 | 2 | 3 | 4 | 5;
 
+/** `ReceiptState` — ۱=پیش‌نویس، ۲=ثبت‌شده، ۳=لغوشده. بخش ۴-ج. */
+export type ReceiptStateValue = 1 | 2 | 3;
+
+/** `TransferState` — ۱=پیش‌نویس، ۲=در انتظار تأیید خزانه‌دار، ۳=انجام‌شده، ۴=برگشتی، ۵=ردشده. بخش ۴-ج. */
+export type TransferStateValue = 1 | 2 | 3 | 4 | 5;
+
+/** `TransferEventAction` — ۱=ایجاد..۷=رد. بخش ۴-ج. */
+export type TransferEventActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
 /**
  * `GET/POST api/treasury/settings` — `TreasurySettingDto`. `beneficiaryTafsilGroupId` — اصلاح
  * ۴-الف (۲۰۲۶-۰۹-۲۹) — `null` یعنی واحد هنوز گروه تفصیلی ذی‌نفع تعریف نکرده؛ در این حالت ثبت
  * درخواست پرداخت با تفصیلی ذی‌نفع رد می‌شود. سه فیلد `...AccountId`/`...AccountCode`/
  * `...AccountName` — بخش ۴-ب (۲۰۲۶-۰۹-۲۹): `null` یعنی هنوز تعریف نشده — صدور سند شناسایی بدهی با
- * ۴۰۹ رد می‌شود.
+ * ۴۰۹ رد می‌شود. `receivablesAccountId`/`customerTafsilGroupId`/`dailyTransferLimit` — بخش ۴-ج
+ * (۲۰۲۶-۰۹-۲۹): به‌ترتیب برای ثبت دریافت وجه (بدون آن‌ها با ۴۰۹ رد می‌شود) و تأیید انتقال وجه.
  */
 export interface TreasurySettingDto {
   id: string;
@@ -51,6 +61,16 @@ export interface TreasurySettingDto {
   insurancePayableAccountId: string | null;
   insurancePayableAccountCode: string | null;
   insurancePayableAccountName: string | null;
+  /** بخش ۴-ج — «حساب‌های دریافتنی». */
+  receivablesAccountId: string | null;
+  receivablesAccountCode: string | null;
+  receivablesAccountName: string | null;
+  /** بخش ۴-ج — گروه تفصیلی مشتریان (پرداخت‌کنندگان دریافت وجه). */
+  customerTafsilGroupId: string | null;
+  customerTafsilGroupCode: string | null;
+  customerTafsilGroupName: string | null;
+  /** بخش ۴-ج — سقف مجموع انتقال‌های اجراشده از یک حساب مبدأ در یک روز. */
+  dailyTransferLimit: number | null;
 }
 
 /** `GET api/treasury/roles` — `TreasuryRoleDto`. */
@@ -194,11 +214,12 @@ export interface PaymentRequestVoucherLineAccountingDto {
 
 /**
  * یک ردیف `GET api/treasury/approval-cartable` — `ApprovalCartableItemDto`. ادغام درخواست‌های
- * پرداخت Pending* و ترمیم‌های تنخواهِ PendingTreasurer در یک فهرست، همیشه در C# (نه یک join سمت
- * SQL) — `nature` مشخص می‌کند کدام مجموعهٔ اقدام/مسیر برای این ردیف درست است.
+ * پرداخت Pending*، ترمیم‌های تنخواهِ PendingTreasurer و — بخش ۴-ج (۲۰۲۶-۰۹-۲۹) — انتقال‌های وجه
+ * PendingTreasurer در یک فهرست، همیشه در C# (نه یک join سمت SQL) — `nature` مشخص می‌کند کدام
+ * مجموعهٔ اقدام/مسیر برای این ردیف درست است.
  */
 export interface ApprovalCartableItemDto {
-  nature: 'payment' | 'replenishment';
+  nature: 'payment' | 'replenishment' | 'transfer';
   id: string;
   code: string;
   beneficiaryOrFund: string;
@@ -210,4 +231,161 @@ export interface ApprovalCartableItemDto {
   ageDays: number;
   dueDate: string | null;
   pendingForMe: boolean;
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-ج — دریافت وجه (`ReceiptDto`/`ReceiptListItemDto`/`ReceiptListResult`/`ReceiptAccountingDto`)
+ * ------------------------------------------------------------------------------------------- */
+
+/** یک ردیف `GET api/treasury/receipts` — `ReceiptListItemDto`. */
+export interface ReceiptListItemDto {
+  id: string;
+  code: string;
+  payerName: string;
+  amount: number;
+  state: ReceiptStateValue;
+  /** Legacy `YYYYMMDD`. */
+  receiptDate: string;
+  createdDate: string;
+  addUserId: string;
+}
+
+export interface ReceiptStateCountDto {
+  state: ReceiptStateValue;
+  count: number;
+}
+
+/** `GET api/treasury/receipts` envelope — `ReceiptListResult`. */
+export interface ReceiptListResult {
+  page: {
+    items: ReceiptListItemDto[];
+    pageNumber: number;
+    pageSize: number;
+    totalCount: number;
+  };
+  stateCounts: ReceiptStateCountDto[];
+}
+
+/**
+ * `GET api/treasury/receipts/{id}` — `ReceiptDto`. دریافت وجه «گردش عملیات» ندارد (بر خلاف
+ * درخواست پرداخت/انتقال وجه) — `state` به‌همراه `registeredBy`/`registeredDate` تنها گذار معنادار
+ * آن را نشان می‌دهد.
+ */
+export interface ReceiptDto {
+  id: string;
+  code: string;
+  payerTafsiliId: string;
+  payerTafsiliCode: string | null;
+  payerTafsiliName: string | null;
+  payerName: string;
+  amount: number;
+  bankAccountId: string;
+  receiptMethod: TreasuryPaymentMethodValue;
+  /** Legacy `YYYYMMDD`. */
+  receiptDate: string;
+  bankReference: string;
+  invoiceRef: string | null;
+  description: string | null;
+  state: ReceiptStateValue;
+  voucherId: string | null;
+  voucherNumber: string | null;
+  payRecivHeadId: string | null;
+  payRecivCode: string | null;
+  registeredBy: string | null;
+  registeredDate: string | null;
+  addUserId: string;
+  createdDate: string;
+}
+
+/**
+ * `GET api/treasury/receipts/{id}/accounting` — `ReceiptAccountingDto`. همان شکل سند با
+ * `PaymentRequestVoucherAccountingDto` (دستور صاحب پروژه، بخش ۴-ج).
+ */
+export interface ReceiptAccountingDto {
+  voucher: PaymentRequestVoucherAccountingDto | null;
+  payRecivCode: string | null;
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-ج — انتقال وجه (`TransferDto`/`TransferListItemDto`/`TransferListResult`/`TransferEventDto`/`TransferAccountingDto`)
+ * ------------------------------------------------------------------------------------------- */
+
+/** یک ردیف `GET api/treasury/transfers` — `TransferListItemDto`. */
+export interface TransferListItemDto {
+  id: string;
+  code: string;
+  sourceBankAccountId: string;
+  destBankAccountId: string;
+  amount: number;
+  state: TransferStateValue;
+  /** Legacy `YYYYMMDD`. */
+  transferDate: string;
+  createdDate: string;
+  addUserId: string;
+}
+
+export interface TransferStateCountDto {
+  state: TransferStateValue;
+  count: number;
+}
+
+/** `GET api/treasury/transfers` envelope — `TransferListResult`. */
+export interface TransferListResult {
+  page: {
+    items: TransferListItemDto[];
+    pageNumber: number;
+    pageSize: number;
+    totalCount: number;
+  };
+  stateCounts: TransferStateCountDto[];
+}
+
+/** یک ردیف «گردش عملیات» انتقال وجه — `TransferEventDto`. */
+export interface TransferEventDto {
+  id: string;
+  action: TransferEventActionValue;
+  fromState: TransferStateValue | null;
+  toState: TransferStateValue | null;
+  note: string | null;
+  userId: string;
+  createdDate: string;
+  clientIp: string | null;
+}
+
+/** `GET api/treasury/transfers/{id}` — `TransferDto` — با «گردش عملیات». */
+export interface TransferDto {
+  id: string;
+  code: string;
+  sourceBankAccountId: string;
+  destBankAccountId: string;
+  amount: number;
+  /** Legacy `YYYYMMDD`. */
+  transferDate: string;
+  transferMethod: TreasuryPaymentMethodValue;
+  reason: string;
+  state: TransferStateValue;
+  bankReference: string | null;
+  voucherId: string | null;
+  voucherNumber: string | null;
+  approvedBy: string | null;
+  approvedDate: string | null;
+  returnReason: string | null;
+  addUserId: string;
+  createdDate: string;
+  events: TransferEventDto[];
+}
+
+/**
+ * `GET api/treasury/transfers/{id}/accounting` — `TransferAccountingDto`. انتقال وجه معادل Legacy
+ * `TB_PAYRECIVHEAD` ندارد (جابه‌جایی بانک‌به‌بانک است، نه پرداخت/دریافت نسبت به ذی‌نفع/مشتری) — فقط
+ * یک سند GL خودکار.
+ */
+export interface TransferAccountingDto {
+  voucher: PaymentRequestVoucherAccountingDto | null;
+}
+
+/** `GET api/treasury/bank-accounts/{id}/balance` — `BankAccountBalanceDto`. */
+export interface BankAccountBalanceDto {
+  bankAccountId: string;
+  balance: number;
 }

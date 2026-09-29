@@ -12,6 +12,7 @@ import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutl
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
@@ -35,7 +36,7 @@ function accountCodeLabel(account: { accCode: string | null; accCodeName: string
   return `${account.accCode ? `${account.accCode} — ` : ''}${account.accCodeName ?? '—'}`;
 }
 
-type AccountPickerField = 'payablesAccountId' | 'vatCreditAccountId' | 'insurancePayableAccountId';
+type AccountPickerField = 'payablesAccountId' | 'vatCreditAccountId' | 'insurancePayableAccountId' | 'receivablesAccountId';
 
 /**
  * تنظیمات خزانه (`TB_TR_SETTING`) — خزانه‌داری بخش ۴-الف. `GET` می‌تواند ۴۰۴ بدهد اگر مدیر مالی
@@ -105,6 +106,16 @@ export function TreasurySettingsPage() {
                 accCodeName: settingQuery.data.insurancePayableAccountName,
               })
             : null,
+        receivablesAccountId: settingQuery.data.receivablesAccountId,
+        receivablesAccountLabel:
+          settingQuery.data.receivablesAccountId != null
+            ? accountCodeLabel({
+                accCode: settingQuery.data.receivablesAccountCode,
+                accCodeName: settingQuery.data.receivablesAccountName,
+              })
+            : null,
+        customerTafsilGroupId: settingQuery.data.customerTafsilGroupId,
+        dailyTransferLimit: settingQuery.data.dailyTransferLimit != null ? String(settingQuery.data.dailyTransferLimit) : '',
       });
     }
   }, [settingQuery.data, reset]);
@@ -112,6 +123,7 @@ export function TreasurySettingsPage() {
   const payablesAccountLabel = watch('payablesAccountLabel');
   const vatCreditAccountLabel = watch('vatCreditAccountLabel');
   const insurancePayableAccountLabel = watch('insurancePayableAccountLabel');
+  const receivablesAccountLabel = watch('receivablesAccountLabel');
 
   function handlePickAccount(account: AccountCodeDto) {
     if (!accountPickerField) return;
@@ -119,7 +131,8 @@ export function TreasurySettingsPage() {
     const labelField = `${accountPickerField.replace(/Id$/, '')}Label` as
       | 'payablesAccountLabel'
       | 'vatCreditAccountLabel'
-      | 'insurancePayableAccountLabel';
+      | 'insurancePayableAccountLabel'
+      | 'receivablesAccountLabel';
     setValue(labelField, accountCodeLabel(account), { shouldDirty: true });
     setAccountPickerField(null);
   }
@@ -133,6 +146,9 @@ export function TreasurySettingsPage() {
         payablesAccountId: values.payablesAccountId ?? null,
         vatCreditAccountId: values.vatCreditAccountId ?? null,
         insurancePayableAccountId: values.insurancePayableAccountId ?? null,
+        receivablesAccountId: values.receivablesAccountId ?? null,
+        customerTafsilGroupId: values.customerTafsilGroupId ?? null,
+        dailyTransferLimit: values.dailyTransferLimit ? Number(values.dailyTransferLimit) : null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['treasury-settings'] });
@@ -263,6 +279,66 @@ export function TreasurySettingsPage() {
                   setValue('insurancePayableAccountLabel', null, { shouldDirty: true });
                 }}
               />
+
+              <Grid size={12}>
+                <FormSectionLabel
+                  label="دریافت و انتقال وجه"
+                  accentColor="secondary"
+                  caption="بخش ۴-ج — بدون «حساب دریافتنی»/«گروه تفصیلی مشتریان»، ثبت دریافت وجه با خطا رد می‌شود؛ بدون «سقف انتقال روزانه»، تأیید انتقال وجه با خطا رد می‌شود."
+                />
+              </Grid>
+              <LinkedEntityPickerField
+                icon={<ReceiptLongOutlinedIcon fontSize="small" color="action" />}
+                label="حساب دریافتنی (اختیاری)"
+                value={receivablesAccountLabel}
+                onPick={() => setAccountPickerField('receivablesAccountId')}
+                onClear={() => {
+                  setValue('receivablesAccountId', null, { shouldDirty: true });
+                  setValue('receivablesAccountLabel', null, { shouldDirty: true });
+                }}
+              />
+              <Grid size={12}>
+                <Controller
+                  control={control}
+                  name="customerTafsilGroupId"
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={tafsilGroupOptions}
+                      loading={tafsilGroupsQuery.isLoading}
+                      getOptionLabel={(option) => `${option.tafsilGroupCode ?? ''} - ${option.tafsilGroupName ?? ''}`}
+                      isOptionEqualToValue={(option, current) => option.id === current.id}
+                      value={tafsilGroupOptions.find((g) => g.id === field.value) ?? null}
+                      onChange={(_event, selected) => field.onChange(selected?.id ?? null)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="گروه تفصیلی مشتریان (اختیاری)"
+                          helperText="فقط تفصیلی‌های عضو این گروه در فرم دریافت وجه به‌عنوان «پرداخت‌کننده» قابل‌انتخاب‌اند."
+                          slotProps={{
+                            ...params.slotProps,
+                            input: {
+                              ...params.slotProps.input,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PeopleAltOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
+                          }}
+                        />
+                      )}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid size={12}>
+                <AmountField
+                  control={control}
+                  name="dailyTransferLimit"
+                  label="سقف انتقال روزانه (ریال، اختیاری)"
+                  helperText="سقف مجموع انتقال‌های اجراشده از یک حساب مبدأ در یک روز."
+                />
+              </Grid>
 
               <Grid size={12}>
                 <FormActions onCancel={() => reset()} pending={saveMutation.isPending} submitLabel="ذخیره تنظیمات" />

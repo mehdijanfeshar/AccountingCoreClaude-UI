@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { TREASURY_PAYMENT_TYPE_OPTIONS, TREASURY_PAYMENT_METHOD_OPTIONS, TREASURY_ROLE_OPTIONS } from './treasuryPaymentRequestState';
-import type { PaymentRequestTafsiliLinkInput, PaymentRequestWritePayload } from './api';
-import type { PaymentRequestDto } from '../../types/treasury';
+import type { PaymentRequestTafsiliLinkInput, PaymentRequestWritePayload, ReceiptWritePayload, TransferWritePayload } from './api';
+import type { PaymentRequestDto, ReceiptDto, TransferDto } from '../../types/treasury';
 
 const PAYMENT_TYPE_VALUES = TREASURY_PAYMENT_TYPE_OPTIONS.map((o) => o.value);
 const PAYMENT_METHOD_VALUES = TREASURY_PAYMENT_METHOD_OPTIONS.map((o) => o.value);
@@ -211,6 +211,11 @@ export const treasurySettingFormSchema = z.object({
   vatCreditAccountLabel: z.string().nullable().optional(),
   insurancePayableAccountId: z.string().nullable().optional(),
   insurancePayableAccountLabel: z.string().nullable().optional(),
+  // بخش ۴-ج (۲۰۲۶-۰۹-۲۹) — هر سه اختیاری؛ `null` یعنی هنوز تعریف نشده.
+  receivablesAccountId: z.string().nullable().optional(),
+  receivablesAccountLabel: z.string().nullable().optional(),
+  customerTafsilGroupId: z.string().nullable().optional(),
+  dailyTransferLimit: z.string().optional().or(z.literal('')),
 });
 
 export type TreasurySettingFormValues = z.infer<typeof treasurySettingFormSchema>;
@@ -226,8 +231,147 @@ export function buildEmptyTreasurySettingFormValues(): TreasurySettingFormValues
     vatCreditAccountLabel: null,
     insurancePayableAccountId: null,
     insurancePayableAccountLabel: null,
+    receivablesAccountId: null,
+    receivablesAccountLabel: null,
+    customerTafsilGroupId: null,
+    dailyTransferLimit: '',
   };
 }
+
+/* ------------------------------------------------------------------------------------------- *
+ * دریافت وجه (`TB_TR_RECEIPT`) — بخش ۴-ج (`CreateReceiptCommandValidator` مرجع)
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `CreateReceiptCommandValidator` سمت سرور مرجع است. */
+export const receiptFormSchema = z.object({
+  payerTafsiliId: z.string().trim().min(1, 'انتخاب پرداخت‌کننده الزامی است'),
+  payerTafsiliLabel: z.string().nullable().optional(),
+  amount: z.string().trim().min(1, 'مبلغ الزامی است').refine((v) => Number(v) > 0, 'باید بزرگ‌تر از صفر باشد'),
+  bankAccountId: z.string().trim().min(1, 'انتخاب حساب بانکی مقصد الزامی است'),
+  bankAccountLabel: z.string().nullable().optional(),
+  receiptMethod: nonNullableEnumFieldSchema(PAYMENT_METHOD_VALUES, 'روش دریافت را انتخاب کنید'),
+  receiptDate: z.string().trim().min(1, 'تاریخ دریافت الزامی است'),
+  bankReference: z.string().trim().min(1, 'شمارهٔ پیگیری/مرجع بانکی الزامی است').max(100, 'حداکثر ۱۰۰ کاراکتر است'),
+  invoiceRef: z.string().trim().max(100, 'حداکثر ۱۰۰ کاراکتر است').optional().or(z.literal('')),
+  description: z.string().trim().max(1000, 'حداکثر ۱۰۰۰ کاراکتر است').optional().or(z.literal('')),
+});
+
+export type ReceiptFormValues = z.infer<typeof receiptFormSchema>;
+
+export function buildEmptyReceiptFormValues(receiptDate: string): ReceiptFormValues {
+  return {
+    payerTafsiliId: '',
+    payerTafsiliLabel: null,
+    amount: '',
+    bankAccountId: '',
+    bankAccountLabel: null,
+    receiptMethod: TREASURY_PAYMENT_METHOD_OPTIONS[0].value,
+    receiptDate,
+    bankReference: '',
+    invoiceRef: '',
+    description: '',
+  };
+}
+
+export function receiptDtoToFormValues(dto: ReceiptDto, bankAccountLabel: string | null): ReceiptFormValues {
+  return {
+    payerTafsiliId: dto.payerTafsiliId,
+    payerTafsiliLabel: `${dto.payerTafsiliCode ?? ''} - ${dto.payerTafsiliName ?? ''}`,
+    amount: String(dto.amount ?? ''),
+    bankAccountId: dto.bankAccountId,
+    bankAccountLabel,
+    receiptMethod: dto.receiptMethod,
+    receiptDate: dto.receiptDate ?? '',
+    bankReference: dto.bankReference ?? '',
+    invoiceRef: dto.invoiceRef ?? '',
+    description: dto.description ?? '',
+  };
+}
+
+export function receiptFormValuesToPayload(values: ReceiptFormValues): ReceiptWritePayload {
+  return {
+    payerTafsiliId: values.payerTafsiliId,
+    amount: Number(values.amount || 0),
+    bankAccountId: values.bankAccountId,
+    receiptMethod: values.receiptMethod ?? TREASURY_PAYMENT_METHOD_OPTIONS[0].value,
+    receiptDate: values.receiptDate.trim(),
+    bankReference: values.bankReference.trim(),
+    invoiceRef: values.invoiceRef?.trim() ? values.invoiceRef.trim() : null,
+    description: values.description?.trim() ? values.description.trim() : null,
+  };
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * انتقال وجه (`TB_TR_TRANSFER`) — بخش ۴-ج (`CreateTransferCommandValidator` مرجع)
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `CreateTransferCommandValidator` سمت سرور مرجع است. */
+export const transferFormSchema = z
+  .object({
+    sourceBankAccountId: z.string().trim().min(1, 'انتخاب حساب مبدأ الزامی است'),
+    sourceBankAccountLabel: z.string().nullable().optional(),
+    destBankAccountId: z.string().trim().min(1, 'انتخاب حساب مقصد الزامی است'),
+    destBankAccountLabel: z.string().nullable().optional(),
+    amount: z.string().trim().min(1, 'مبلغ الزامی است').refine((v) => Number(v) > 0, 'باید بزرگ‌تر از صفر باشد'),
+    transferDate: z.string().trim().min(1, 'تاریخ انتقال الزامی است'),
+    transferMethod: nonNullableEnumFieldSchema(PAYMENT_METHOD_VALUES, 'روش انتقال را انتخاب کنید'),
+    reason: z.string().trim().min(1, 'دلیل انتقال الزامی است').max(1000, 'حداکثر ۱۰۰۰ کاراکتر است'),
+  })
+  .superRefine((values, ctx) => {
+    if (values.sourceBankAccountId && values.destBankAccountId && values.sourceBankAccountId === values.destBankAccountId) {
+      ctx.addIssue({ code: 'custom', path: ['destBankAccountId'], message: 'حساب مقصد نمی‌تواند با حساب مبدأ یکی باشد' });
+    }
+  });
+
+export type TransferFormValues = z.infer<typeof transferFormSchema>;
+
+export function buildEmptyTransferFormValues(transferDate: string): TransferFormValues {
+  return {
+    sourceBankAccountId: '',
+    sourceBankAccountLabel: null,
+    destBankAccountId: '',
+    destBankAccountLabel: null,
+    amount: '',
+    transferDate,
+    transferMethod: TREASURY_PAYMENT_METHOD_OPTIONS[0].value,
+    reason: '',
+  };
+}
+
+export function transferDtoToFormValues(
+  dto: TransferDto,
+  sourceBankAccountLabel: string | null,
+  destBankAccountLabel: string | null,
+): TransferFormValues {
+  return {
+    sourceBankAccountId: dto.sourceBankAccountId,
+    sourceBankAccountLabel,
+    destBankAccountId: dto.destBankAccountId,
+    destBankAccountLabel,
+    amount: String(dto.amount ?? ''),
+    transferDate: dto.transferDate ?? '',
+    transferMethod: dto.transferMethod,
+    reason: dto.reason ?? '',
+  };
+}
+
+export function transferFormValuesToPayload(values: TransferFormValues): TransferWritePayload {
+  return {
+    sourceBankAccountId: values.sourceBankAccountId,
+    destBankAccountId: values.destBankAccountId,
+    amount: Number(values.amount || 0),
+    transferDate: values.transferDate.trim(),
+    transferMethod: values.transferMethod ?? TREASURY_PAYMENT_METHOD_OPTIONS[0].value,
+    reason: values.reason.trim(),
+  };
+}
+
+/** UX-presentation validation only — `ApproveTransferCommandValidator` سمت سرور مرجع است. */
+export const approveTransferFormSchema = z.object({
+  bankReference: z.string().trim().min(1, 'شمارهٔ پیگیری/مرجع بانکی الزامی است').max(100, 'حداکثر ۱۰۰ کاراکتر است'),
+});
+
+export type ApproveTransferFormValues = z.infer<typeof approveTransferFormSchema>;
 
 /* ------------------------------------------------------------------------------------------- *
  * نقش‌های خزانه (`TB_TR_ROLE`)

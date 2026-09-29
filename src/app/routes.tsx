@@ -47,6 +47,9 @@ import { ApprovalCartablePage } from '../features/treasury/ApprovalCartablePage'
 import { TreasurySettingsPage } from '../features/treasury/TreasurySettingsPage';
 import { TreasuryRolesPage } from '../features/treasury/TreasuryRolesPage';
 import { PaymentExecutionListPage } from '../features/treasury/PaymentExecutionListPage';
+import { ReceiptsTransfersPage } from '../features/treasury/ReceiptsTransfersPage';
+import { ReceiptFormPage } from '../features/treasury/ReceiptFormPage';
+import { TransferFormPage } from '../features/treasury/TransferFormPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -145,4 +148,10 @@ export const routes: RouteObject[] = [
   { path: '/treasury/khazaneh/roles', element: <TreasuryRolesPage /> },
   // بخش ۴-ب — اجرای پرداخت.
   { path: '/treasury/khazaneh/execution', element: <PaymentExecutionListPage /> },
+  // بخش ۴-ج — دریافت وجه + انتقال وجه.
+  { path: '/treasury/khazaneh/receipts-transfers', element: <ReceiptsTransfersPage /> },
+  { path: '/treasury/khazaneh/receipts/new', element: <ReceiptFormPage /> },
+  { path: '/treasury/khazaneh/receipts/:id/edit', element: <ReceiptFormPage /> },
+  { path: '/treasury/khazaneh/transfers/new', element: <TransferFormPage /> },
+  { path: '/treasury/khazaneh/transfers/:id/edit', element: <TransferFormPage /> },
 ];

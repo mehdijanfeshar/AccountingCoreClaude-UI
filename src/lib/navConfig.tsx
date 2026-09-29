@@ -256,7 +256,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/treasury/khazaneh/execution',
         icon: <PaymentsOutlinedIcon fontSize="small" />,
       },
-      { label: 'دریافت و انتقال', icon: <CompareArrowsOutlinedIcon fontSize="small" /> },
+      {
+        label: 'دریافت و انتقال',
+        description: 'دریافت وجه از مشتریان و انتقال وجه بین حساب‌های بانکی واحد',
+        to: '/treasury/khazaneh/receipts-transfers',
+        icon: <CompareArrowsOutlinedIcon fontSize="small" />,
+      },
       { label: 'مغایرت بانکی', icon: <RuleOutlinedIcon fontSize="small" /> },
     ],
   },
