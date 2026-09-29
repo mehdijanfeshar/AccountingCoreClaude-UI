@@ -34,8 +34,8 @@ import { JalaliDateField } from '../../components/JalaliDateField';
 import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { BankAccountPickerDialog } from '../../components/BankAccountPickerDialog';
-import { TafsiliItemSelect, type TafsiliSelection } from '../../components/dynamic-tafsili/TafsiliItemSelect';
-import { useTafsiliLevels } from '../../components/dynamic-tafsili/useTafsiliLevels';
+import { TafsiliLevelFields } from '../../components/dynamic-tafsili/TafsiliLevelFields';
+import { BeneficiaryTafsiliSelect } from './BeneficiaryTafsiliSelect';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, formatThousands } from '../../lib/format/numbers';
@@ -53,9 +53,9 @@ import {
 } from './schema';
 import { accountCodesApi } from '../chart-of-accounts/api';
 import { bankAccountsApi } from '../bank-accounts/api';
-import { tafsilisApi } from '../tafsilis/api';
 import type { AccountCodeDto } from '../../types/accountCode';
 import type { BankAccountDto } from '../../types/bankAccount';
+import type { TafsiliLookupItemDto } from '../../types/tafsili';
 
 function accountCodeLabel(account: { accCode: string | null; accCodeName: string | null }): string {
   return `${account.accCode ? `${account.accCode} — ` : ''}${account.accCodeName ?? '—'}`;
@@ -69,11 +69,15 @@ function bankAccountLabel(account: { accountNumber: string | null; accountHolder
  * ثبت/ویرایش درخواست پرداخت — خزانه‌داری بخش ۴-الف (`docs/tankhah-khazaneh-module.md` §۱۰).
  * هندل می‌کند `/treasury/khazaneh/payment-requests/new` و `/:id/edit`.
  *
- * «تفصیلی مرکز هزینه» فقط وقتی نمایش داده می‌شود که حساب هزینهٔ انتخاب‌شده حداقل یک سطح تفصیلی
- * فعال داشته باشد (همان مکانیزم داینامیک `GET .../tafsili-levels` که بقیهٔ فرم‌های برنامه استفاده
- * می‌کنند) — فقط اولین سطح فعال گرفته می‌شود، چون این فیلد سمت سرور یک `Guid?` تکی است، نه چند
- * سطحی. «تفصیلی ذی‌نفع» (`BeneficiaryTafsiliId`) در Contract هست اما در فهرست فیلدهای این فرم
- * نبود — همیشه `null` فرستاده می‌شود؛ منبع این تصمیم را در گزارش پایانی ببین.
+ * «تفصیلی(های) مرکز هزینه» — اصلاح ۴-الف (۲۰۲۶-۰۹-۲۹): با انتخاب حساب هزینه، همان کامپوننت
+ * مشترک `TafsiliLevelFields` (که فرم هزینه/تنخواه هم استفاده می‌کنند) یک ردیف به‌ازای هر سطح
+ * تفصیلی فعال آن حساب render می‌کند — همهٔ سطوح الزامی‌اند و سرور با ۴۰۰
+ * `RequiredTafsiliLevelMissing`/`TafsiliLevelNotPermitted` این را اعمال می‌کند.
+ *
+ * «تفصیلی ذی‌نفع» (`beneficiaryTafsiliId`) اختیاری است و از یک منبع کاملاً جدا می‌آید —
+ * `GET /api/treasury/beneficiary-tafsilis` (فقط عضو گروه تفصیلی ذی‌نفعِ تنظیمات خزانهٔ واحد)، نه
+ * سطوح تفصیلی حساب هزینه — به همین دلیل کامپوننت جدای `BeneficiaryTafsiliSelect` را دارد، نه
+ * `TafsiliItemSelect`.
  */
 export function PaymentRequestFormPage() {
   const { id } = useParams<{ id?: string }>();
@@ -102,11 +106,6 @@ export function PaymentRequestFormPage() {
     queryFn: () => bankAccountsApi.getById(existingQuery.data!.paymentAccountId),
     enabled: Boolean(existingQuery.data?.paymentAccountId),
   });
-  const costCenterTafsiliLookupQuery = useQuery({
-    queryKey: ['tafsilis', existingQuery.data?.costCenterTafsiliId],
-    queryFn: () => tafsilisApi.getById(existingQuery.data!.costCenterTafsiliId as string),
-    enabled: Boolean(existingQuery.data?.costCenterTafsiliId),
-  });
 
   const {
     control,
@@ -125,7 +124,7 @@ export function PaymentRequestFormPage() {
   // (کوئری‌های جدا) با یک `setValue` روی همان دو فیلد پر می‌شوند، بدون `reset` دوباره کل فرم.
   useEffect(() => {
     if (existingQuery.data) {
-      reset(paymentRequestDtoToFormValues(existingQuery.data, null, null, null));
+      reset(paymentRequestDtoToFormValues(existingQuery.data, null, null));
     }
   }, [existingQuery.data, reset]);
 
@@ -141,29 +140,26 @@ export function PaymentRequestFormPage() {
     }
   }, [paymentAccountLookupQuery.data, setValue]);
 
-  useEffect(() => {
-    if (costCenterTafsiliLookupQuery.data) {
-      const dto = costCenterTafsiliLookupQuery.data;
-      setValue('costCenterTafsiliLabel', `${dto.tafsiliCode ?? ''} - ${dto.tafsiliName ?? ''}`, { shouldDirty: false });
-    }
-  }, [costCenterTafsiliLookupQuery.data, setValue]);
-
   const expenseAccountId = watch('expenseAccountId');
   const expenseAccountLabel = watch('expenseAccountLabel');
-  const costCenterTafsiliId = watch('costCenterTafsiliId');
-  const costCenterTafsiliLabel = watch('costCenterTafsiliLabel');
+  const costCenterTafsilis = watch('costCenterTafsilis');
   const paymentAccountLabel = watch('paymentAccountLabel');
+  const beneficiaryTafsiliId = watch('beneficiaryTafsiliId');
+  const beneficiaryTafsiliLabel = watch('beneficiaryTafsiliLabel');
+  const beneficiaryName = watch('beneficiaryName');
   const invoiceRef = watch('invoiceRef');
   const amountBeforeTax = watch('amountBeforeTax');
   const vatAmount = watch('vatAmount');
   const insuranceDeductionAmount = watch('insuranceDeductionAmount');
 
-  const { allLevels: costCenterLevels } = useTafsiliLevels(expenseAccountId || null);
-  const costCenterLevel = costCenterLevels[0] ?? null;
-
-  function handleCostCenterChange(selection: TafsiliSelection | null) {
-    setValue('costCenterTafsiliId', selection?.tafsiliId ?? null, { shouldDirty: true });
-    setValue('costCenterTafsiliLabel', selection?.label ?? null, { shouldDirty: true });
+  function handleBeneficiaryTafsiliChange(selection: TafsiliLookupItemDto | null) {
+    setValue('beneficiaryTafsiliId', selection?.id ?? null, { shouldDirty: true });
+    setValue('beneficiaryTafsiliLabel', selection?.label ?? null, { shouldDirty: true });
+    // فقط وقتی نام ذی‌نفع هنوز خالی است پر می‌شود، تا انتخاب اشتباه یک مقدار قبلاً واردشده را
+    // پاک نکند.
+    if (selection && !beneficiaryName.trim()) {
+      setValue('beneficiaryName', selection.tafsiliName ?? '', { shouldDirty: true });
+    }
   }
 
   const netPayablePreview = useMemo(
@@ -318,6 +314,17 @@ export function PaymentRequestFormPage() {
                   )}
                 />
               </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <BeneficiaryTafsiliSelect
+                  value={
+                    beneficiaryTafsiliId
+                      ? { id: beneficiaryTafsiliId, tafsiliCode: null, tafsiliName: null, label: beneficiaryTafsiliLabel ?? '' }
+                      : null
+                  }
+                  onChange={handleBeneficiaryTafsiliChange}
+                  disabled={readOnly}
+                />
+              </Grid>
 
               <Grid size={12}>
                 <FormSectionLabel label="فاکتور" accentColor="secondary" />
@@ -368,16 +375,13 @@ export function PaymentRequestFormPage() {
                 helperText={errors.expenseAccountId?.message}
                 onPick={() => setAccountPickerOpen(true)}
               />
-              {costCenterLevel && (
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <TafsiliItemSelect
-                    accountCodeId={expenseAccountId}
-                    level={costCenterLevel}
-                    value={costCenterTafsiliId ? { levelId: costCenterLevel.levelId, tafsiliId: costCenterTafsiliId, label: costCenterTafsiliLabel ?? '' } : null}
-                    onChange={handleCostCenterChange}
-                  />
-                </Grid>
-              )}
+              <TafsiliLevelFields
+                accountCodeId={expenseAccountId || null}
+                value={costCenterTafsilis}
+                onChange={(links) => setValue('costCenterTafsilis', links, { shouldDirty: true })}
+                sectionLabel="تفصیلی‌های مرکز هزینه"
+                disabled={readOnly}
+              />
 
               <Grid size={12}>
                 <FormSectionLabel label="مبلغ" accentColor="secondary" />
@@ -564,8 +568,9 @@ export function PaymentRequestFormPage() {
         onSelect={(account: AccountCodeDto) => {
           setValue('expenseAccountId', account.id, { shouldDirty: true, shouldValidate: true });
           setValue('expenseAccountLabel', accountCodeLabel(account), { shouldDirty: true });
-          setValue('costCenterTafsiliId', null, { shouldDirty: true });
-          setValue('costCenterTafsiliLabel', null, { shouldDirty: true });
+          // یک تفصیلی مرکز هزینه فقط نسبت به سطوح معینی معنا دارد که زیرش انتخاب شده — تغییر
+          // معین باید انتخاب‌های قبلی را پاک کند، هم‌الگوی `ExpenseFormPage.handlePickAccountCode`.
+          setValue('costCenterTafsilis', [], { shouldDirty: true });
           setAccountPickerOpen(false);
         }}
       />

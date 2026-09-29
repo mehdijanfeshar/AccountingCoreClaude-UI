@@ -22,6 +22,7 @@ interface TafsiliItemSelectProps {
   value: TafsiliSelection | null;
   onChange: (value: TafsiliSelection | null) => void;
   error?: string;
+  disabled?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
@@ -35,7 +36,7 @@ const DEBOUNCE_MS = 300;
  * first are reachable via the "نمایش موارد بیشتر" button, which accumulates results rather
  * than replacing them so a user's earlier scroll position/selection stays valid.
  */
-export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error }: TafsiliItemSelectProps) {
+export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error, disabled }: TafsiliItemSelectProps) {
   // `inputValue` is the raw displayed text (kept in sync for every MUI `onInputChange`
   // reason — typing, selecting, clearing, blur-revert). `typedQuery` only changes when the
   // user actually types (`reason === 'input'`) and is the ONLY thing that drives the
@@ -104,6 +105,7 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
         options={accumulated}
         value={selectedOption}
         loading={query.isLoading}
+        disabled={disabled}
         inputValue={inputValue}
         filterOptions={(options) => options}
         getOptionLabel={(option) => option.label}

@@ -1,9 +1,13 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
@@ -14,6 +18,7 @@ import { AmountField } from '../../components/AmountField';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { treasurySettingsApi } from './api';
+import { tafsilGroupsApi } from '../tafsil-groups/api';
 import {
   buildEmptyTreasurySettingFormValues,
   treasurySettingFormSchema,
@@ -37,6 +42,14 @@ export function TreasurySettingsPage() {
 
   const notDefinedYet = settingQuery.isError && settingQuery.error instanceof ApiError && settingQuery.error.isNotFound;
 
+  // بدون جست‌وجوی سرچشمه‌ای — تعداد گروه‌های تفصیلی کوچک است، هم‌الگوی
+  // `AccountTafsilGroupLinksTab` (صفحهٔ اول با اندازهٔ بزرگ).
+  const tafsilGroupsQuery = useQuery({
+    queryKey: ['tafsil-groups-lookup'],
+    queryFn: () => tafsilGroupsApi.list({ pageNumber: 1, pageSize: 200 }),
+  });
+  const tafsilGroupOptions = tafsilGroupsQuery.data?.items ?? [];
+
   const {
     control,
     handleSubmit,
@@ -51,6 +64,7 @@ export function TreasurySettingsPage() {
       reset({
         ceoApprovalThreshold: String(settingQuery.data.ceoApprovalThreshold),
         bulkApproveLimit: String(settingQuery.data.bulkApproveLimit),
+        beneficiaryTafsilGroupId: settingQuery.data.beneficiaryTafsilGroupId,
       });
     }
   }, [settingQuery.data, reset]);
@@ -60,6 +74,7 @@ export function TreasurySettingsPage() {
       treasurySettingsApi.upsert({
         ceoApprovalThreshold: Number(values.ceoApprovalThreshold || 0),
         bulkApproveLimit: Number(values.bulkApproveLimit || 0),
+        beneficiaryTafsilGroupId: values.beneficiaryTafsilGroupId ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['treasury-settings'] });
@@ -114,6 +129,45 @@ export function TreasurySettingsPage() {
                   helperText="فقط درخواست‌های زیر این سقف در «تأیید گروهی» کارتابل قابل‌انتخاب‌اند."
                 />
               </Grid>
+
+              <Grid size={12}>
+                <FormSectionLabel label="تفصیلی ذی‌نفع" accentColor="secondary" />
+              </Grid>
+              <Grid size={12}>
+                <Controller
+                  control={control}
+                  name="beneficiaryTafsilGroupId"
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={tafsilGroupOptions}
+                      loading={tafsilGroupsQuery.isLoading}
+                      getOptionLabel={(option) => `${option.tafsilGroupCode ?? ''} - ${option.tafsilGroupName ?? ''}`}
+                      isOptionEqualToValue={(option, current) => option.id === current.id}
+                      value={tafsilGroupOptions.find((g) => g.id === field.value) ?? null}
+                      onChange={(_event, selected) => field.onChange(selected?.id ?? null)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="گروه تفصیلی ذی‌نفع (اختیاری)"
+                          helperText="فقط تفصیلی‌های عضو این گروه در فرم درخواست پرداخت به‌عنوان «تفصیلی ذی‌نفع» قابل‌انتخاب‌اند."
+                          slotProps={{
+                            ...params.slotProps,
+                            input: {
+                              ...params.slotProps.input,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <CategoryOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
+                          }}
+                        />
+                      )}
+                    />
+                  )}
+                />
+              </Grid>
+
               <Grid size={12}>
                 <FormActions onCancel={() => reset()} pending={saveMutation.isPending} submitLabel="ذخیره تنظیمات" />
               </Grid>

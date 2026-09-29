@@ -23,6 +23,8 @@ interface TafsiliLevelFieldsProps {
   onChange: (value: TafsiliLinkValue[]) => void;
   /** Heading shown above the fields; omit to render them without a section header. */
   sectionLabel?: string;
+  /** Disables every rendered picker — e.g. a read-only record. Default `false`. */
+  disabled?: boolean;
 }
 
 /**
@@ -38,7 +40,7 @@ interface TafsiliLevelFieldsProps {
  * `GET /api/tafsilis/{id}` per link — at most the number of active levels (≤ 7), and only on an
  * edit form's first render.
  */
-export function TafsiliLevelFields({ accountCodeId, value, onChange, sectionLabel }: TafsiliLevelFieldsProps) {
+export function TafsiliLevelFields({ accountCodeId, value, onChange, sectionLabel, disabled }: TafsiliLevelFieldsProps) {
   // All 7 levels are rendered inline here: unlike a voucher line row, a base-info form has room
   // for them, so the 1-3 / 4-7 inline-vs-modal split the voucher entry uses is unnecessary.
   const { allLevels, isLoading, error } = useTafsiliLevels(accountCodeId);
@@ -105,6 +107,7 @@ export function TafsiliLevelFields({ accountCodeId, value, onChange, sectionLabe
             level={level}
             value={selectionFor(level.levelId)}
             onChange={(selection) => handleChange(level.levelId, selection)}
+            disabled={disabled}
           />
         </Grid>
       ))}

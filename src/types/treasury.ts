@@ -23,11 +23,18 @@ export type PaymentRequestEventActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 /** `TreasuryRole` — ۱=مدیر واحد، ۲=مدیر مالی، ۳=مدیرعامل، ۴=حسابدار ارشد، ۵=خزانه‌دار. */
 export type TreasuryRoleValue = 1 | 2 | 3 | 4 | 5;
 
-/** `GET/POST api/treasury/settings` — `TreasurySettingDto`. */
+/**
+ * `GET/POST api/treasury/settings` — `TreasurySettingDto`. `beneficiaryTafsilGroupId` — اصلاح
+ * ۴-الف (۲۰۲۶-۰۹-۲۹) — `null` یعنی واحد هنوز گروه تفصیلی ذی‌نفع تعریف نکرده؛ در این حالت ثبت
+ * درخواست پرداخت با تفصیلی ذی‌نفع رد می‌شود.
+ */
 export interface TreasurySettingDto {
   id: string;
   ceoApprovalThreshold: number;
   bulkApproveLimit: number;
+  beneficiaryTafsilGroupId: string | null;
+  beneficiaryTafsilGroupCode: string | null;
+  beneficiaryTafsilGroupName: string | null;
 }
 
 /** `GET api/treasury/roles` — `TreasuryRoleDto`. */
@@ -81,6 +88,18 @@ export interface PaymentRequestEventDto {
   clientIp: string | null;
 }
 
+/**
+ * یک ردیف `costCenterTafsilis` روی `PaymentRequestDto` — اصلاح ۴-الف (۲۰۲۶-۰۹-۲۹)، جایگزین ستون
+ * تک‌سطحی حذف‌شدهٔ `costCenterTafsiliId`: یک ردیف به‌ازای هر سطح تفصیلی مرکز هزینهٔ حساب هزینه.
+ */
+export interface PaymentRequestCostCenterTafsiliDto {
+  levelId: string;
+  levelName: string | null;
+  tafsiliId: string;
+  tafsiliCode: string | null;
+  tafsiliName: string | null;
+}
+
 /** `GET api/treasury/payment-requests/{id}` — `PaymentRequestDto`. */
 export interface PaymentRequestDto {
   id: string;
@@ -88,11 +107,13 @@ export interface PaymentRequestDto {
   beneficiaryName: string;
   beneficiaryNationalId: string | null;
   beneficiaryTafsiliId: string | null;
+  beneficiaryTafsiliCode: string | null;
+  beneficiaryTafsiliName: string | null;
   paymentType: TreasuryPaymentTypeValue;
   invoiceRef: string | null;
   invoiceApproved: boolean;
   expenseAccountId: string;
-  costCenterTafsiliId: string | null;
+  costCenterTafsilis: PaymentRequestCostCenterTafsiliDto[];
   amountBeforeTax: number;
   vatPercent: number | null;
   vatAmount: number;

@@ -1,6 +1,7 @@
 import { apiClient } from '../../lib/api/client';
 import type { CreateResponse } from '../../lib/api/createResourceApi';
 import type { PagedResult } from '../../types/pagedResult';
+import type { TafsiliLookupItemDto } from '../../types/tafsili';
 import type {
   ApprovalCartableItemDto,
   PaymentRequestDto,
@@ -32,7 +33,11 @@ export const treasurySettingsApi = {
     return apiClient.get<TreasurySettingDto>('/treasury/settings').then((res) => res.data);
   },
   /** ایجاد یا جایگزینی کامل. فقط نقش FinanceManager همان واحد. */
-  upsert(payload: { ceoApprovalThreshold: number; bulkApproveLimit: number }): Promise<TreasurySettingDto> {
+  upsert(payload: {
+    ceoApprovalThreshold: number;
+    bulkApproveLimit: number;
+    beneficiaryTafsilGroupId: string | null;
+  }): Promise<TreasurySettingDto> {
     return apiClient.post<TreasurySettingDto>('/treasury/settings', payload).then((res) => res.data);
   },
 };
@@ -71,10 +76,22 @@ export interface PaymentRequestListParams {
 }
 
 /**
+ * یک ردیف `costCenterTafsilis` روی بدنهٔ نوشتن — دقیقاً `PaymentRequestTafsiliLinkInput` سمت سرور
+ * (`Accounting.Application.Treasury.Commands.Common`).
+ */
+export interface PaymentRequestTafsiliLinkInput {
+  tafsiliId: string;
+  levelId: string;
+}
+
+/**
  * Exact wire shape of `CreatePaymentRequestRequest`/`UpdatePaymentRequestRequest`
  * (`TreasuryController.cs`). `paymentType`/`paymentMethod` are plain `number` (not the literal
  * union `types/treasury.ts` uses for read DTOs) — same convention as
  * `ExpenseDocWritePayload.evidenceType`: the form's Zod enum field widens to `number`.
+ *
+ * اصلاح ۴-الف (۲۰۲۶-۰۹-۲۹): `costCenterTafsiliId` تک‌سطحی حذف و با `costCenterTafsilis` (یک ردیف
+ * به‌ازای هر سطح تفصیلی الزامی حساب هزینه) جایگزین شد.
  */
 export interface PaymentRequestWritePayload {
   beneficiaryName: string;
@@ -84,7 +101,7 @@ export interface PaymentRequestWritePayload {
   invoiceRef: string | null;
   invoiceApproved: boolean;
   expenseAccountId: string;
-  costCenterTafsiliId: string | null;
+  costCenterTafsilis: PaymentRequestTafsiliLinkInput[];
   amountBeforeTax: number;
   vatPercent: number | null;
   vatAmount: number | null;
@@ -162,6 +179,28 @@ export const approvalCartableApi = {
   list(params: ApprovalCartableParams): Promise<PagedResult<ApprovalCartableItemDto>> {
     return apiClient
       .get<PagedResult<ApprovalCartableItemDto>>('/treasury/approval-cartable', { params })
+      .then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * تفصیلی ذی‌نفع (اصلاح ۴-الف، ۲۰۲۶-۰۹-۲۹)
+ * ------------------------------------------------------------------------------------------- */
+
+export interface BeneficiaryTafsilisParams {
+  search?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
+export const beneficiaryTafsilisApi = {
+  /**
+   * فقط تفصیلی‌های عضو گروه تفصیلی ذی‌نفعِ تعریف‌شده در `TreasurySettingDto.beneficiaryTafsilGroupId`
+   * — صفحهٔ خالی (نه خطا) اگر واحد هنوز گروهی تعریف نکرده.
+   */
+  list(params: BeneficiaryTafsilisParams): Promise<PagedResult<TafsiliLookupItemDto>> {
+    return apiClient
+      .get<PagedResult<TafsiliLookupItemDto>>('/treasury/beneficiary-tafsilis', { params })
       .then((res) => res.data);
   },
 };

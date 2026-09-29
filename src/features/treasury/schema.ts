@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { TREASURY_PAYMENT_TYPE_OPTIONS, TREASURY_PAYMENT_METHOD_OPTIONS, TREASURY_ROLE_OPTIONS } from './treasuryPaymentRequestState';
-import type { PaymentRequestWritePayload } from './api';
+import type { PaymentRequestTafsiliLinkInput, PaymentRequestWritePayload } from './api';
 import type { PaymentRequestDto } from '../../types/treasury';
 
 const PAYMENT_TYPE_VALUES = TREASURY_PAYMENT_TYPE_OPTIONS.map((o) => o.value);
@@ -14,20 +14,23 @@ const TREASURY_ROLE_VALUES = TREASURY_ROLE_OPTIONS.map((o) => o.value);
 
 /**
  * UX-presentation validation only — `CreatePaymentRequestCommandValidator` سمت سرور مرجع است.
- * `beneficiaryTafsiliId` عمداً اینجا نیست: در فهرست فیلدهای فرم درخواست‌شده نبود (تصمیم دامنه/محصول
- * دربارهٔ اینکه این تفصیلی از کجا انتخاب شود هنوز باز است)؛ روی هر ثبت `null` فرستاده می‌شود.
+ * `costCenterTafsilis` را همان کامپوننت مشترک `TafsiliLevelFields` می‌سازد (یک ردیف به‌ازای هر
+ * سطح تفصیلی فعال حساب هزینه)؛ اینجا فقط شکل بررسی می‌شود، نه الزامی‌بودن هر سطح — همان‌طور که
+ * `features/expenses/schema.ts` هم با همین کامپوننت این کار را می‌کند، مرجع «همهٔ سطوح الزامی‌اند»
+ * ۴۰۰ سمت سرور است (`RequiredTafsiliLevelMissing`/`TafsiliLevelNotPermitted`).
  */
 export const paymentRequestFormSchema = z
   .object({
     beneficiaryName: z.string().trim().min(1, 'نام ذی‌نفع الزامی است').max(200, 'حداکثر ۲۰۰ کاراکتر است'),
     beneficiaryNationalId: z.string().trim().max(11, 'حداکثر ۱۱ رقم است').optional().or(z.literal('')),
+    beneficiaryTafsiliId: z.string().nullable().optional(),
+    beneficiaryTafsiliLabel: z.string().nullable().optional(),
     paymentType: nonNullableEnumFieldSchema(PAYMENT_TYPE_VALUES, 'نوع ذی‌نفع را انتخاب کنید'),
     invoiceRef: z.string().trim().max(100, 'حداکثر ۱۰۰ کاراکتر است').optional().or(z.literal('')),
     invoiceApproved: z.boolean(),
     expenseAccountId: z.string().trim().min(1, 'انتخاب حساب هزینه الزامی است'),
     expenseAccountLabel: z.string().nullable().optional(),
-    costCenterTafsiliId: z.string().nullable().optional(),
-    costCenterTafsiliLabel: z.string().nullable().optional(),
+    costCenterTafsilis: z.array(z.object({ levelId: z.string(), tafsiliId: z.string(), label: z.string().optional() })),
     amountBeforeTax: z.string().trim().min(1, 'مبلغ الزامی است').refine((v) => Number(v) > 0, 'باید بزرگ‌تر از صفر باشد'),
     vatPercent: z.string().optional().or(z.literal('')),
     vatAmount: z.string().optional().or(z.literal('')),
@@ -55,13 +58,14 @@ export function buildEmptyPaymentRequestFormValues(): PaymentRequestFormValues {
   return {
     beneficiaryName: '',
     beneficiaryNationalId: '',
+    beneficiaryTafsiliId: null,
+    beneficiaryTafsiliLabel: null,
     paymentType: TREASURY_PAYMENT_TYPE_OPTIONS[0].value,
     invoiceRef: '',
     invoiceApproved: false,
     expenseAccountId: '',
     expenseAccountLabel: null,
-    costCenterTafsiliId: null,
-    costCenterTafsiliLabel: null,
+    costCenterTafsilis: [],
     amountBeforeTax: '',
     vatPercent: '',
     vatAmount: '',
@@ -78,19 +82,26 @@ export function buildEmptyPaymentRequestFormValues(): PaymentRequestFormValues {
 export function paymentRequestDtoToFormValues(
   dto: PaymentRequestDto,
   expenseAccountLabel: string | null,
-  costCenterTafsiliLabel: string | null,
   paymentAccountLabel: string | null,
 ): PaymentRequestFormValues {
   return {
     beneficiaryName: dto.beneficiaryName ?? '',
     beneficiaryNationalId: dto.beneficiaryNationalId ?? '',
+    beneficiaryTafsiliId: dto.beneficiaryTafsiliId,
+    beneficiaryTafsiliLabel:
+      dto.beneficiaryTafsiliId != null ? `${dto.beneficiaryTafsiliCode ?? ''} - ${dto.beneficiaryTafsiliName ?? ''}` : null,
     paymentType: dto.paymentType,
     invoiceRef: dto.invoiceRef ?? '',
     invoiceApproved: dto.invoiceApproved,
     expenseAccountId: dto.expenseAccountId,
     expenseAccountLabel,
-    costCenterTafsiliId: dto.costCenterTafsiliId,
-    costCenterTafsiliLabel,
+    // Labels arrive from the detail DTO directly (unlike `TafsiliLevelFields`'s own per-id lookup
+    // fallback, which only exists for callers whose write DTO carries ids without labels).
+    costCenterTafsilis: dto.costCenterTafsilis.map((link) => ({
+      levelId: link.levelId,
+      tafsiliId: link.tafsiliId,
+      label: `${link.tafsiliCode ?? ''} - ${link.tafsiliName ?? ''}`,
+    })),
     amountBeforeTax: String(dto.amountBeforeTax ?? ''),
     vatPercent: dto.vatPercent != null ? String(dto.vatPercent) : '',
     vatAmount: dto.vatAmount != null ? String(dto.vatAmount) : '',
@@ -105,16 +116,19 @@ export function paymentRequestDtoToFormValues(
 }
 
 export function paymentRequestFormValuesToPayload(values: PaymentRequestFormValues): PaymentRequestWritePayload {
+  const costCenterTafsilis: PaymentRequestTafsiliLinkInput[] = values.costCenterTafsilis.map((link) => ({
+    tafsiliId: link.tafsiliId,
+    levelId: link.levelId,
+  }));
   return {
     beneficiaryName: values.beneficiaryName.trim(),
     beneficiaryNationalId: values.beneficiaryNationalId?.trim() ? values.beneficiaryNationalId.trim() : null,
-    // فرم فعلی این فیلد را نمی‌سازد — یک تصمیم دامنه/محصول باز است، نه یک مقدار حدسی.
-    beneficiaryTafsiliId: null,
+    beneficiaryTafsiliId: values.beneficiaryTafsiliId ?? null,
     paymentType: values.paymentType,
     invoiceRef: values.invoiceRef?.trim() ? values.invoiceRef.trim() : null,
     invoiceApproved: values.invoiceApproved,
     expenseAccountId: values.expenseAccountId,
-    costCenterTafsiliId: values.costCenterTafsiliId ?? null,
+    costCenterTafsilis,
     amountBeforeTax: Number(values.amountBeforeTax || 0),
     vatPercent: values.vatPercent ? Number(values.vatPercent) : null,
     vatAmount: values.vatAmount ? Number(values.vatAmount) : null,
@@ -154,12 +168,14 @@ export const treasurySettingFormSchema = z.object({
     .trim()
     .min(1, 'سقف تأیید گروهی الزامی است')
     .refine((v) => Number(v) >= 0, 'باید عددی نامنفی باشد'),
+  // اصلاح ۴-الف (۲۰۲۶-۰۹-۲۹) — اختیاری؛ `null` یعنی هنوز تعریف نشده.
+  beneficiaryTafsilGroupId: z.string().nullable().optional(),
 });
 
 export type TreasurySettingFormValues = z.infer<typeof treasurySettingFormSchema>;
 
 export function buildEmptyTreasurySettingFormValues(): TreasurySettingFormValues {
-  return { ceoApprovalThreshold: '', bulkApproveLimit: '' };
+  return { ceoApprovalThreshold: '', bulkApproveLimit: '', beneficiaryTafsilGroupId: null };
 }
 
 /* ------------------------------------------------------------------------------------------- *
