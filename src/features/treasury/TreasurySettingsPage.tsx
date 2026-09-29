@@ -1,0 +1,126 @@
+import { useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import Alert from '@mui/material/Alert';
+import Grid from '@mui/material/Grid';
+import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined';
+import { PageHeader } from '../../components/PageHeader';
+import { FormCard } from '../../components/FormCard';
+import { FormActions } from '../../components/FormActions';
+import { FormSectionLabel } from '../../components/FormSectionLabel';
+import { ErrorBanner } from '../../components/ErrorBanner';
+import { AmountField } from '../../components/AmountField';
+import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ApiError } from '../../lib/api/apiError';
+import { treasurySettingsApi } from './api';
+import {
+  buildEmptyTreasurySettingFormValues,
+  treasurySettingFormSchema,
+  type TreasurySettingFormValues,
+} from './schema';
+
+/**
+ * تنظیمات خزانه (`TB_TR_SETTING`) — خزانه‌داری بخش ۴-الف. `GET` می‌تواند ۴۰۴ بدهد اگر مدیر مالی
+ * هنوز تعریف نکرده — فرم برای همان حالت هم خالی و قابل‌ذخیره باز است. ذخیره فقط برای نقش
+ * FinanceManager همان واحد مجاز است؛ خطای واقعی سرور (۴۰۳) همان‌طور که هست نمایش داده می‌شود.
+ */
+export function TreasurySettingsPage() {
+  const notify = useNotify();
+  const queryClient = useQueryClient();
+
+  const settingQuery = useQuery({
+    queryKey: ['treasury-settings'],
+    queryFn: () => treasurySettingsApi.get(),
+    retry: (failureCount, error) => !(error instanceof ApiError && error.isNotFound) && failureCount < 2,
+  });
+
+  const notDefinedYet = settingQuery.isError && settingQuery.error instanceof ApiError && settingQuery.error.isNotFound;
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+  } = useForm<TreasurySettingFormValues>({
+    resolver: zodResolver(treasurySettingFormSchema),
+    defaultValues: buildEmptyTreasurySettingFormValues(),
+  });
+
+  useEffect(() => {
+    if (settingQuery.data) {
+      reset({
+        ceoApprovalThreshold: String(settingQuery.data.ceoApprovalThreshold),
+        bulkApproveLimit: String(settingQuery.data.bulkApproveLimit),
+      });
+    }
+  }, [settingQuery.data, reset]);
+
+  const saveMutation = useMutation({
+    mutationFn: (values: TreasurySettingFormValues) =>
+      treasurySettingsApi.upsert({
+        ceoApprovalThreshold: Number(values.ceoApprovalThreshold || 0),
+        bulkApproveLimit: Number(values.bulkApproveLimit || 0),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['treasury-settings'] });
+      notify('تنظیمات خزانه ذخیره شد.');
+    },
+  });
+
+  function onSubmit(values: TreasurySettingFormValues) {
+    saveMutation.mutate(values);
+  }
+
+  return (
+    <section>
+      <PageHeader
+        eyebrow="تنخواه و خزانه‌داری"
+        icon={<SettingsSuggestOutlinedIcon />}
+        accentColor="secondary"
+        title="تنظیمات خزانه"
+        description="آستانهٔ تأیید مدیرعامل و سقف تأیید گروهی — فقط نقش مدیر مالی می‌تواند ذخیره کند."
+      />
+
+      {settingQuery.isError && !notDefinedYet && <ErrorBanner error={settingQuery.error} />}
+      {notDefinedYet && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          تنظیمات خزانهٔ این واحد هنوز تعریف نشده است — مقادیر زیر را وارد و ذخیره کنید.
+        </Alert>
+      )}
+      {saveMutation.isError && <ErrorBanner error={saveMutation.error} />}
+
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FormCard accentColor="secondary" watermarkIcon={<SettingsSuggestOutlinedIcon />} onSubmit={handleSubmit(onSubmit)}>
+            <Grid container spacing={3}>
+              <Grid size={12}>
+                <FormSectionLabel label="آستانه‌ها" accentColor="secondary" />
+              </Grid>
+              <Grid size={12}>
+                <AmountField
+                  control={control}
+                  name="ceoApprovalThreshold"
+                  label="آستانهٔ تأیید مدیرعامل (ریال)"
+                  required
+                  helperText="درخواست پرداختی با مبلغ خالص بالاتر از این آستانه، به تأیید مدیرعامل هم نیاز دارد."
+                />
+              </Grid>
+              <Grid size={12}>
+                <AmountField
+                  control={control}
+                  name="bulkApproveLimit"
+                  label="سقف تأیید گروهی (ریال)"
+                  required
+                  helperText="فقط درخواست‌های زیر این سقف در «تأیید گروهی» کارتابل قابل‌انتخاب‌اند."
+                />
+              </Grid>
+              <Grid size={12}>
+                <FormActions onCancel={() => reset()} pending={saveMutation.isPending} submitLabel="ذخیره تنظیمات" />
+              </Grid>
+            </Grid>
+          </FormCard>
+        </Grid>
+      </Grid>
+    </section>
+  );
+}

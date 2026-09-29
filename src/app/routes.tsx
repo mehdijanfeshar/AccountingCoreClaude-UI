@@ -41,6 +41,11 @@ import { ReplenishmentsListPage } from '../features/petty-cash/ReplenishmentsLis
 import { ReplenishmentFormPage } from '../features/petty-cash/ReplenishmentFormPage';
 import { PettyCashLedgerPage } from '../features/petty-cash/PettyCashLedgerPage';
 import { PettyCashSettlementPage } from '../features/petty-cash/PettyCashSettlementPage';
+import { PaymentRequestListPage } from '../features/treasury/PaymentRequestListPage';
+import { PaymentRequestFormPage } from '../features/treasury/PaymentRequestFormPage';
+import { ApprovalCartablePage } from '../features/treasury/ApprovalCartablePage';
+import { TreasurySettingsPage } from '../features/treasury/TreasurySettingsPage';
+import { TreasuryRolesPage } from '../features/treasury/TreasuryRolesPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -127,4 +132,14 @@ export const routes: RouteObject[] = [
   { path: '/treasury/petty-cash/replenishments/:id', element: <ReplenishmentFormPage /> },
   { path: '/treasury/petty-cash/ledger', element: <PettyCashLedgerPage /> },
   { path: '/treasury/petty-cash/settlement', element: <PettyCashSettlementPage /> },
+
+  // خزانه‌داری، بخش ۴-الف — درخواست پرداخت + کارتابل تأیید + تنظیمات/نقش‌های خزانه
+  // (`docs/tankhah-khazaneh-module.md` §۱۰). بقیهٔ موارد «خزانه» در `navConfig.tsx` همچنان
+  // «به‌زودی»‌اند.
+  { path: '/treasury/khazaneh/payment-requests', element: <PaymentRequestListPage /> },
+  { path: '/treasury/khazaneh/payment-requests/new', element: <PaymentRequestFormPage /> },
+  { path: '/treasury/khazaneh/payment-requests/:id/edit', element: <PaymentRequestFormPage /> },
+  { path: '/treasury/khazaneh/cartable', element: <ApprovalCartablePage /> },
+  { path: '/treasury/khazaneh/settings', element: <TreasurySettingsPage /> },
+  { path: '/treasury/khazaneh/roles', element: <TreasuryRolesPage /> },
 ];
