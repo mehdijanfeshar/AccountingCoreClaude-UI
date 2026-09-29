@@ -36,13 +36,14 @@ import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialo
 import { BankAccountPickerDialog } from '../../components/BankAccountPickerDialog';
 import { TafsiliLevelFields } from '../../components/dynamic-tafsili/TafsiliLevelFields';
 import { BeneficiaryTafsiliSelect } from './BeneficiaryTafsiliSelect';
+import { PaymentRequestAccountingPanel } from './PaymentRequestAccountingPanel';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, formatThousands } from '../../lib/format/numbers';
-import { formatPersianDateTime } from '../../lib/format/dates';
+import { formatLegacyJalaliDate, formatPersianDateTime } from '../../lib/format/dates';
 import { amountInWordsRial } from '../../lib/format/numberToWords';
 import { paymentRequestsApi } from './api';
-import { getPaymentRequestEventActionLabel, getPaymentRequestStateColor, getPaymentRequestStateLabel, isPaymentRequestEditable, TREASURY_PAYMENT_METHOD_OPTIONS, TREASURY_PAYMENT_TYPE_OPTIONS } from './treasuryPaymentRequestState';
+import { getPaymentRequestEventActionLabel, getPaymentRequestStateColor, getPaymentRequestStateLabel, getTreasuryPaymentMethodLabel, isPaymentRequestEditable, PAYMENT_REQUEST_STATE, TREASURY_PAYMENT_METHOD_OPTIONS, TREASURY_PAYMENT_TYPE_OPTIONS } from './treasuryPaymentRequestState';
 import {
   buildEmptyPaymentRequestFormValues,
   paymentRequestDtoToFormValues,
@@ -251,6 +252,13 @@ export function PaymentRequestFormPage() {
         <Alert severity="info" sx={{ mb: 2 }}>
           این درخواست در وضعیت «{getPaymentRequestStateLabel(existingQuery.data?.requestState)}» است و دیگر قابل ویرایش
           نیست — فقط درخواست‌های «پیش‌نویس» و «برگشتی» قابل ویرایش‌اند.
+        </Alert>
+      )}
+
+      {/* بخش ۴-ب — تعلیق موقت. */}
+      {existingQuery.data?.requestState === PAYMENT_REQUEST_STATE.suspended && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          این درخواست معلق است.{existingQuery.data.suspendReason ? ` دلیل: ${existingQuery.data.suspendReason}` : ''}
         </Alert>
       )}
 
@@ -524,6 +532,41 @@ export function PaymentRequestFormPage() {
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
+          {/* بخش ۴-ب — فقط وقتی حداقل یک سند خودکار صادر شده باشد نمایش داده می‌شود. */}
+          {isEdit && existingQuery.data && (existingQuery.data.liabilityVoucherNumber || existingQuery.data.paymentVoucherNumber) && (
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                اجرای پرداخت
+              </Typography>
+              <Stack spacing={1}>
+                {existingQuery.data.liabilityVoucherNumber && (
+                  <Typography variant="body2">شمارهٔ سند شناسایی بدهی: {existingQuery.data.liabilityVoucherNumber}</Typography>
+                )}
+                {existingQuery.data.paymentVoucherNumber && (
+                  <Typography variant="body2">شمارهٔ سند پرداخت: {existingQuery.data.paymentVoucherNumber}</Typography>
+                )}
+                {existingQuery.data.bankReference && (
+                  <Typography variant="body2">شمارهٔ مرجع بانکی: {existingQuery.data.bankReference}</Typography>
+                )}
+                {existingQuery.data.paidDate && (
+                  <Typography variant="body2">تاریخ پرداخت: {formatLegacyJalaliDate(existingQuery.data.paidDate)}</Typography>
+                )}
+                {existingQuery.data.destinationIban && (
+                  <Typography variant="body2">شبای مقصد: {existingQuery.data.destinationIban}</Typography>
+                )}
+                {existingQuery.data.paymentMethod != null && (
+                  <Typography variant="body2">روش پرداخت: {getTreasuryPaymentMethodLabel(existingQuery.data.paymentMethod)}</Typography>
+                )}
+                {existingQuery.data.executedBy && (
+                  <Typography variant="body2">اجراکننده: {existingQuery.data.executedBy}</Typography>
+                )}
+                {existingQuery.data.executedDate && (
+                  <Typography variant="body2">تاریخ اجرا: {formatPersianDateTime(existingQuery.data.executedDate)}</Typography>
+                )}
+              </Stack>
+            </Paper>
+          )}
+
           {isEdit && existingQuery.data && (
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
@@ -560,6 +603,12 @@ export function PaymentRequestFormPage() {
             </Paper>
           )}
         </Grid>
+
+        {isEdit && existingQuery.data && (
+          <Grid size={12}>
+            <PaymentRequestAccountingPanel paymentRequestId={existingQuery.data.id} />
+          </Grid>
+        )}
       </Grid>
 
       <AccountCodePickerDialog

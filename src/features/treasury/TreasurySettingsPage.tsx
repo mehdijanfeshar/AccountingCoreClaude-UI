@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
@@ -9,12 +9,17 @@ import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutlined';
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AmountField } from '../../components/AmountField';
+import { LinkedEntityPickerField } from '../../components/LinkedEntityPickerField';
+import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { treasurySettingsApi } from './api';
@@ -24,6 +29,13 @@ import {
   treasurySettingFormSchema,
   type TreasurySettingFormValues,
 } from './schema';
+import type { AccountCodeDto } from '../../types/accountCode';
+
+function accountCodeLabel(account: { accCode: string | null; accCodeName: string | null }): string {
+  return `${account.accCode ? `${account.accCode} — ` : ''}${account.accCodeName ?? '—'}`;
+}
+
+type AccountPickerField = 'payablesAccountId' | 'vatCreditAccountId' | 'insurancePayableAccountId';
 
 /**
  * تنظیمات خزانه (`TB_TR_SETTING`) — خزانه‌داری بخش ۴-الف. `GET` می‌تواند ۴۰۴ بدهد اگر مدیر مالی
@@ -50,10 +62,14 @@ export function TreasurySettingsPage() {
   });
   const tafsilGroupOptions = tafsilGroupsQuery.data?.items ?? [];
 
+  const [accountPickerField, setAccountPickerField] = useState<AccountPickerField | null>(null);
+
   const {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
   } = useForm<TreasurySettingFormValues>({
     resolver: zodResolver(treasurySettingFormSchema),
     defaultValues: buildEmptyTreasurySettingFormValues(),
@@ -65,9 +81,48 @@ export function TreasurySettingsPage() {
         ceoApprovalThreshold: String(settingQuery.data.ceoApprovalThreshold),
         bulkApproveLimit: String(settingQuery.data.bulkApproveLimit),
         beneficiaryTafsilGroupId: settingQuery.data.beneficiaryTafsilGroupId,
+        payablesAccountId: settingQuery.data.payablesAccountId,
+        payablesAccountLabel:
+          settingQuery.data.payablesAccountId != null
+            ? accountCodeLabel({
+                accCode: settingQuery.data.payablesAccountCode,
+                accCodeName: settingQuery.data.payablesAccountName,
+              })
+            : null,
+        vatCreditAccountId: settingQuery.data.vatCreditAccountId,
+        vatCreditAccountLabel:
+          settingQuery.data.vatCreditAccountId != null
+            ? accountCodeLabel({
+                accCode: settingQuery.data.vatCreditAccountCode,
+                accCodeName: settingQuery.data.vatCreditAccountName,
+              })
+            : null,
+        insurancePayableAccountId: settingQuery.data.insurancePayableAccountId,
+        insurancePayableAccountLabel:
+          settingQuery.data.insurancePayableAccountId != null
+            ? accountCodeLabel({
+                accCode: settingQuery.data.insurancePayableAccountCode,
+                accCodeName: settingQuery.data.insurancePayableAccountName,
+              })
+            : null,
       });
     }
   }, [settingQuery.data, reset]);
+
+  const payablesAccountLabel = watch('payablesAccountLabel');
+  const vatCreditAccountLabel = watch('vatCreditAccountLabel');
+  const insurancePayableAccountLabel = watch('insurancePayableAccountLabel');
+
+  function handlePickAccount(account: AccountCodeDto) {
+    if (!accountPickerField) return;
+    setValue(accountPickerField, account.id, { shouldDirty: true });
+    const labelField = `${accountPickerField.replace(/Id$/, '')}Label` as
+      | 'payablesAccountLabel'
+      | 'vatCreditAccountLabel'
+      | 'insurancePayableAccountLabel';
+    setValue(labelField, accountCodeLabel(account), { shouldDirty: true });
+    setAccountPickerField(null);
+  }
 
   const saveMutation = useMutation({
     mutationFn: (values: TreasurySettingFormValues) =>
@@ -75,6 +130,9 @@ export function TreasurySettingsPage() {
         ceoApprovalThreshold: Number(values.ceoApprovalThreshold || 0),
         bulkApproveLimit: Number(values.bulkApproveLimit || 0),
         beneficiaryTafsilGroupId: values.beneficiaryTafsilGroupId ?? null,
+        payablesAccountId: values.payablesAccountId ?? null,
+        vatCreditAccountId: values.vatCreditAccountId ?? null,
+        insurancePayableAccountId: values.insurancePayableAccountId ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['treasury-settings'] });
@@ -169,12 +227,56 @@ export function TreasurySettingsPage() {
               </Grid>
 
               <Grid size={12}>
+                <FormSectionLabel
+                  label="حساب‌های حسابداری خودکار"
+                  accentColor="secondary"
+                  caption="بخش ۴-ب — بدون این سه حساب، صدور سند «شناسایی بدهی» هنگام تأیید نهایی درخواست پرداخت با خطا رد می‌شود."
+                />
+              </Grid>
+              <LinkedEntityPickerField
+                icon={<ReceiptLongOutlinedIcon fontSize="small" color="action" />}
+                label="حساب بستانکاران تجاری (اختیاری)"
+                value={payablesAccountLabel}
+                onPick={() => setAccountPickerField('payablesAccountId')}
+                onClear={() => {
+                  setValue('payablesAccountId', null, { shouldDirty: true });
+                  setValue('payablesAccountLabel', null, { shouldDirty: true });
+                }}
+              />
+              <LinkedEntityPickerField
+                icon={<AccountBalanceOutlinedIcon fontSize="small" color="action" />}
+                label="حساب اعتبار مالیات بر ارزش‌افزودهٔ خرید (اختیاری)"
+                value={vatCreditAccountLabel}
+                onPick={() => setAccountPickerField('vatCreditAccountId')}
+                onClear={() => {
+                  setValue('vatCreditAccountId', null, { shouldDirty: true });
+                  setValue('vatCreditAccountLabel', null, { shouldDirty: true });
+                }}
+              />
+              <LinkedEntityPickerField
+                icon={<HealthAndSafetyOutlinedIcon fontSize="small" color="action" />}
+                label="حساب سپرده بیمه پرداختنی (اختیاری)"
+                value={insurancePayableAccountLabel}
+                onPick={() => setAccountPickerField('insurancePayableAccountId')}
+                onClear={() => {
+                  setValue('insurancePayableAccountId', null, { shouldDirty: true });
+                  setValue('insurancePayableAccountLabel', null, { shouldDirty: true });
+                }}
+              />
+
+              <Grid size={12}>
                 <FormActions onCancel={() => reset()} pending={saveMutation.isPending} submitLabel="ذخیره تنظیمات" />
               </Grid>
             </Grid>
           </FormCard>
         </Grid>
       </Grid>
+
+      <AccountCodePickerDialog
+        open={accountPickerField !== null}
+        onClose={() => setAccountPickerField(null)}
+        onSelect={handlePickAccount}
+      />
     </section>
   );
 }

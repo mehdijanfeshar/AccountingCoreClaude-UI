@@ -250,7 +250,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/treasury/khazaneh/roles',
         icon: <BadgeOutlinedIcon fontSize="small" />,
       },
-      { label: 'اجرای پرداخت', icon: <PaymentsOutlinedIcon fontSize="small" /> },
+      {
+        label: 'اجرای پرداخت',
+        description: 'اجرای واقعی پرداخت‌های آمادهٔ خزانه در بانک، یا تعلیق/رفع تعلیق موقت',
+        to: '/treasury/khazaneh/execution',
+        icon: <PaymentsOutlinedIcon fontSize="small" />,
+      },
       { label: 'دریافت و انتقال', icon: <CompareArrowsOutlinedIcon fontSize="small" /> },
       { label: 'مغایرت بانکی', icon: <RuleOutlinedIcon fontSize="small" /> },
     ],

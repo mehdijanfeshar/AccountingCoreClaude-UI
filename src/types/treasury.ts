@@ -13,12 +13,14 @@ export type TreasuryPaymentMethodValue = 1 | 2 | 3 | 4;
 /**
  * `PaymentRequestState` — زنجیرهٔ خطی Draft(۱) → PendingUnitManager(۲) → PendingFinanceManager(۳)
  * → (فقط اگر مبلغ از آستانهٔ مدیرعامل بیشتر باشد) PendingCeo(۴) → ReadyForExecution(۵)؛ از هر
- * Pending، هم Returned(۶) و هم Rejected(۷) قابل دسترس‌اند.
+ * Pending، هم Returned(۶) و هم Rejected(۷) قابل دسترس‌اند. بخش ۴-ب (۲۰۲۶-۰۹-۲۹) دو وضعیت پایانی/
+ * موقت اضافه کرد: Executed(۸) — اجرا شد، پایانی؛ Suspended(۹) — موقتاً معلق، فقط از/به
+ * ReadyForExecution.
  */
-export type PaymentRequestStateValue = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type PaymentRequestStateValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
-/** `PaymentRequestEventAction`. */
-export type PaymentRequestEventActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+/** `PaymentRequestEventAction`. بخش ۴-ب اضافه کرد: ۸=صدور سند شناسایی بدهی، ۹=اجرا، ۱۰=تعلیق، ۱۱=رفع تعلیق. */
+export type PaymentRequestEventActionValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 /** `TreasuryRole` — ۱=مدیر واحد، ۲=مدیر مالی، ۳=مدیرعامل، ۴=حسابدار ارشد، ۵=خزانه‌دار. */
 export type TreasuryRoleValue = 1 | 2 | 3 | 4 | 5;
@@ -26,7 +28,9 @@ export type TreasuryRoleValue = 1 | 2 | 3 | 4 | 5;
 /**
  * `GET/POST api/treasury/settings` — `TreasurySettingDto`. `beneficiaryTafsilGroupId` — اصلاح
  * ۴-الف (۲۰۲۶-۰۹-۲۹) — `null` یعنی واحد هنوز گروه تفصیلی ذی‌نفع تعریف نکرده؛ در این حالت ثبت
- * درخواست پرداخت با تفصیلی ذی‌نفع رد می‌شود.
+ * درخواست پرداخت با تفصیلی ذی‌نفع رد می‌شود. سه فیلد `...AccountId`/`...AccountCode`/
+ * `...AccountName` — بخش ۴-ب (۲۰۲۶-۰۹-۲۹): `null` یعنی هنوز تعریف نشده — صدور سند شناسایی بدهی با
+ * ۴۰۹ رد می‌شود.
  */
 export interface TreasurySettingDto {
   id: string;
@@ -35,6 +39,18 @@ export interface TreasurySettingDto {
   beneficiaryTafsilGroupId: string | null;
   beneficiaryTafsilGroupCode: string | null;
   beneficiaryTafsilGroupName: string | null;
+  /** «حساب بستانکاران تجاری». */
+  payablesAccountId: string | null;
+  payablesAccountCode: string | null;
+  payablesAccountName: string | null;
+  /** «حساب اعتبار مالیات بر ارزش‌افزودهٔ خرید». */
+  vatCreditAccountId: string | null;
+  vatCreditAccountCode: string | null;
+  vatCreditAccountName: string | null;
+  /** «حساب سپردهٔ بیمهٔ پرداختنی». */
+  insurancePayableAccountId: string | null;
+  insurancePayableAccountCode: string | null;
+  insurancePayableAccountName: string | null;
 }
 
 /** `GET api/treasury/roles` — `TreasuryRoleDto`. */
@@ -129,7 +145,51 @@ export interface PaymentRequestDto {
   payRecivHeadId: string | null;
   addUserId: string;
   createdDate: string;
+  /** بخش ۴-ب — سند «شناسایی بدهی» (شمارهٔ ۱)، در لحظهٔ تأیید نهایی (ورود به ReadyForExecution) صادر می‌شود. */
+  liabilityVoucherId: string | null;
+  liabilityVoucherNumber: string | null;
+  /** بخش ۴-ب — سند «پرداخت» (شمارهٔ ۲)، در لحظهٔ اجرا صادر می‌شود. */
+  paymentVoucherId: string | null;
+  paymentVoucherNumber: string | null;
+  bankReference: string | null;
+  /** Legacy `YYYYMMDD`. */
+  paidDate: string | null;
+  destinationIban: string | null;
+  executedBy: string | null;
+  executedDate: string | null;
+  suspendReason: string | null;
   events: PaymentRequestEventDto[];
+}
+
+/**
+ * `GET api/treasury/payment-requests/{id}/accounting` — `PaymentRequestAccountingDto`، بخش ۴-ب.
+ * فقط-خواندنی: تصویری از دو سند خودکار GL (اگر صادر شده باشند) و کد Legacy
+ * `TB_PAYRECIVHEAD` (اگر پرداخت اجرا شده باشد).
+ */
+export interface PaymentRequestAccountingDto {
+  liabilityVoucher: PaymentRequestVoucherAccountingDto | null;
+  paymentVoucher: PaymentRequestVoucherAccountingDto | null;
+  payRecivCode: string | null;
+}
+
+/** `totalDebit`/`totalCredit` — سرور محاسبه می‌کند، همیشه با هم برابرند. `state` — `DocLife`. */
+export interface PaymentRequestVoucherAccountingDto {
+  id: string;
+  voucherNumber: string | null;
+  date: string | null;
+  state: number | null;
+  lines: PaymentRequestVoucherLineAccountingDto[];
+  totalDebit: number;
+  totalCredit: number;
+}
+
+/** هر تفصیلی به شکل `"{code} - {name}"`، با «، » به هم پیوسته؛ رشتهٔ خالی یعنی ردیف تفصیلی ندارد. */
+export interface PaymentRequestVoucherLineAccountingDto {
+  accountCode: string | null;
+  accountName: string | null;
+  tafsiliLabels: string;
+  debit: number;
+  credit: number;
 }
 
 /**

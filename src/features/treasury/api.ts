@@ -4,6 +4,7 @@ import type { PagedResult } from '../../types/pagedResult';
 import type { TafsiliLookupItemDto } from '../../types/tafsili';
 import type {
   ApprovalCartableItemDto,
+  PaymentRequestAccountingDto,
   PaymentRequestDto,
   PaymentRequestListResult,
   PaymentRequestStateValue,
@@ -32,11 +33,17 @@ export const treasurySettingsApi = {
   get(): Promise<TreasurySettingDto> {
     return apiClient.get<TreasurySettingDto>('/treasury/settings').then((res) => res.data);
   },
-  /** ایجاد یا جایگزینی کامل. فقط نقش FinanceManager همان واحد. */
+  /**
+   * ایجاد یا جایگزینی کامل. فقط نقش FinanceManager همان واحد. سه فیلد `...AccountId` — بخش ۴-ب
+   * (۲۰۲۶-۰۹-۲۹) — ۴۰۴ اگر مقدار داشته باشند ولی حساب معین موردنظر وجود نداشته باشد.
+   */
   upsert(payload: {
     ceoApprovalThreshold: number;
     bulkApproveLimit: number;
     beneficiaryTafsilGroupId: string | null;
+    payablesAccountId: string | null;
+    vatCreditAccountId: string | null;
+    insurancePayableAccountId: string | null;
   }): Promise<TreasurySettingDto> {
     return apiClient.post<TreasurySettingDto>('/treasury/settings', payload).then((res) => res.data);
   },
@@ -73,6 +80,8 @@ export interface PaymentRequestListParams {
   pageSize?: number;
   state?: PaymentRequestStateValue;
   search?: string;
+  /** بخش ۴-ب — فقط `ReadyForExecution` + `Suspended` («اجرای پرداخت»)، بی‌اثر از `state`. */
+  forExecution?: boolean;
 }
 
 /**
@@ -162,6 +171,33 @@ export const paymentRequestsApi = {
    */
   bulkApprove(ids: string[]): Promise<{ ids: string[] }> {
     return apiClient.post<{ ids: string[] }>('/treasury/payment-requests/bulk-approve', { ids }).then((res) => res.data);
+  },
+  /**
+   * بخش ۴-ب — ثبت پرداخت واقعاً انجام‌شده در بانک (بدون یکپارچگی بانکی). سند «پرداخت» صادر و
+   * Legacy `TB_PAYRECIVHEAD/DETAIL` نوشته می‌شود. فقط خزانه‌دار، ≠ ثبت‌کنندهٔ درخواست، فقط از
+   * «آمادهٔ اجرا». `paidDate` — Legacy `YYYYMMDD`.
+   */
+  execute(
+    id: string,
+    payload: { bankReference: string; paidDate: string; destinationIban: string | null; paymentMethod: number | null },
+  ): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/payment-requests/${id}/execute`, payload).then((res) => res.data);
+  },
+  /** بخش ۴-ب — تعلیق موقت. دلیل اجباری. فقط خزانه‌دار، فقط از «آمادهٔ اجرا». */
+  suspend(id: string, reason: string): Promise<CreateResponse> {
+    return apiClient
+      .post<CreateResponse>(`/treasury/payment-requests/${id}/suspend`, { reason: reason.trim() })
+      .then((res) => res.data);
+  },
+  /** بخش ۴-ب — رفع تعلیق. بدون بدنه. فقط خزانه‌دار، فقط از «معلق». */
+  resume(id: string): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>(`/treasury/payment-requests/${id}/resume`).then((res) => res.data);
+  },
+  /** بخش ۴-ب — سند «شناسایی بدهی»/«پرداخت» (اگر صادر شده باشند) + کد Legacy PayReciv. */
+  getAccounting(id: string): Promise<PaymentRequestAccountingDto> {
+    return apiClient
+      .get<PaymentRequestAccountingDto>(`/treasury/payment-requests/${id}/accounting`)
+      .then((res) => res.data);
   },
 };
 

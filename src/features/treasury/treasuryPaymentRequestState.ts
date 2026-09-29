@@ -18,6 +18,10 @@ export const PAYMENT_REQUEST_STATE = {
   readyForExecution: 5,
   returned: 6,
   rejected: 7,
+  /** بخش ۴-ب — اجرا شد؛ پایانی. */
+  executed: 8,
+  /** بخش ۴-ب — موقتاً معلق؛ فقط از/به `readyForExecution`. */
+  suspended: 9,
 } as const;
 
 export const PAYMENT_REQUEST_STATE_OPTIONS: readonly {
@@ -32,6 +36,8 @@ export const PAYMENT_REQUEST_STATE_OPTIONS: readonly {
   { value: 5, label: 'آمادهٔ اجرا', color: 'success' },
   { value: 6, label: 'برگشتی', color: 'warning' },
   { value: 7, label: 'ردشده', color: 'error' },
+  { value: 8, label: 'پرداخت شد', color: 'success' },
+  { value: 9, label: 'معلق', color: 'warning' },
 ] as const;
 
 export function getPaymentRequestStateLabel(value: number | null | undefined): string {
@@ -64,6 +70,20 @@ export const PENDING_PAYMENT_REQUEST_STATES: readonly number[] = [
   PAYMENT_REQUEST_STATE.pendingCeo,
 ];
 
+/** بخش ۴-ب — فقط «آمادهٔ اجرا» قابل اجرا/تعلیق است. */
+export function isPaymentRequestExecutable(state: number | null | undefined): boolean {
+  return state === PAYMENT_REQUEST_STATE.readyForExecution;
+}
+
+export function isPaymentRequestSuspendable(state: number | null | undefined): boolean {
+  return state === PAYMENT_REQUEST_STATE.readyForExecution;
+}
+
+/** بخش ۴-ب — فقط «معلق» قابل رفع‌تعلیق است. */
+export function isPaymentRequestResumable(state: number | null | undefined): boolean {
+  return state === PAYMENT_REQUEST_STATE.suspended;
+}
+
 /** `PaymentRequestEventAction`. */
 export const PAYMENT_REQUEST_EVENT_ACTION_OPTIONS: readonly { value: number; label: string }[] = [
   { value: 1, label: 'ایجاد' },
@@ -73,6 +93,10 @@ export const PAYMENT_REQUEST_EVENT_ACTION_OPTIONS: readonly { value: number; lab
   { value: 5, label: 'تأیید' },
   { value: 6, label: 'برگشت' },
   { value: 7, label: 'رد' },
+  { value: 8, label: 'صدور سند شناسایی بدهی' },
+  { value: 9, label: 'اجرای پرداخت' },
+  { value: 10, label: 'تعلیق' },
+  { value: 11, label: 'رفع تعلیق' },
 ] as const;
 
 export function getPaymentRequestEventActionLabel(value: number | null | undefined): string {

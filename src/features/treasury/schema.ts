@@ -141,6 +141,39 @@ export function paymentRequestFormValuesToPayload(values: PaymentRequestFormValu
   };
 }
 
+/* ------------------------------------------------------------------------------------------- *
+ * اجرای پرداخت — بخش ۴-ب (`ExecutePaymentRequestCommandValidator` مرجع)
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `ExecutePaymentRequestCommandValidator` سمت سرور مرجع است. */
+export const executePaymentRequestFormSchema = z.object({
+  bankReference: z.string().trim().min(1, 'شمارهٔ پیگیری/مرجع بانکی الزامی است').max(100, 'حداکثر ۱۰۰ کاراکتر است'),
+  paidDate: z.string().trim().min(1, 'تاریخ پرداخت الزامی است'),
+  // IR + 24 digits — دقیقاً هم‌الگوی `IbanPattern` سمت سرور، بدون checksum.
+  destinationIban: z
+    .string()
+    .trim()
+    .regex(/^IR\d{24}$/, 'شمارهٔ شبا باید به شکل IR و ۲۴ رقم باشد')
+    .optional()
+    .or(z.literal('')),
+  paymentMethod: enumFieldSchema(PAYMENT_METHOD_VALUES, 'روش پرداخت نامعتبر است'),
+});
+
+export type ExecutePaymentRequestFormValues = z.infer<typeof executePaymentRequestFormSchema>;
+
+export function buildEmptyExecutePaymentRequestFormValues(paidDate: string): ExecutePaymentRequestFormValues {
+  return { bankReference: '', paidDate, destinationIban: '', paymentMethod: null };
+}
+
+export function executePaymentRequestFormValuesToPayload(values: ExecutePaymentRequestFormValues) {
+  return {
+    bankReference: values.bankReference.trim(),
+    paidDate: values.paidDate.trim(),
+    destinationIban: values.destinationIban?.trim() ? values.destinationIban.trim() : null,
+    paymentMethod: values.paymentMethod,
+  };
+}
+
 /** پیش‌نمایش سمت کلاینت فقط برای UX — محاسبهٔ نهایی و مرجع همیشه سمت سرور است. */
 export function previewNetPayableAmount(values: {
   amountBeforeTax: string;
@@ -170,12 +203,30 @@ export const treasurySettingFormSchema = z.object({
     .refine((v) => Number(v) >= 0, 'باید عددی نامنفی باشد'),
   // اصلاح ۴-الف (۲۰۲۶-۰۹-۲۹) — اختیاری؛ `null` یعنی هنوز تعریف نشده.
   beneficiaryTafsilGroupId: z.string().nullable().optional(),
+  // بخش ۴-ب (۲۰۲۶-۰۹-۲۹) — هر سه اختیاری؛ `null` یعنی هنوز تعریف نشده (صدور سند شناسایی بدهی با
+  // ۴۰۹ رد می‌شود). `...Label` فقط برای نمایش در Autocomplete است، به سرور فرستاده نمی‌شود.
+  payablesAccountId: z.string().nullable().optional(),
+  payablesAccountLabel: z.string().nullable().optional(),
+  vatCreditAccountId: z.string().nullable().optional(),
+  vatCreditAccountLabel: z.string().nullable().optional(),
+  insurancePayableAccountId: z.string().nullable().optional(),
+  insurancePayableAccountLabel: z.string().nullable().optional(),
 });
 
 export type TreasurySettingFormValues = z.infer<typeof treasurySettingFormSchema>;
 
 export function buildEmptyTreasurySettingFormValues(): TreasurySettingFormValues {
-  return { ceoApprovalThreshold: '', bulkApproveLimit: '', beneficiaryTafsilGroupId: null };
+  return {
+    ceoApprovalThreshold: '',
+    bulkApproveLimit: '',
+    beneficiaryTafsilGroupId: null,
+    payablesAccountId: null,
+    payablesAccountLabel: null,
+    vatCreditAccountId: null,
+    vatCreditAccountLabel: null,
+    insurancePayableAccountId: null,
+    insurancePayableAccountLabel: null,
+  };
 }
 
 /* ------------------------------------------------------------------------------------------- *

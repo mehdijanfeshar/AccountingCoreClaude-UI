@@ -46,6 +46,7 @@ import { PaymentRequestFormPage } from '../features/treasury/PaymentRequestFormP
 import { ApprovalCartablePage } from '../features/treasury/ApprovalCartablePage';
 import { TreasurySettingsPage } from '../features/treasury/TreasurySettingsPage';
 import { TreasuryRolesPage } from '../features/treasury/TreasuryRolesPage';
+import { PaymentExecutionListPage } from '../features/treasury/PaymentExecutionListPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -142,4 +143,6 @@ export const routes: RouteObject[] = [
   { path: '/treasury/khazaneh/cartable', element: <ApprovalCartablePage /> },
   { path: '/treasury/khazaneh/settings', element: <TreasurySettingsPage /> },
   { path: '/treasury/khazaneh/roles', element: <TreasuryRolesPage /> },
+  // بخش ۴-ب — اجرای پرداخت.
+  { path: '/treasury/khazaneh/execution', element: <PaymentExecutionListPage /> },
 ];
