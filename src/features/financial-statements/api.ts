@@ -15,6 +15,7 @@ import type {
   FsTemplateCheckResultDto,
   FsTemplateDto,
   FsTemplateRowInput,
+  FsAccountMappingDto,
   FsTemplateVersionDetailDto,
 } from '../../types/fsTemplate';
 
@@ -62,6 +63,12 @@ export const fsTemplatesApi = {
   /** پاسخ = کد قالب‌های ساخته‌شده (خالی اگر همه از قبل بودند). */
   seedDefaults(): Promise<string[]> {
     return apiClient.post<string[]>('/fs/templates/seed-defaults').then((res) => res.data);
+  },
+  /** بخش ۴۵-و — هر معین کدینگ به کدام ردیف قالب‌های مجموعه رفته (قالب‌های همان اجرای واحد جاری). */
+  accountMapping(framework: FsFrameworkValue, year: number, useDrafts: boolean): Promise<FsAccountMappingDto[]> {
+    return apiClient
+      .get<FsAccountMappingDto[]>("/fs/account-mapping", { params: { framework, year, useDrafts } })
+      .then((res) => res.data);
   },
   createVersion(templateId: string, payload: { sourceVersionId: string | null; description: string | null }): Promise<string> {
     return apiClient

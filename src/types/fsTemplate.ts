@@ -187,3 +187,28 @@ export interface FsTemplateCheckResultDto {
   isValid: boolean;
   issues: FsTemplateIssue[];
 }
+
+/* ---- بخش ۴۵-و — نگاشت حساب‌ها ---- */
+
+export interface FsMappingMatchDto {
+  templateCode: string;
+  templateTitle: string;
+  isNote: boolean;
+  rowCode: string;
+  rowTitle: string | null;
+  /** "D" = فقط مانده بدهکار، "C" = فقط بستانکار، null = همه. */
+  side: 'D' | 'C' | null;
+}
+
+export interface FsAccountMappingDto {
+  accCode: string;
+  accName: string | null;
+  kolCode: string | null;
+  kolName: string | null;
+  groupCode: string | null;
+  groupName: string | null;
+  /** فقط صورت‌های اصلی؛ صفر = بدون نگاشت. */
+  statementMatchCount: number;
+  doubleCounted: boolean;
+  matches: FsMappingMatchDto[];
+}

@@ -59,6 +59,7 @@ import { FsRunsListPage } from '../features/financial-statements/FsRunsListPage'
 import { FsRunWizardPage } from '../features/financial-statements/FsRunWizardPage';
 import { FsRunViewPage } from '../features/financial-statements/FsRunViewPage';
 import { FsCheckRulesPage } from "../features/financial-statements/FsCheckRulesPage";
+import { FsAccountMappingPage } from "../features/financial-statements/FsAccountMappingPage";
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -176,4 +177,6 @@ export const routes: RouteObject[] = [
   { path: '/fs/runs/:id', element: <FsRunViewPage /> },
   // بخش ۴۵-ه — قواعد کنترل.
   { path: "/fs/check-rules", element: <FsCheckRulesPage /> },
+  // بخش ۴۵-و — نگاشت حساب‌ها.
+  { path: "/fs/account-mapping", element: <FsAccountMappingPage /> },
 ];

@@ -298,6 +298,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <TableChartOutlinedIcon fontSize="small" />,
       },
       {
+        label: "نگاشت حساب‌ها",
+        description: "هر معین در کدام ردیف صورت‌ها می‌آید؛ معین‌های بدون نگاشت",
+        to: "/fs/account-mapping",
+        icon: <AccountTreeOutlinedIcon fontSize="small" />,
+      },
+      {
         label: "کنترل‌های صورت‌ها",
         description: "قواعد تساوی بین صورت‌ها که با هر تهیه اجرا می‌شوند",
         to: "/fs/check-rules",
