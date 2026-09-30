@@ -225,7 +225,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/treasury/petty-cash/funds',
         icon: <SettingsSuggestOutlinedIcon fontSize="small" />,
       },
-      { label: 'داشبورد خزانه', icon: <AccountBalanceOutlinedIcon fontSize="small" /> },
+      {
+        label: 'داشبورد خزانه',
+        description: 'موجودی بانک‌ها، تعهدات پیش‌رو، اقلام در انتظار تأیید و گردش امروز',
+        to: '/treasury/khazaneh/dashboard',
+        icon: <AccountBalanceOutlinedIcon fontSize="small" />,
+      },
       {
         label: 'درخواست پرداخت',
         description: 'ثبت، ویرایش و ارسال درخواست پرداخت به زنجیرهٔ تأیید خزانه',
@@ -262,7 +267,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/treasury/khazaneh/receipts-transfers',
         icon: <CompareArrowsOutlinedIcon fontSize="small" />,
       },
-      { label: 'مغایرت بانکی', icon: <RuleOutlinedIcon fontSize="small" /> },
+      {
+        label: 'مغایرت بانکی',
+        description: 'صورت‌حساب‌های بانکی و تطبیق ردیف‌های آن با دفتر',
+        to: '/treasury/khazaneh/bank-reconciliation',
+        icon: <RuleOutlinedIcon fontSize="small" />,
+      },
     ],
   },
 ];

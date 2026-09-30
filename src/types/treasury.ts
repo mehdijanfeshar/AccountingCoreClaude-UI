@@ -71,6 +71,10 @@ export interface TreasurySettingDto {
   customerTafsilGroupName: string | null;
   /** بخش ۴-ج — سقف مجموع انتقال‌های اجراشده از یک حساب مبدأ در یک روز. */
   dailyTransferLimit: number | null;
+  /** بخش ۴-د — «کارمزد بانکی». `null` یعنی هنوز تعریف نشده — حل ردیف با نوع «سند کارمزد بانکی» با ۴۰۹ رد می‌شود. */
+  bankFeeAccountId: string | null;
+  bankFeeAccountCode: string | null;
+  bankFeeAccountName: string | null;
 }
 
 /** `GET api/treasury/roles` — `TreasuryRoleDto`. */
@@ -388,4 +392,185 @@ export interface TransferAccountingDto {
 export interface BankAccountBalanceDto {
   bankAccountId: string;
   balance: number;
+}
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-د — مغایرت‌گیری بانکی (`BankStatementDto`/...) + داشبورد خزانه (`TreasuryDashboardDto`)
+ * ------------------------------------------------------------------------------------------- */
+
+/** `BankStatementSource` — ۱=دستی، ۲=فایل «دیسکت» بانک (هنوز پیاده نشده، همیشه ۴۰۹ می‌دهد). */
+export type BankStatementSourceValue = 1 | 2;
+
+/** `BankStatementState` — ۱=باز (قابل ویرایش/تطبیق)، ۲=بسته (فقط‌خواندنی، قابل بازگشایی). */
+export type BankStatementStateValue = 1 | 2;
+
+/**
+ * `BankStatementLineMatchState` — Unmatched(۱) → (تطبیق خودکار) AutoMatched(۲) یا (تطبیق دستی)
+ * ManualMatched(۳)، یا مستقیماً (رفع) Resolved(۴). AutoMatched/ManualMatched → (لغو تطبیق) به
+ * Unmatched برمی‌گردد. Resolved → (برگرداندن، فقط اگر سند رفع هنوز موقت باشد) به Unmatched برمی‌گردد.
+ */
+export type BankStatementLineMatchStateValue = 1 | 2 | 3 | 4;
+
+/** `BankStatementLineResolutionType` — ۱=سند کارمزد بانکی (فقط برداشت)، ۲=اتصال به دریافت (فقط واریز)، ۳=نادیده‌گرفته‌شده. */
+export type BankStatementLineResolutionTypeValue = 1 | 2 | 3;
+
+/** یک ردیف `GET api/treasury/statements` — `BankStatementListItemDto`. */
+export interface BankStatementListItemDto {
+  id: string;
+  code: string;
+  bankAccountId: string;
+  /** Legacy `YYYYMMDD`. */
+  fromDate: string;
+  /** Legacy `YYYYMMDD`. */
+  toDate: string;
+  closingBalance: number;
+  source: BankStatementSourceValue;
+  state: BankStatementStateValue;
+  createdDate: string;
+  addUserId: string;
+}
+
+export interface BankStatementStateCountDto {
+  state: BankStatementStateValue;
+  count: number;
+}
+
+/** `GET api/treasury/statements` envelope — `BankStatementListResult`. */
+export interface BankStatementListResult {
+  page: {
+    items: BankStatementListItemDto[];
+    pageNumber: number;
+    pageSize: number;
+    totalCount: number;
+  };
+  stateCounts: BankStatementStateCountDto[];
+}
+
+/** بخش خلاصهٔ `GET api/treasury/statements/{id}` — `BankStatementSummaryDto`. */
+export interface BankStatementSummaryDto {
+  closingBalance: number;
+  bookBalance: number;
+  /** = `closingBalance` − `bookBalance`. صفر یعنی مغایرتی نمانده (با احتساب ردیف‌های حل‌شده). */
+  difference: number;
+  unmatchedCount: number;
+  autoMatchedCount: number;
+  manualMatchedCount: number;
+  resolvedCount: number;
+}
+
+/** یک ردیف صورت‌حساب — `BankStatementLineDto`. */
+export interface BankStatementLineDto {
+  id: string;
+  statementId: string;
+  /** Legacy `YYYYMMDD`. */
+  lineDate: string;
+  bankReference: string | null;
+  description: string | null;
+  withdrawal: number;
+  deposit: number;
+  balance: number | null;
+  matchState: BankStatementLineMatchStateValue;
+  matchedVoucherDetailId: string | null;
+  matchedVoucherNumber: string | null;
+  resolutionType: BankStatementLineResolutionTypeValue | null;
+  resolutionVoucherId: string | null;
+  resolutionVoucherNumber: string | null;
+  resolutionReceiptId: string | null;
+  resolutionReceiptCode: string | null;
+  resolutionNote: string | null;
+  addUserId: string;
+  createdDate: string;
+}
+
+/**
+ * یک ردیف دفتری (سند) کاندید/باقی‌مانده برای مغایرت‌گیری — `BankStatementBookLineDto`. شکل
+ * مشترک `GET statements/{id}/book-candidates` و بخش «فقط در دفتر» جزئیات صورت‌حساب.
+ */
+export interface BankStatementBookLineDto {
+  voucherDetailId: string;
+  voucherHeadId: string;
+  voucherNumber: string | null;
+  /** Legacy `YYYYMMDD`. */
+  voucherDate: string;
+  debit: number;
+  credit: number;
+  description: string | null;
+  /** مرجع بانک سند خزانهٔ صادرکننده (درخواست پرداخت/دریافت/انتقال)، اگر قابل‌تشخیص باشد. */
+  sourceBankReference: string | null;
+}
+
+/** `GET api/treasury/statements/{id}` — `BankStatementDto` — جزئیات کامل. */
+export interface BankStatementDto {
+  id: string;
+  code: string;
+  bankAccountId: string;
+  /** Legacy `YYYYMMDD`. */
+  fromDate: string;
+  /** Legacy `YYYYMMDD`. */
+  toDate: string;
+  closingBalance: number;
+  source: BankStatementSourceValue;
+  state: BankStatementStateValue;
+  description: string | null;
+  addUserId: string;
+  createdDate: string;
+  lines: BankStatementLineDto[];
+  summary: BankStatementSummaryDto;
+  bookOnly: BankStatementBookLineDto[];
+}
+
+/** `POST statements/{id}/auto-match` response — `BankStatementAutoMatchResult`. */
+export interface BankStatementAutoMatchResult {
+  matchedCount: number;
+  unmatchedCount: number;
+}
+
+/** یک ردیف `GET api/treasury/dashboard` → `bankAccounts` — `TreasuryDashboardBankAccountDto`. */
+export interface TreasuryDashboardBankAccountDto {
+  bankAccountId: string;
+  label: string;
+  balance: number;
+}
+
+/** تعهدات ۷ روز آینده — `TreasuryDashboardCommitmentsDto`. `coverageRatio` — `null` یعنی تقسیم بر صفر، نه «بدون داده». */
+export interface TreasuryDashboardCommitmentsDto {
+  count: number;
+  amount: number;
+  coverageRatio: number | null;
+}
+
+/** در انتظار تأیید (کل واحد، نه فقط کاربر جاری) — `TreasuryDashboardPendingApprovalDto`. */
+export interface TreasuryDashboardPendingApprovalDto {
+  count: number;
+  amount: number;
+}
+
+/** گردش امروز — `TreasuryDashboardTodayDto`. */
+export interface TreasuryDashboardTodayDto {
+  receipts: number;
+  payments: number;
+  net: number;
+}
+
+/** یک ردیف «اقلام باز» داشبورد — `TreasuryDashboardOpenItemDto`. */
+export interface TreasuryDashboardOpenItemDto {
+  type: 'payment' | 'replenishment' | 'receipt' | 'transfer';
+  id: string;
+  code: string;
+  counterparty: string | null;
+  amount: number;
+  /** فقط برای `payment` مقدار دارد (`dueDate`). Legacy `YYYYMMDD`. */
+  dueDate: string | null;
+  stateLabel: string;
+}
+
+/** `GET api/treasury/dashboard` — `TreasuryDashboardDto` — فقط‌خواندنی، مطابق صفحهٔ ۱۴ پاورپوینت. */
+export interface TreasuryDashboardDto {
+  totalBankBalance: number;
+  bankAccounts: TreasuryDashboardBankAccountDto[];
+  commitmentsNext7Days: TreasuryDashboardCommitmentsDto;
+  pendingApproval: TreasuryDashboardPendingApprovalDto;
+  today: TreasuryDashboardTodayDto;
+  openItems: TreasuryDashboardOpenItemDto[];
+  alerts: string[];
 }

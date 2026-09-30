@@ -5,6 +5,12 @@ import type { TafsiliLookupItemDto } from '../../types/tafsili';
 import type {
   ApprovalCartableItemDto,
   BankAccountBalanceDto,
+  BankStatementAutoMatchResult,
+  BankStatementBookLineDto,
+  BankStatementDto,
+  BankStatementLineResolutionTypeValue,
+  BankStatementListResult,
+  BankStatementStateValue,
   PaymentRequestAccountingDto,
   PaymentRequestDto,
   PaymentRequestListResult,
@@ -17,6 +23,7 @@ import type {
   TransferDto,
   TransferListResult,
   TransferStateValue,
+  TreasuryDashboardDto,
   TreasuryRoleDto,
   TreasurySettingDto,
 } from '../../types/treasury';
@@ -57,6 +64,8 @@ export const treasurySettingsApi = {
     receivablesAccountId: string | null;
     customerTafsilGroupId: string | null;
     dailyTransferLimit: number | null;
+    /** بخش ۴-د (۲۰۲۶-۰۹-۲۹). */
+    bankFeeAccountId: string | null;
   }): Promise<TreasurySettingDto> {
     return apiClient.post<TreasurySettingDto>('/treasury/settings', payload).then((res) => res.data);
   },
@@ -414,3 +423,159 @@ export interface BulkApproveFailure {
   id: string;
   reason: string;
 }
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-د — صورت‌حساب بانک و مغایرت‌گیری (`docs/tankhah-khazaneh-module.md` §۱۰)
+ * ------------------------------------------------------------------------------------------- */
+
+export interface BankStatementListParams {
+  pageNumber?: number;
+  pageSize?: number;
+  bankAccountId?: string;
+  state?: BankStatementStateValue;
+}
+
+/** Exact wire shape of `CreateBankStatementRequest`/`UpdateBankStatementRequest` (`TreasuryController.cs`). */
+export interface BankStatementWritePayload {
+  bankAccountId: string;
+  /** Legacy `YYYYMMDD`. */
+  fromDate: string;
+  /** Legacy `YYYYMMDD`. */
+  toDate: string;
+  closingBalance: number;
+  description: string | null;
+}
+
+/** Exact wire shape of `BankStatementLineRequest` — دقیقاً یکی از `withdrawal`/`deposit` باید > ۰ باشد. */
+export interface BankStatementLineWritePayload {
+  /** Legacy `YYYYMMDD`. */
+  lineDate: string;
+  bankReference: string | null;
+  description: string | null;
+  withdrawal: number;
+  deposit: number;
+  balance: number | null;
+}
+
+/** Response body for statement-level write actions — `BankStatementIdResponse`. */
+export interface BankStatementIdResponse {
+  id: string;
+}
+
+/** Response body for line-level write actions — `BankStatementLineIdResponse`. */
+export interface BankStatementLineIdResponse {
+  statementId: string;
+  lineId: string;
+}
+
+/** Response body for `import` — `ImportBankStatementResponse`. */
+export interface ImportBankStatementResponse {
+  id: string;
+  importedCount: number;
+}
+
+/**
+ * خزانه‌داری، بخش ۴-د — مغایرت‌گیری بانکی. دست‌نویس، هم‌الگوی بقیهٔ این فایل: `statements` هم
+ * `{ page, stateCounts }` برمی‌گرداند نه `PagedResult` خام، و اقدامات close/reopen/auto-match/
+ * import/match/unmatch/resolve/unresolve فراتر از CRUD‌اند.
+ *
+ * ⚠️ CLAUDE.md rule #1: هر نوشتن فقط `POST` است، هرگز `PUT`/`DELETE`.
+ */
+export const bankStatementsApi = {
+  list(params: BankStatementListParams): Promise<BankStatementListResult> {
+    return apiClient.get<BankStatementListResult>('/treasury/statements', { params }).then((res) => res.data);
+  },
+  getById(id: string): Promise<BankStatementDto> {
+    return apiClient.get<BankStatementDto>(`/treasury/statements/${id}`).then((res) => res.data);
+  },
+  create(payload: BankStatementWritePayload & { year: string }): Promise<CreateResponse> {
+    return apiClient.post<CreateResponse>('/treasury/statements', payload).then((res) => res.data);
+  },
+  // Intentionally POST, never PUT — see module docblock. فقط باز.
+  update(id: string, payload: BankStatementWritePayload): Promise<BankStatementIdResponse> {
+    return apiClient.post<BankStatementIdResponse>(`/treasury/statements/${id}/update`, payload).then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. فقط باز.
+  remove(id: string): Promise<BankStatementIdResponse> {
+    return apiClient.post<BankStatementIdResponse>(`/treasury/statements/${id}/delete`).then((res) => res.data);
+  },
+  /** بستن صورت‌حساب — پس از آن فقط‌خواندنی می‌شود (قابل بازگشایی). */
+  close(id: string): Promise<BankStatementIdResponse> {
+    return apiClient.post<BankStatementIdResponse>(`/treasury/statements/${id}/close`).then((res) => res.data);
+  },
+  reopen(id: string): Promise<BankStatementIdResponse> {
+    return apiClient.post<BankStatementIdResponse>(`/treasury/statements/${id}/reopen`).then((res) => res.data);
+  },
+  /** تطبیق خودکار ردیف‌های تطبیق‌نیافته با ردیف‌های دفتر — نتیجه: شمار تطبیق‌یافته/تطبیق‌نیافته. */
+  autoMatch(id: string): Promise<BankStatementAutoMatchResult> {
+    return apiClient.post<BankStatementAutoMatchResult>(`/treasury/statements/${id}/auto-match`).then((res) => res.data);
+  },
+  /**
+   * `multipart/form-data`. تا وقتی `IBankStatementFileParser`ی ثبت نشده همیشه ۴۰۹ «قالب فایل
+   * دیسکت بانک هنوز تعریف نشده است» می‌دهد — `ErrorBanner`/`notify` همان پیام سرور را نشان می‌دهد.
+   * Content-Type دستی ست نمی‌شود — axios/مرورگر خودش boundary فرم‌دیتا را می‌سازد.
+   */
+  import(id: string, file: File): Promise<ImportBankStatementResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<ImportBankStatementResponse>(`/treasury/statements/${id}/import`, formData).then((res) => res.data);
+  },
+  /** افزودن دستی یک ردیف. فقط باز. */
+  addLine(id: string, payload: BankStatementLineWritePayload): Promise<BankStatementLineIdResponse> {
+    return apiClient.post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines`, payload).then((res) => res.data);
+  },
+  // Intentionally POST, never PUT — see module docblock. فقط باز.
+  updateLine(id: string, lineId: string, payload: BankStatementLineWritePayload): Promise<BankStatementLineIdResponse> {
+    return apiClient
+      .post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/update`, payload)
+      .then((res) => res.data);
+  },
+  // Intentionally POST, never DELETE — see module docblock. فقط باز.
+  removeLine(id: string, lineId: string): Promise<BankStatementLineIdResponse> {
+    return apiClient
+      .post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/delete`)
+      .then((res) => res.data);
+  },
+  /** تطبیق دستی یک ردیف با یک ردیف سند — `voucherDetailId` از `getBookCandidates`. */
+  matchLine(id: string, lineId: string, voucherDetailId: string): Promise<BankStatementLineIdResponse> {
+    return apiClient
+      .post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/match`, { voucherDetailId })
+      .then((res) => res.data);
+  },
+  /** لغو تطبیق (خودکار یا دستی) — ردیف به تطبیق‌نیافته برمی‌گردد. */
+  unmatchLine(id: string, lineId: string): Promise<BankStatementLineIdResponse> {
+    return apiClient.post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/unmatch`).then((res) => res.data);
+  },
+  /** رفع ردیف تطبیق‌نیافته: سند کارمزد بانکی (فقط برداشت)، اتصال به دریافت (فقط واریز)، یا نادیده‌گرفتن (یادداشت اجباری). */
+  resolveLine(
+    id: string,
+    lineId: string,
+    payload: { type: BankStatementLineResolutionTypeValue; receiptId: string | null; note: string | null },
+  ): Promise<BankStatementLineIdResponse> {
+    return apiClient
+      .post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/resolve`, payload)
+      .then((res) => res.data);
+  },
+  /** برگرداندن رفع — برای سند کارمزد فقط وقتی سند هنوز موقت است، وگرنه ۴۰۹. */
+  unresolveLine(id: string, lineId: string): Promise<BankStatementLineIdResponse> {
+    return apiClient
+      .post<BankStatementLineIdResponse>(`/treasury/statements/${id}/lines/${lineId}/unresolve`)
+      .then((res) => res.data);
+  },
+  /** ردیف‌های دفتری تطبیق‌نیافتهٔ کاندید برای تطبیق دستی یک ردیف صورت‌حساب. */
+  getBookCandidates(id: string, lineId: string): Promise<BankStatementBookLineDto[]> {
+    return apiClient
+      .get<BankStatementBookLineDto[]>(`/treasury/statements/${id}/book-candidates`, { params: { lineId } })
+      .then((res) => res.data);
+  },
+};
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-د — داشبورد خزانه
+ * ------------------------------------------------------------------------------------------- */
+
+export const treasuryDashboardApi = {
+  get(): Promise<TreasuryDashboardDto> {
+    return apiClient.get<TreasuryDashboardDto>('/treasury/dashboard').then((res) => res.data);
+  },
+};

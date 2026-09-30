@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { enumFieldSchema, nonNullableEnumFieldSchema } from '../../lib/validation/enumFieldSchema';
 import { TREASURY_PAYMENT_TYPE_OPTIONS, TREASURY_PAYMENT_METHOD_OPTIONS, TREASURY_ROLE_OPTIONS } from './treasuryPaymentRequestState';
-import type { PaymentRequestTafsiliLinkInput, PaymentRequestWritePayload, ReceiptWritePayload, TransferWritePayload } from './api';
+import type {
+  BankStatementLineWritePayload,
+  BankStatementWritePayload,
+  PaymentRequestTafsiliLinkInput,
+  PaymentRequestWritePayload,
+  ReceiptWritePayload,
+  TransferWritePayload,
+} from './api';
 import type { PaymentRequestDto, ReceiptDto, TransferDto } from '../../types/treasury';
 
 const PAYMENT_TYPE_VALUES = TREASURY_PAYMENT_TYPE_OPTIONS.map((o) => o.value);
@@ -216,6 +223,10 @@ export const treasurySettingFormSchema = z.object({
   receivablesAccountLabel: z.string().nullable().optional(),
   customerTafsilGroupId: z.string().nullable().optional(),
   dailyTransferLimit: z.string().optional().or(z.literal('')),
+  // بخش ۴-د (۲۰۲۶-۰۹-۳۰) — اختیاری؛ `null` یعنی هنوز تعریف نشده (حل ردیف با نوع «سند کارمزد
+  // بانکی» با ۴۰۹ رد می‌شود).
+  bankFeeAccountId: z.string().nullable().optional(),
+  bankFeeAccountLabel: z.string().nullable().optional(),
 });
 
 export type TreasurySettingFormValues = z.infer<typeof treasurySettingFormSchema>;
@@ -235,6 +246,8 @@ export function buildEmptyTreasurySettingFormValues(): TreasurySettingFormValues
     receivablesAccountLabel: null,
     customerTafsilGroupId: null,
     dailyTransferLimit: '',
+    bankFeeAccountId: null,
+    bankFeeAccountLabel: null,
   };
 }
 
@@ -388,3 +401,106 @@ export type TreasuryRoleFormValues = z.infer<typeof treasuryRoleFormSchema>;
 export function buildEmptyTreasuryRoleFormValues(): TreasuryRoleFormValues {
   return { userId: '', userName: '', role: TREASURY_ROLE_OPTIONS[0].value };
 }
+
+/* ------------------------------------------------------------------------------------------- *
+ * بخش ۴-د — صورت‌حساب بانک (`TB_TR_BANK_STATEMENT`) — `CreateBankStatementCommandValidator` مرجع
+ * ------------------------------------------------------------------------------------------- */
+
+/** UX-presentation validation only — `CreateBankStatementCommandValidator` سمت سرور مرجع است. */
+export const bankStatementFormSchema = z.object({
+  bankAccountId: z.string().trim().min(1, 'انتخاب حساب بانکی الزامی است'),
+  bankAccountLabel: z.string().nullable().optional(),
+  fromDate: z.string().trim().min(1, 'تاریخ شروع الزامی است'),
+  toDate: z.string().trim().min(1, 'تاریخ پایان الزامی است'),
+  closingBalance: z.string().trim().min(1, 'مانده پایانی طبق بانک الزامی است'),
+  description: z.string().trim().max(1000, 'حداکثر ۱۰۰۰ کاراکتر است').optional().or(z.literal('')),
+});
+
+export type BankStatementFormValues = z.infer<typeof bankStatementFormSchema>;
+
+export function buildEmptyBankStatementFormValues(): BankStatementFormValues {
+  return {
+    bankAccountId: '',
+    bankAccountLabel: null,
+    fromDate: '',
+    toDate: '',
+    closingBalance: '',
+    description: '',
+  };
+}
+
+export function bankStatementFormValuesToPayload(values: BankStatementFormValues): BankStatementWritePayload {
+  return {
+    bankAccountId: values.bankAccountId,
+    fromDate: values.fromDate.trim(),
+    toDate: values.toDate.trim(),
+    closingBalance: Number(values.closingBalance || 0),
+    description: values.description?.trim() ? values.description.trim() : null,
+  };
+}
+
+/**
+ * ردیف صورت‌حساب — دقیقاً یکی از `withdrawal`/`deposit` باید > ۰ باشد (UX فقط؛ مرجع سرور
+ * `AddBankStatementLineCommandValidator`).
+ */
+export const bankStatementLineFormSchema = z
+  .object({
+    lineDate: z.string().trim().min(1, 'تاریخ ردیف الزامی است'),
+    bankReference: z.string().trim().max(100, 'حداکثر ۱۰۰ کاراکتر است').optional().or(z.literal('')),
+    description: z.string().trim().max(500, 'حداکثر ۵۰۰ کاراکتر است').optional().or(z.literal('')),
+    withdrawal: z.string().optional().or(z.literal('')),
+    deposit: z.string().optional().or(z.literal('')),
+    balance: z.string().optional().or(z.literal('')),
+  })
+  .superRefine((values, ctx) => {
+    const withdrawal = Number(values.withdrawal || 0);
+    const deposit = Number(values.deposit || 0);
+    if (withdrawal > 0 && deposit > 0) {
+      ctx.addIssue({ code: 'custom', path: ['deposit'], message: 'فقط یکی از برداشت یا واریز می‌تواند مقدار داشته باشد' });
+    }
+    if (withdrawal <= 0 && deposit <= 0) {
+      ctx.addIssue({ code: 'custom', path: ['withdrawal'], message: 'دقیقاً یکی از برداشت یا واریز باید بزرگ‌تر از صفر باشد' });
+    }
+  });
+
+export type BankStatementLineFormValues = z.infer<typeof bankStatementLineFormSchema>;
+
+export function buildEmptyBankStatementLineFormValues(lineDate: string): BankStatementLineFormValues {
+  return { lineDate, bankReference: '', description: '', withdrawal: '', deposit: '', balance: '' };
+}
+
+export function bankStatementLineDtoToFormValues(dto: {
+  lineDate: string;
+  bankReference: string | null;
+  description: string | null;
+  withdrawal: number;
+  deposit: number;
+  balance: number | null;
+}): BankStatementLineFormValues {
+  return {
+    lineDate: dto.lineDate,
+    bankReference: dto.bankReference ?? '',
+    description: dto.description ?? '',
+    withdrawal: dto.withdrawal ? String(dto.withdrawal) : '',
+    deposit: dto.deposit ? String(dto.deposit) : '',
+    balance: dto.balance != null ? String(dto.balance) : '',
+  };
+}
+
+export function bankStatementLineFormValuesToPayload(values: BankStatementLineFormValues): BankStatementLineWritePayload {
+  return {
+    lineDate: values.lineDate.trim(),
+    bankReference: values.bankReference?.trim() ? values.bankReference.trim() : null,
+    description: values.description?.trim() ? values.description.trim() : null,
+    withdrawal: Number(values.withdrawal || 0),
+    deposit: Number(values.deposit || 0),
+    balance: values.balance ? Number(values.balance) : null,
+  };
+}
+
+/** «نادیده گرفتن» یک ردیف تطبیق‌نیافته — یادداشت اجباری (`ResolveBankStatementLineCommandValidator` مرجع). */
+export const resolveIgnoreFormSchema = z.object({
+  note: z.string().trim().min(1, 'یادداشت الزامی است').max(500, 'حداکثر ۵۰۰ کاراکتر است'),
+});
+
+export type ResolveIgnoreFormValues = z.infer<typeof resolveIgnoreFormSchema>;

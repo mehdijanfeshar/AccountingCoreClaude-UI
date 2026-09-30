@@ -50,6 +50,9 @@ import { PaymentExecutionListPage } from '../features/treasury/PaymentExecutionL
 import { ReceiptsTransfersPage } from '../features/treasury/ReceiptsTransfersPage';
 import { ReceiptFormPage } from '../features/treasury/ReceiptFormPage';
 import { TransferFormPage } from '../features/treasury/TransferFormPage';
+import { BankStatementListPage } from '../features/treasury/BankStatementListPage';
+import { BankStatementDetailPage } from '../features/treasury/BankStatementDetailPage';
+import { TreasuryDashboardPage } from '../features/treasury/TreasuryDashboardPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -154,4 +157,8 @@ export const routes: RouteObject[] = [
   { path: '/treasury/khazaneh/receipts/:id/edit', element: <ReceiptFormPage /> },
   { path: '/treasury/khazaneh/transfers/new', element: <TransferFormPage /> },
   { path: '/treasury/khazaneh/transfers/:id/edit', element: <TransferFormPage /> },
+  // بخش ۴-د — مغایرت‌گیری بانکی + داشبورد خزانه.
+  { path: '/treasury/khazaneh/bank-reconciliation', element: <BankStatementListPage /> },
+  { path: '/treasury/khazaneh/bank-reconciliation/:id', element: <BankStatementDetailPage /> },
+  { path: '/treasury/khazaneh/dashboard', element: <TreasuryDashboardPage /> },
 ];

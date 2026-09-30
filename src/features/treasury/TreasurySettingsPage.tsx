@@ -13,6 +13,7 @@ import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlin
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HealthAndSafetyOutlinedIcon from '@mui/icons-material/HealthAndSafetyOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
@@ -36,7 +37,12 @@ function accountCodeLabel(account: { accCode: string | null; accCodeName: string
   return `${account.accCode ? `${account.accCode} — ` : ''}${account.accCodeName ?? '—'}`;
 }
 
-type AccountPickerField = 'payablesAccountId' | 'vatCreditAccountId' | 'insurancePayableAccountId' | 'receivablesAccountId';
+type AccountPickerField =
+  | 'payablesAccountId'
+  | 'vatCreditAccountId'
+  | 'insurancePayableAccountId'
+  | 'receivablesAccountId'
+  | 'bankFeeAccountId';
 
 /**
  * تنظیمات خزانه (`TB_TR_SETTING`) — خزانه‌داری بخش ۴-الف. `GET` می‌تواند ۴۰۴ بدهد اگر مدیر مالی
@@ -116,6 +122,14 @@ export function TreasurySettingsPage() {
             : null,
         customerTafsilGroupId: settingQuery.data.customerTafsilGroupId,
         dailyTransferLimit: settingQuery.data.dailyTransferLimit != null ? String(settingQuery.data.dailyTransferLimit) : '',
+        bankFeeAccountId: settingQuery.data.bankFeeAccountId,
+        bankFeeAccountLabel:
+          settingQuery.data.bankFeeAccountId != null
+            ? accountCodeLabel({
+                accCode: settingQuery.data.bankFeeAccountCode,
+                accCodeName: settingQuery.data.bankFeeAccountName,
+              })
+            : null,
       });
     }
   }, [settingQuery.data, reset]);
@@ -124,6 +138,7 @@ export function TreasurySettingsPage() {
   const vatCreditAccountLabel = watch('vatCreditAccountLabel');
   const insurancePayableAccountLabel = watch('insurancePayableAccountLabel');
   const receivablesAccountLabel = watch('receivablesAccountLabel');
+  const bankFeeAccountLabel = watch('bankFeeAccountLabel');
 
   function handlePickAccount(account: AccountCodeDto) {
     if (!accountPickerField) return;
@@ -132,7 +147,8 @@ export function TreasurySettingsPage() {
       | 'payablesAccountLabel'
       | 'vatCreditAccountLabel'
       | 'insurancePayableAccountLabel'
-      | 'receivablesAccountLabel';
+      | 'receivablesAccountLabel'
+      | 'bankFeeAccountLabel';
     setValue(labelField, accountCodeLabel(account), { shouldDirty: true });
     setAccountPickerField(null);
   }
@@ -149,6 +165,7 @@ export function TreasurySettingsPage() {
         receivablesAccountId: values.receivablesAccountId ?? null,
         customerTafsilGroupId: values.customerTafsilGroupId ?? null,
         dailyTransferLimit: values.dailyTransferLimit ? Number(values.dailyTransferLimit) : null,
+        bankFeeAccountId: values.bankFeeAccountId ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['treasury-settings'] });
@@ -339,6 +356,24 @@ export function TreasurySettingsPage() {
                   helperText="سقف مجموع انتقال‌های اجراشده از یک حساب مبدأ در یک روز."
                 />
               </Grid>
+
+              <Grid size={12}>
+                <FormSectionLabel
+                  label="مغایرت بانکی"
+                  accentColor="secondary"
+                  caption="بخش ۴-د — بدون این حساب، حل ردیف نامنطبق با نوع «سند کارمزد بانکی» با خطا رد می‌شود."
+                />
+              </Grid>
+              <LinkedEntityPickerField
+                icon={<RuleOutlinedIcon fontSize="small" color="action" />}
+                label="حساب کارمزد بانکی (اختیاری)"
+                value={bankFeeAccountLabel}
+                onPick={() => setAccountPickerField('bankFeeAccountId')}
+                onClear={() => {
+                  setValue('bankFeeAccountId', null, { shouldDirty: true });
+                  setValue('bankFeeAccountLabel', null, { shouldDirty: true });
+                }}
+              />
 
               <Grid size={12}>
                 <FormActions onCancel={() => reset()} pending={saveMutation.isPending} submitLabel="ذخیره تنظیمات" />
