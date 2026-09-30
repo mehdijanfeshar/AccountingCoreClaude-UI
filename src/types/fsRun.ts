@@ -72,6 +72,10 @@ export interface FsRunDetailDto {
   contentHash: string | null;
   noteStartNo: number;
   statements: FsRunStatementDto[];
+  sourceRunId: string | null;
+  checks: FsRunCheckDto[];
+  actions: FsRunActionDto[];
+  manualValues: FsRunManualDto[];
 }
 
 export interface GenerateFsRunPayload {
@@ -84,6 +88,9 @@ export interface GenerateFsRunPayload {
   useDraftVersions: boolean;
   description: string | null;
   noteStartNo: number;
+  /** بخش ۴۵-ه — اجرای پیش‌نویسی که این اجرا جایگزینش می‌شود. */
+  sourceRunId?: string | null;
+  manualValues?: FsManualValueInput[];
 }
 
 export const PERSIAN_MONTHS = [
@@ -107,4 +114,133 @@ export function describePeriod(year: string, toMonth: number, toPersian: (v: str
   return toMonth === 12
     ? `سال مالی منتهی به پایان ${month} ${toPersian(year)}`
     : `دورهٔ ${toPersian(toMonth)} ماهه منتهی به پایان ${month} ${toPersian(year)}`;
+}
+
+/* ---- بخش ۴۵-د — Drill-down ---- */
+
+export interface FsDrillAccountDto {
+  accCode: string;
+  accName: string | null;
+  amountCur: number | null;
+  amountPrv: number | null;
+}
+
+export interface FsDrillUnitDto {
+  vahedCode: string;
+  vahedName: string | null;
+  amountCur: number | null;
+  amountPrv: number | null;
+}
+
+export interface FsDrillVoucherLineDto {
+  voucherHeadId: string;
+  docNum: string | null;
+  dateDoc: string | null;
+  vahedCode: string | null;
+  headDesc: string | null;
+  lineDesc: string | null;
+  debtor: number;
+  creditor: number;
+  isOpening: boolean;
+}
+
+export interface FsDrillVoucherPageDto {
+  items: FsDrillVoucherLineDto[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  sumDebtor: number;
+  sumCreditor: number;
+}
+
+/* ---- بخش ۴۵-ه — کنترل‌ها، گردش تأیید، مقادیر دستی ---- */
+
+export const FS_RUN_STATE = { Draft: 1, InReview: 2, Approved: 3, Published: 4, Superseded: 5 } as const;
+
+export const FS_RUN_STATE_META: Record<number, { label: string; color: 'default' | 'warning' | 'info' | 'success' | 'primary' }> = {
+  1: { label: 'پیش‌نویس', color: 'warning' },
+  2: { label: 'در بازبینی', color: 'info' },
+  3: { label: 'تأییدشده', color: 'primary' },
+  4: { label: 'منتشرشده', color: 'success' },
+  5: { label: 'جایگزین‌شده', color: 'default' },
+};
+
+export const FS_RUN_ACTION = { Submit: 1, Approve: 2, Return: 3, Publish: 4, Supersede: 5 } as const;
+
+export const FS_RUN_ACTION_LABEL: Record<number, string> = {
+  1: 'ارسال برای بازبینی',
+  2: 'تأیید',
+  3: 'برگشت',
+  4: 'انتشار',
+  5: 'جایگزینی',
+};
+
+/** 1 اطلاع، 2 هشدار، 3 مسدودکننده. */
+export const FS_CHECK_SEVERITY_LABEL: Record<number, string> = { 1: 'اطلاع', 2: 'هشدار', 3: 'مسدودکننده' };
+
+export interface FsRunCheckDto {
+  code: string;
+  titleFa: string;
+  severity: 1 | 2 | 3;
+  passed: boolean;
+  message: string | null;
+  difference: number | null;
+  rowRef: string | null;
+}
+
+export interface FsRunActionDto {
+  action: number;
+  fromState: number;
+  toState: number;
+  userId: string;
+  comments: string | null;
+  createdDate: string;
+}
+
+export interface FsRunManualDto {
+  templateCode: string;
+  rowCode: string;
+  amountCur: number | null;
+  amountPrv: number | null;
+  reason: string;
+  addUserId: string;
+  createdDate: string;
+}
+
+export interface FsManualValueInput {
+  templateCode: string;
+  rowCode: string;
+  amountCur: number | null;
+  amountPrv: number | null;
+  reason: string;
+}
+
+export interface FsRunDiffRowDto {
+  templateCode: string;
+  statementTitle: string;
+  isNote: boolean;
+  rowCode: string;
+  titleFa: string | null;
+  normalBalance: number | null;
+  amountA: number | null;
+  amountB: number | null;
+}
+
+export interface FsRunStalenessDto {
+  isStale: boolean;
+  unknown: boolean;
+}
+
+export interface FsCheckRuleDto {
+  id: string;
+  ownerVahedCode: string | null;
+  canEdit: boolean;
+  framework: number;
+  code: string;
+  titleFa: string;
+  leftExpr: string;
+  rightExpr: string;
+  tolerance: number;
+  severity: 1 | 2 | 3;
+  isActive: boolean;
 }

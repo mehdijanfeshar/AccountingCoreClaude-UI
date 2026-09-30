@@ -27,18 +27,20 @@ interface Props {
   variant?: "statement" | "note";
   /** کلیک روی شمارهٔ یادداشت در ستون «یادداشت» صورت. */
   onNoteClick?: (noteNo: string) => void;
+  /** کلیک روی مبلغ ردیف «حساب» قابل ریزشدن ⇒ Drill-down (بخش ۴۵-د). */
+  onDrill?: (row: FsRunRowDto) => void;
 }
 
 const VALUE_TYPES = new Set<number>([FS_ROW_TYPE.Account, FS_ROW_TYPE.Formula, FS_ROW_TYPE.External]);
 
 /** مبلغ داخلی (بدهکار مثبت) ⇒ مبلغ نمایشی: ماهیت بستانکار قرینه می‌شود. */
-function displayAmount(row: FsRunRowDto, amount: number | null): number | null {
+export function displayAmount(row: FsRunRowDto, amount: number | null): number | null {
   if (amount === null) return null;
   return row.normalBalance === 2 ? -amount : amount;
 }
 
 /** ارقام فارسی، جداکنندهٔ هزارگان، منفی داخل پرانتز، «—» برای صفر (سند منبع §۴-۱). */
-function formatAmount(value: number | null, divisor: number): string {
+export function formatAmount(value: number | null, divisor: number): string {
   if (value === null) return '';
   const scaled = Math.round(value / divisor);
   if (scaled === 0) return '—';
@@ -69,6 +71,7 @@ export function FsStatementSheet({
   isTrial,
   variant = "statement",
   onNoteClick,
+  onDrill,
 }: Props) {
   const isNoteSheet = variant === "note";
   const rows = useMemo(
@@ -203,8 +206,31 @@ export function FsStatementSheet({
                 );
               }
 
+              const drillable = !!onDrill && r.rowType === FS_ROW_TYPE.Account && r.isDrillable;
               const renderPeriod = (value: number | null) => {
-                const text = isValue ? formatAmount(value, unitDivisor) : '';
+                const raw = isValue ? formatAmount(value, unitDivisor) : '';
+                const text =
+                  drillable && raw ? (
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => onDrill!(r)}
+                      title="ریز این مبلغ"
+                      sx={{
+                        border: 0,
+                        bgcolor: 'transparent',
+                        color: 'inherit',
+                        font: 'inherit',
+                        cursor: 'pointer',
+                        p: 0,
+                        '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                      }}
+                    >
+                      {raw}
+                    </Box>
+                  ) : (
+                    raw
+                  );
                 if (!hasInner) {
                   return <Box component="td" sx={valueCellSx}>{text}</Box>;
                 }

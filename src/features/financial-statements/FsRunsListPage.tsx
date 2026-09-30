@@ -18,7 +18,7 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { FS_FRAMEWORK_OPTIONS, labelOf } from '../../types/fsTemplate';
-import { describePeriod, type FsRunSummaryDto } from '../../types/fsRun';
+import { FS_RUN_STATE, FS_RUN_STATE_META, describePeriod, type FsRunSummaryDto } from "../../types/fsRun";
 import { fsRunsApi } from './api';
 
 /** اجراهای «تهیهٔ صورت‌های مالی» واحد جاری در سال جاری نشست (بخش ۴۵-ب). */
@@ -57,7 +57,7 @@ export function FsRunsListPage() {
       header: 'وضعیت',
       render: (r) => (
         <Stack direction="row" spacing={0.5}>
-          <Chip size="small" color="warning" label="پیش‌نویس" />
+          <Chip size="small" color={(FS_RUN_STATE_META[r.state] ?? FS_RUN_STATE_META[1]).color} label={(FS_RUN_STATE_META[r.state] ?? FS_RUN_STATE_META[1]).label} />
           {r.usesDraft && <Chip size="small" variant="outlined" color="warning" label="آزمایشی" />}
         </Stack>
       ),
@@ -78,10 +78,12 @@ export function FsRunsListPage() {
               <VisibilityOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="حذف">
-            <IconButton size="small" color="error" onClick={() => setPendingDelete(r)}>
+          <Tooltip title={r.state === FS_RUN_STATE.Draft || r.state === FS_RUN_STATE.Superseded ? "حذف" : "اجرای در گردش تأیید یا منتشرشده حذف نمی‌شود"}>
+            <span>
+            <IconButton size="small" color="error" disabled={!(r.state === FS_RUN_STATE.Draft || r.state === FS_RUN_STATE.Superseded)} onClick={() => setPendingDelete(r)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
+            </span>
           </Tooltip>
         </Stack>
       ),

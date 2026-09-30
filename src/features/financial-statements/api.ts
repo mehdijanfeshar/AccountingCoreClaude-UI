@@ -1,5 +1,15 @@
 import { apiClient } from '../../lib/api/client';
-import type { FsRunDetailDto, FsRunSummaryDto, GenerateFsRunPayload } from '../../types/fsRun';
+import type {
+  FsDrillAccountDto,
+  FsDrillUnitDto,
+  FsDrillVoucherPageDto,
+  FsCheckRuleDto,
+  FsRunDiffRowDto,
+  FsRunStalenessDto,
+  FsRunDetailDto,
+  FsRunSummaryDto,
+  GenerateFsRunPayload,
+} from "../../types/fsRun";
 import type {
   FsFrameworkValue,
   FsTemplateCheckResultDto,
@@ -115,5 +125,89 @@ export const fsRunsApi = {
   },
   remove(id: string): Promise<void> {
     return apiClient.post(`/fs/runs/${id}/delete`).then(() => undefined);
+  },
+};
+
+/** بخش ۴۵-د — Drill-down چهارسطحی و خروجی Excel یک اجرا. */
+export const fsDrillApi = {
+  accounts(runId: string, rowId: string): Promise<FsDrillAccountDto[]> {
+    return apiClient.get<FsDrillAccountDto[]>(`/fs/runs/${runId}/rows/${rowId}/accounts`).then((res) => res.data);
+  },
+  units(runId: string, rowId: string, acc?: string): Promise<FsDrillUnitDto[]> {
+    return apiClient
+      .get<FsDrillUnitDto[]>(`/fs/runs/${runId}/rows/${rowId}/units`, { params: acc ? { acc } : undefined })
+      .then((res) => res.data);
+  },
+  /** زنده از اسناد (نه Snapshot) — معین/واحدی که در ترکیب ردیف نیست ۴۰۴ می‌دهد. */
+  vouchers(
+    runId: string,
+    rowId: string,
+    params: { acc: string; unit?: string; column: 'CUR' | 'PRV'; page: number; pageSize: number },
+  ): Promise<FsDrillVoucherPageDto> {
+    return apiClient
+      .get<FsDrillVoucherPageDto>(`/fs/runs/${runId}/rows/${rowId}/vouchers`, { params })
+      .then((res) => res.data);
+  },
+  /** فایل با blob گرفته می‌شود (لینک مستقیم هدر احراز هویت و واحد را از دست می‌دهد). */
+  async downloadExcel(runId: string, fallbackName: string): Promise<void> {
+    const response = await apiClient.get<Blob>(`/fs/runs/${runId}/excel`, { responseType: 'blob' });
+    const header = String(response.headers['content-disposition'] ?? '');
+    const match = /filename\*=UTF-8''([^;]+)/i.exec(header) ?? /filename="?([^";]+)"?/i.exec(header);
+    const name = match ? decodeURIComponent(match[1]) : fallbackName;
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+};
+
+/** بخش ۴۵-ه — گردش تأیید، کهنگی و مقایسهٔ اجراها. */
+export const fsRunWorkflowApi = {
+  /** action: 1 ارسال، 2 تأیید، 3 برگشت (با دلیل)، 4 انتشار. پاسخ = وضعیت تازه. */
+  transition(runId: string, action: number, comments: string | null): Promise<number> {
+    return apiClient
+      .post<{ id: string; state: number }>(`/fs/runs/${runId}/transitions`, { action, comments })
+      .then((res) => res.data.state);
+  },
+  staleness(runId: string): Promise<FsRunStalenessDto> {
+    return apiClient.get<FsRunStalenessDto>(`/fs/runs/${runId}/staleness`).then((res) => res.data);
+  },
+  diff(runId: string, otherId: string): Promise<FsRunDiffRowDto[]> {
+    return apiClient.get<FsRunDiffRowDto[]>(`/fs/runs/${runId}/diff/${otherId}`).then((res) => res.data);
+  },
+};
+
+/** بخش ۴۵-ه — قواعد کنترل تساوی بین صورت‌ها (مشترک فقط ستاد). */
+export const fsCheckRulesApi = {
+  list(framework?: number): Promise<FsCheckRuleDto[]> {
+    return apiClient
+      .get<FsCheckRuleDto[]>('/fs/check-rules', { params: framework ? { framework } : undefined })
+      .then((res) => res.data);
+  },
+  create(payload: {
+    framework: number;
+    code: string;
+    titleFa: string;
+    leftExpr: string;
+    rightExpr: string;
+    tolerance: number;
+    severity: number;
+    isActive: boolean;
+    shared: boolean;
+  }): Promise<string> {
+    return apiClient.post<{ id: string }>('/fs/check-rules', payload).then((res) => res.data.id);
+  },
+  update(
+    id: string,
+    payload: { titleFa: string; leftExpr: string; rightExpr: string; tolerance: number; severity: number; isActive: boolean },
+  ): Promise<void> {
+    return apiClient.post(`/fs/check-rules/${id}/update`, payload).then(() => undefined);
+  },
+  remove(id: string): Promise<void> {
+    return apiClient.post(`/fs/check-rules/${id}/delete`).then(() => undefined);
   },
 };

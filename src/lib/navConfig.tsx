@@ -297,6 +297,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/fs/templates',
         icon: <TableChartOutlinedIcon fontSize="small" />,
       },
+      {
+        label: "کنترل‌های صورت‌ها",
+        description: "قواعد تساوی بین صورت‌ها که با هر تهیه اجرا می‌شوند",
+        to: "/fs/check-rules",
+        icon: <RuleOutlinedIcon fontSize="small" />,
+      },
     ],
   },
 ];

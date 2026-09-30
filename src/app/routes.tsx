@@ -58,6 +58,7 @@ import { FsTemplateVersionPage } from '../features/financial-statements/FsTempla
 import { FsRunsListPage } from '../features/financial-statements/FsRunsListPage';
 import { FsRunWizardPage } from '../features/financial-statements/FsRunWizardPage';
 import { FsRunViewPage } from '../features/financial-statements/FsRunViewPage';
+import { FsCheckRulesPage } from "../features/financial-statements/FsCheckRulesPage";
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -173,4 +174,6 @@ export const routes: RouteObject[] = [
   { path: '/fs/runs', element: <FsRunsListPage /> },
   { path: '/fs/runs/new', element: <FsRunWizardPage /> },
   { path: '/fs/runs/:id', element: <FsRunViewPage /> },
+  // بخش ۴۵-ه — قواعد کنترل.
+  { path: "/fs/check-rules", element: <FsCheckRulesPage /> },
 ];
