@@ -53,6 +53,11 @@ import { TransferFormPage } from '../features/treasury/TransferFormPage';
 import { BankStatementListPage } from '../features/treasury/BankStatementListPage';
 import { BankStatementDetailPage } from '../features/treasury/BankStatementDetailPage';
 import { TreasuryDashboardPage } from '../features/treasury/TreasuryDashboardPage';
+import { FsTemplatesPage } from '../features/financial-statements/FsTemplatesPage';
+import { FsTemplateVersionPage } from '../features/financial-statements/FsTemplateVersionPage';
+import { FsRunsListPage } from '../features/financial-statements/FsRunsListPage';
+import { FsRunWizardPage } from '../features/financial-statements/FsRunWizardPage';
+import { FsRunViewPage } from '../features/financial-statements/FsRunViewPage';
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -161,4 +166,11 @@ export const routes: RouteObject[] = [
   { path: '/treasury/khazaneh/bank-reconciliation', element: <BankStatementListPage /> },
   { path: '/treasury/khazaneh/bank-reconciliation/:id', element: <BankStatementDetailPage /> },
   { path: '/treasury/khazaneh/dashboard', element: <TreasuryDashboardPage /> },
+  // صورت‌های مالی، بخش ۴۵-الف — قالب صورت‌ها.
+  { path: '/fs/templates', element: <FsTemplatesPage /> },
+  { path: '/fs/template-versions/:versionId', element: <FsTemplateVersionPage /> },
+  // بخش ۴۵-ب — تهیه و نمایش صورت‌ها.
+  { path: '/fs/runs', element: <FsRunsListPage /> },
+  { path: '/fs/runs/new', element: <FsRunWizardPage /> },
+  { path: '/fs/runs/:id', element: <FsRunViewPage /> },
 ];

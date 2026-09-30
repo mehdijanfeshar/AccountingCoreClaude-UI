@@ -31,6 +31,7 @@ import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -272,6 +273,29 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'صورت‌حساب‌های بانکی و تطبیق ردیف‌های آن با دفتر',
         to: '/treasury/khazaneh/bank-reconciliation',
         icon: <RuleOutlinedIcon fontSize="small" />,
+      },
+    ],
+  },
+  /**
+   * صورت‌های مالی — فاز ۴۵ (`docs/fs-module.md` در ریپوی بک‌اند). بخش ۴۵-الف فقط «قالب صورت‌ها»؛
+   * تهیه و نمایش صورت در ۴۵-ب.
+   */
+  {
+    title: 'صورت‌های مالی',
+    icon: <TableChartOutlinedIcon fontSize="small" />,
+    color: 'primary',
+    items: [
+      {
+        label: 'تهیهٔ صورت‌های مالی',
+        description: 'اجرای قالب‌ها روی اسناد یک دوره',
+        to: '/fs/runs',
+        icon: <AssessmentOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'قالب صورت‌ها',
+        description: 'ردیف‌ها، حساب‌ها و فرمول‌های هر صورت مالی',
+        to: '/fs/templates',
+        icon: <TableChartOutlinedIcon fontSize="small" />,
       },
     ],
   },
