@@ -212,3 +212,12 @@ export interface FsAccountMappingDto {
   doubleCounted: boolean;
   matches: FsMappingMatchDto[];
 }
+
+/** بخش ۴۵-و — پیش‌نمایش زندهٔ یک نسخهٔ قالب (بدون ذخیرهٔ اجرا). */
+export interface FsTemplatePreviewDto {
+  templateCode: string;
+  titleFa: string;
+  /** خطای محاسبه (ارجاع/دور)؛ در این صورت مبالغ خالی‌اند. */
+  error: string | null;
+  rows: import('./fsRun').FsRunRowDto[];
+}

@@ -47,6 +47,8 @@ import {
 } from '../../types/fsTemplate';
 import { fsTemplatesApi, fsTemplateVersionsApi } from './api';
 import { FsRowFormDialog } from './FsRowFormDialog';
+import { FsTemplatePreviewDialog } from "./FsTemplatePreviewDialog";
+import PreviewOutlinedIcon from "@mui/icons-material/PreviewOutlined";
 
 function nextRowCode(rows: FsTemplateRowDto[]): string {
   const last = rows[rows.length - 1]?.code;
@@ -75,6 +77,7 @@ export function FsTemplateVersionPage() {
   const [activateOpen, setActivateOpen] = useState(false);
   const [activateYear, setActivateYear] = useState('');
   const [check, setCheck] = useState<FsTemplateCheckResultDto | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { unitCode } = useSession();
   const queryKey = ['fs-template-version', versionId, unitCode];
@@ -279,6 +282,14 @@ export function FsTemplateVersionPage() {
             >
               بررسی قالب
             </Button>
+            <Button
+              variant="outlined"
+              startIcon={<PreviewOutlinedIcon />}
+              disabled={!version || rows.length === 0}
+              onClick={() => setPreviewOpen(true)}
+            >
+              پیش‌نمایش
+            </Button>
             {isDraft ? (
               <>
                 <Button variant="outlined" startIcon={<AddOutlinedIcon />} onClick={() => setEditing('new')}>
@@ -465,6 +476,7 @@ export function FsTemplateVersionPage() {
         onCancel={() => setDeletingVersion(false)}
         onConfirm={() => deleteVersionMutation.mutate()}
       />
+      {previewOpen && version && <FsTemplatePreviewDialog version={version} onClose={() => setPreviewOpen(false)} />}
     </section>
   );
 }

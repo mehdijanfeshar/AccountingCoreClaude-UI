@@ -16,6 +16,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import GridOnOutlinedIcon from "@mui/icons-material/GridOnOutlined";
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { MonoCode } from '../../components/MonoCode';
@@ -89,6 +90,23 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
         : Promise.reject(new Error('no level')),
     enabled: level.kind === 'vouchers',
   });
+
+  // خروجی Excel سطح جاری (معین‌ها، واحدها، و اگر معین انتخاب شده همهٔ اسنادش).
+  const [excelBusy, setExcelBusy] = useState(false);
+  const [excelError, setExcelError] = useState<unknown>(null);
+  const downloadExcel = async () => {
+    const acc = level.kind === "accounts" ? undefined : level.acc?.accCode;
+    const unit = level.kind === "vouchers" ? level.unit?.vahedCode : undefined;
+    setExcelBusy(true);
+    setExcelError(null);
+    try {
+      await fsDrillApi.downloadDrillExcel(runId, row.id, { acc, unit, column }, `FS-Drill-${row.code}.xlsx`);
+    } catch (e) {
+      setExcelError(e);
+    } finally {
+      setExcelBusy(false);
+    }
+  };
 
   const go = (next: Level) => {
     setPage(1);
@@ -203,7 +221,8 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
         انتخاب‌گر: <MonoCode value={row.selector} /> · {labelOf(FS_VALUE_TYPE_OPTIONS, row.valueType)}
       </Typography>
 
-      <Breadcrumbs sx={{ mb: 2 }}>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+      <Breadcrumbs>
         <Link component="button" underline="hover" onClick={() => go({ kind: 'accounts' })}>
           معین‌ها
         </Link>
@@ -218,6 +237,15 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
         )}
         {level.kind === 'vouchers' && <Typography color="text.primary">اسناد{level.unit ? ` — ${level.unit.vahedName ?? level.unit.vahedCode}` : ''}</Typography>}
       </Breadcrumbs>
+        <Tooltip title={level.kind === "accounts" ? "معین‌ها و واحدهای این ردیف" : level.kind === "units" && !level.acc ? "معین‌ها و واحدها" : "معین‌ها، واحدها و همهٔ اسناد این معین"}>
+          <span>
+            <Button size="small" variant="outlined" startIcon={<GridOnOutlinedIcon />} disabled={excelBusy} onClick={downloadExcel}>
+              {excelBusy ? "…" : "Excel"}
+            </Button>
+          </span>
+        </Tooltip>
+      </Stack>
+      {excelError ? <ErrorBanner error={excelError} /> : null}
 
       {level.kind === 'accounts' && (
         <>

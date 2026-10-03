@@ -16,6 +16,7 @@ import type {
   FsTemplateDto,
   FsTemplateRowInput,
   FsAccountMappingDto,
+  FsTemplatePreviewDto,
   FsTemplateVersionDetailDto,
 } from '../../types/fsTemplate';
 
@@ -109,6 +110,15 @@ export const fsTemplateVersionsApi = {
   removeRow(versionId: string, rowId: string): Promise<void> {
     return apiClient.post(`/fs/template-versions/${versionId}/rows/${rowId}/delete`).then(() => undefined);
   },
+  /** بخش ۴۵-و — همین نسخه روی اسناد واقعی واحد جاری، بدون ذخیرهٔ اجرا. */
+  preview(
+    versionId: string,
+    params: { year: string; toMonth: number; minDocLife: number; includeSubUnits: boolean },
+  ): Promise<FsTemplatePreviewDto> {
+    return apiClient
+      .get<FsTemplatePreviewDto>(`/fs/template-versions/${versionId}/preview`, { params })
+      .then((res) => res.data);
+  },
   reorderRows(versionId: string, rowIds: string[]): Promise<void> {
     return apiClient.post(`/fs/template-versions/${versionId}/rows/reorder`, { rowIds }).then(() => undefined);
   },
@@ -156,21 +166,39 @@ export const fsDrillApi = {
       .then((res) => res.data);
   },
   /** فایل با blob گرفته می‌شود (لینک مستقیم هدر احراز هویت و واحد را از دست می‌دهد). */
-  async downloadExcel(runId: string, fallbackName: string): Promise<void> {
-    const response = await apiClient.get<Blob>(`/fs/runs/${runId}/excel`, { responseType: 'blob' });
-    const header = String(response.headers['content-disposition'] ?? '');
-    const match = /filename\*=UTF-8''([^;]+)/i.exec(header) ?? /filename="?([^";]+)"?/i.exec(header);
-    const name = match ? decodeURIComponent(match[1]) : fallbackName;
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  downloadExcel(runId: string, fallbackName: string): Promise<void> {
+    return downloadFile(`/fs/runs/${runId}/excel`, undefined, fallbackName);
+  },
+  /** Excel یک ردیف Drill-down: معین‌ها، واحدها، و اگر معین داده شود همهٔ اسناد آن. */
+  downloadDrillExcel(
+    runId: string,
+    rowId: string,
+    params: { acc?: string; unit?: string; column: "CUR" | "PRV" },
+    fallbackName: string,
+  ): Promise<void> {
+    return downloadFile(`/fs/runs/${runId}/rows/${rowId}/drill-excel`, params, fallbackName);
   },
 };
+
+/** فایل با blob گرفته و با لینک موقت ذخیره می‌شود — لینک مستقیم هدر احراز هویت و واحد را از دست می‌دهد. */
+async function downloadFile(
+  endpoint: string,
+  params: Record<string, string | undefined> | undefined,
+  fallbackName: string,
+): Promise<void> {
+  const response = await apiClient.get<Blob>(endpoint, { responseType: 'blob', params });
+  const header = String(response.headers['content-disposition'] ?? '');
+  const match = /filename\*=UTF-8''([^;]+)/i.exec(header) ?? /filename="?([^";]+)"?/i.exec(header);
+  const name = match ? decodeURIComponent(match[1]) : fallbackName;
+  const objectUrl = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+}
 
 /** بخش ۴۵-ه — گردش تأیید، کهنگی و مقایسهٔ اجراها. */
 export const fsRunWorkflowApi = {
