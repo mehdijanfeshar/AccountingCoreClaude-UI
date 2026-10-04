@@ -61,6 +61,7 @@ export const FS_VALUE_TYPE_OPTIONS = [
   { value: 3, label: 'گردش خالص دوره' },
   { value: 4, label: 'گردش بدهکار' },
   { value: 5, label: 'گردش بستانکار' },
+  { value: 6, label: 'جریان نقد (طرف مقابل سند)' },
 ] as const;
 
 export const FS_BORDER_OPTIONS = [

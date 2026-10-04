@@ -16,6 +16,8 @@ export interface FsRunSummaryDto {
   hasPrior: boolean;
   /** ستون سال قبل با برچسب «تجدید ارائه‌شده». */
   priorRestated: boolean;
+  /** ط-۵ — تلفیق با شرکت‌های تابعه. */
+  includeEntities: boolean;
   usesDraft: boolean;
   state: number;
   description: string | null;
@@ -93,6 +95,8 @@ export interface GenerateFsRunPayload {
   includePrior: boolean;
   /** ح-۲ — فقط برچسب «تجدید ارائه‌شده» روی ستون سال قبل. */
   priorRestated?: boolean;
+  /** ط-۵ — تلفیق با شرکت‌های تابعه. */
+  includeEntities?: boolean;
   useDraftVersions: boolean;
   description: string | null;
   noteStartNo: number;

@@ -37,6 +37,7 @@ import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import FunctionsOutlinedIcon from "@mui/icons-material/FunctionsOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -349,6 +350,18 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "فرمول نسبت‌های مالی با زبان قالب",
         to: "/fs/ratios",
         icon: <FunctionsOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "دسترسی صورت‌های مالی",
+        description: "چه کسی روی کدام واحد چه کاری انجام دهد",
+        to: "/fs/permissions",
+        icon: <AdminPanelSettingsOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "تلفیق، جریان نقد و XBRL",
+        description: "حساب‌های نقد، تعدیلات سنواتی، حذف فی‌مابین، شرکت‌های تابعه و XBRL",
+        to: "/fs/consolidation",
+        icon: <AccountBalanceOutlinedIcon fontSize="small" />,
       },
     ],
   },

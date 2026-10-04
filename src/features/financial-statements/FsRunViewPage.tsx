@@ -25,8 +25,10 @@ import { toLatinDigits, toPersianDigits } from "../../lib/format/numbers";
 import { DOC_LIFE_OPTIONS } from '../vouchers/api';
 import { FS_FRAMEWORK_OPTIONS, labelOf } from '../../types/fsTemplate';
 import { FS_RUN_STATE, PERSIAN_MONTHS, describePeriod, type FsManualValueInput, type FsRunRowDto } from "../../types/fsRun";
-import { fsDrillApi, fsNarrativesApi, fsRunWorkflowApi, fsRunsApi } from "./api";
+import { fsConsolidationApi, fsDrillApi, fsNarrativesApi, fsRunWorkflowApi, fsRunsApi } from "./api";
 import { NarrativeContent } from "./narratives/NarrativeContent";
+import { FsWorksheetPanel } from "./consolidation/FsWorksheetPanel";
+
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import Typography from "@mui/material/Typography";
@@ -64,6 +66,8 @@ export function FsRunViewPage() {
   const notesTab = statements.length;
   // بخش ۴۵-ه — زبانهٔ «کنترل‌ها» بعد از یادداشت‌ها.
   const checksTab = statements.length + (hasNotesTab ? 1 : 0);
+  // ط-۳ — زبانهٔ «کاربرگ» برای صورت ترکیبی یا تلفیقی.
+  const worksheetTab = detail?.run.includeSubUnits || detail?.run.includeEntities ? checksTab + 1 : -1;
   const statement = tab < statements.length ? statements[tab] : undefined;
   const [pendingScroll, setPendingScroll] = useState<string | null>(null);
 
@@ -118,6 +122,7 @@ export function FsRunViewPage() {
         minDocLife: run!.minDocLife,
         includePrior: run!.hasPrior,
         priorRestated: run!.priorRestated,
+        includeEntities: run!.includeEntities,
         useDraftVersions: run!.usesDraft,
         description: run!.description,
         noteStartNo: detail!.noteStartNo,
@@ -237,6 +242,24 @@ export function FsRunViewPage() {
             >
               {wordBusy ? "در حال ساخت…" : "Word یادداشت‌ها"}
             </Button>
+            <Button
+              variant="outlined"
+              disabled={!detail || wordBusy}
+              onClick={async () => {
+                if (!run) return;
+                setWordBusy(true);
+                setExcelError(null);
+                try {
+                  await fsConsolidationApi.downloadXbrl(id, `FS-${run.runNo}.xbrl`);
+                } catch (e) {
+                  setExcelError(e);
+                } finally {
+                  setWordBusy(false);
+                }
+              }}
+            >
+              XBRL
+            </Button>
             <Button variant="contained" startIcon={<PictureAsPdfOutlinedIcon />} onClick={() => navigate(`/fs/runs/${id}/print`)} disabled={!detail}>
               بستهٔ رسمی / PDF
             </Button>
@@ -328,10 +351,13 @@ export function FsRunViewPage() {
               ))}
               {hasNotesTab && <Tab value={notesTab} label={`یادداشت‌ها (${toPersianDigits(notes.length + standaloneNarratives.length)})`} />}
               <Tab value={checksTab} label={`کنترل‌ها (${toPersianDigits(detail.checks.filter((c) => !c.passed).length)} مورد)`} />
+              {worksheetTab >= 0 && <Tab value={worksheetTab} label="کاربرگ ترکیب / تلفیق" />}
             </Tabs>
           )}
 
-          {tab === checksTab ? (
+          {tab === worksheetTab ? (
+            <FsWorksheetPanel runId={id} unitDivisor={unitDivisor} />
+          ) : tab === checksTab ? (
             <FsRunChecksPanel
               detail={detail}
               comments={comments}

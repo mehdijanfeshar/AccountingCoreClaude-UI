@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -28,6 +28,8 @@ import { DOC_LIFE_OPTIONS } from '../vouchers/api';
 import { FS_FRAMEWORK_OPTIONS, labelOf, type FsFrameworkValue } from '../../types/fsTemplate';
 import { PERSIAN_MONTHS, describePeriod } from '../../types/fsRun';
 import { fsRunsApi } from './api';
+import { startBackgroundRun } from './backgroundRuns';
+import { useNotify } from '../../lib/notifications/NotificationProvider';
 
 const STEPS = ['مجموعه و دوره', 'دامنه و اسناد', 'گزینه‌ها و اجرا'];
 
@@ -87,22 +89,48 @@ export function FsRunWizardPage() {
 
   const yearValid = /^1[34]\d{2}$/.test(year);
 
+  // ط-۵ و ط-۹ — تلفیق با شرکت‌های تابعه و اجرای پس‌زمینه.
+  const [includeEntities, setIncludeEntities] = useState(false);
+  const [background, setBackground] = useState(false);
+  const notify = useNotify();
+  const queryClient = useQueryClient();
+
+  const payload = () => ({
+    framework,
+    year,
+    toMonth,
+    includeSubUnits,
+    minDocLife,
+    includePrior,
+    priorRestated: includePrior && priorRestated,
+    useDraftVersions,
+    description: description.trim() || null,
+    noteStartNo: Number(noteStartNo) || 1,
+    includeEntities,
+  });
+
   const mutation = useMutation({
-    mutationFn: () =>
-      fsRunsApi.generate({
-        framework,
-        year,
-        toMonth,
-        includeSubUnits,
-        minDocLife,
-        includePrior,
-        priorRestated: includePrior && priorRestated,
-        useDraftVersions,
-        description: description.trim() || null,
-        noteStartNo: Number(noteStartNo) || 1,
-      }),
+    mutationFn: () => fsRunsApi.generate(payload()),
     onSuccess: (id) => navigate(`/fs/runs/${id}`),
   });
+
+  const run = () => {
+    if (!background) {
+      mutation.mutate();
+      return;
+    }
+    const label = `${labelOf(FS_FRAMEWORK_OPTIONS, framework)} ${toPersianDigits(year)}`;
+    startBackgroundRun(
+      label,
+      () => fsRunsApi.generate(payload()),
+      async () => {
+        await queryClient.invalidateQueries({ queryKey: ['fs-runs'] });
+        notify(`تهیهٔ صورت‌های «${label}» در پس‌زمینه تمام شد؛ در فهرست اجراها ببینید.`);
+      },
+      (e) => notify({ message: `تهیهٔ «${label}» ناموفق بود: ${e instanceof Error ? e.message : 'خطا'}`, severity: 'error' }),
+    );
+    navigate('/fs/runs');
+  };
 
   return (
     <section>
@@ -220,6 +248,14 @@ export function FsRunWizardPage() {
                 control={<Checkbox checked={useDraftVersions} onChange={(e) => setUseDraftVersions(e.target.checked)} />}
                 label="استفاده از قالب‌های پیش‌نویس (اجرای آزمایشی)"
               />
+              <FormControlLabel
+                control={<Checkbox checked={includeEntities} onChange={(e) => setIncludeEntities(e.target.checked)} />}
+                label="تلفیق با شرکت‌های تابعه (تراز واردشده، تسعیر و سهم غیرکنترلی)"
+              />
+              <FormControlLabel
+                control={<Checkbox checked={background} onChange={(e) => setBackground(e.target.checked)} />}
+                label="اجرا در پس‌زمینه (ادامهٔ کار در برنامه و اعلان در پایان)"
+              />
               <Typography variant="caption" color="text.secondary" component="p" sx={{ pr: 4 }}>
                 برای امتحان قالب پیش از فعال‌سازی. صورت با برچسب «آزمایشی» نمایش داده می‌شود.
               </Typography>
@@ -277,7 +313,7 @@ export function FsRunWizardPage() {
                 color="success"
                 startIcon={<PlayArrowOutlinedIcon />}
                 disabled={mutation.isPending || !yearValid}
-                onClick={() => mutation.mutate()}
+                onClick={run}
               >
                 اجرا با تنظیمات پیش‌فرض
               </Button>
@@ -293,7 +329,7 @@ export function FsRunWizardPage() {
               color="success"
               startIcon={mutation.isPending ? <CircularProgress size={16} color="inherit" /> : <PlayArrowOutlinedIcon />}
               disabled={mutation.isPending || !yearValid}
-              onClick={() => mutation.mutate()}
+              onClick={run}
             >
               {mutation.isPending ? 'در حال محاسبه…' : 'تهیهٔ صورت‌ها'}
             </Button>

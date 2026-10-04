@@ -67,6 +67,8 @@ import { FsRunPrintPage } from "../features/financial-statements/FsRunPrintPage"
 import { FsAnalysisPage } from "../features/financial-statements/ratios/FsAnalysisPage";
 import { FsRatiosPage } from "../features/financial-statements/ratios/FsRatiosPage";
 import { FsDashboardPage } from "../features/financial-statements/FsDashboardPage";
+import { FsPermissionsPage } from "../features/financial-statements/FsPermissionsPage";
+import { FsConsolidationPage } from "../features/financial-statements/consolidation/FsConsolidationPage";
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -199,4 +201,6 @@ export const routes: RouteObject[] = [
   { path: "/fs/ratios", element: <FsRatiosPage /> },
   // ح-۹ — داشبورد.
   { path: "/fs/dashboard", element: <FsDashboardPage /> },
+  { path: "/fs/permissions", element: <FsPermissionsPage /> },
+  { path: "/fs/consolidation", element: <FsConsolidationPage /> },
 ];

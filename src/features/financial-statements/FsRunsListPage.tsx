@@ -1,3 +1,5 @@
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +13,7 @@ import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { PageHeader } from '../../components/PageHeader';
+import { useBackgroundRuns } from './backgroundRuns';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -23,6 +26,7 @@ import { fsRunsApi } from './api';
 
 /** اجراهای «تهیهٔ صورت‌های مالی» واحد جاری در سال جاری نشست (بخش ۴۵-ب). */
 export function FsRunsListPage() {
+  const backgroundJobs = useBackgroundRuns();
   const navigate = useNavigate();
   const notify = useNotify();
   const queryClient = useQueryClient();
@@ -104,6 +108,11 @@ export function FsRunsListPage() {
         }
       />
 
+      {backgroundJobs.length > 0 && (
+        <Alert severity="info" icon={<CircularProgress size={18} />} sx={{ mb: 2 }}>
+          در حال تهیه در پس‌زمینه: {backgroundJobs.map((j) => j.label).join('، ')} — با پایان، اعلان می‌آید و فهرست به‌روز می‌شود.
+        </Alert>
+      )}
       {listQuery.isError && <ErrorBanner error={listQuery.error} />}
       {deleteMutation.isError && <ErrorBanner error={deleteMutation.error} />}
 

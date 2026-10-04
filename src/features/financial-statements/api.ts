@@ -1,6 +1,8 @@
 import { apiClient } from '../../lib/api/client';
 import type { FsNarrativeDto, FsNarrativeVersionDto, FsRunNarrativeDto } from '../../types/fsNarrative';
 import type { FsDashboardDto, FsRatioDto, FsRatioTrendYearDto, FsRatioValueDto } from '../../types/fsRatio';
+import type { FsPermissionDto } from '../../types/fsAccess';
+import type { FsElimRuleDto, FsEntityDto, FsEntityTbDto, FsEntityTbRow, FsSettingDto, FsWorksheetDto, FsXbrlMapDto } from '../../types/fsConsolidation';
 import type {
   FsDrillAccountDto,
   FsDrillUnitDto,
@@ -402,5 +404,86 @@ export const fsRatiosApi = {
   /** ح-۹ — شاخص‌ها و «کارهای من». */
   dashboard(framework: number, year: string): Promise<FsDashboardDto> {
     return apiClient.get<FsDashboardDto>('/fs/dashboard', { params: { framework, year } }).then((res) => res.data);
+  },
+};
+
+/** ط-۲ — دسترسی سه‌بُعدی؛ جدول خالی = همه مجاز. */
+export const fsPermissionsApi = {
+  list(): Promise<FsPermissionDto[]> {
+    return apiClient.get<FsPermissionDto[]>('/fs/permissions').then((res) => res.data);
+  },
+  mine(): Promise<number> {
+    return apiClient.get<{ operations: number }>('/fs/permissions/me').then((res) => res.data.operations);
+  },
+  save(id: string | null, payload: { userId: string; userName: string | null; unitCode: string; includeSub: boolean; operations: number }): Promise<string> {
+    return apiClient
+      .post<{ id: string }>(id ? `/fs/permissions/${id}/update` : '/fs/permissions', payload)
+      .then((res) => res.data.id);
+  },
+  remove(id: string): Promise<void> {
+    return apiClient.post(`/fs/permissions/${id}/delete`).then(() => undefined);
+  },
+};
+
+/** ط-۳ تا ط-۸ — تنظیمات مجموعه، حذف فی‌مابین، شرکت‌های تابعه، XBRL، کاربرگ اجرا. */
+export const fsConsolidationApi = {
+  settings(framework: number): Promise<FsSettingDto[]> {
+    return apiClient.get<FsSettingDto[]>('/fs/settings', { params: { framework } }).then((res) => res.data);
+  },
+  saveSetting(payload: { framework: number; key: string; value: string | null; shared: boolean }): Promise<void> {
+    return apiClient.post('/fs/settings', payload).then(() => undefined);
+  },
+  elimRules(framework: number): Promise<FsElimRuleDto[]> {
+    return apiClient.get<FsElimRuleDto[]>('/fs/elim-rules', { params: { framework } }).then((res) => res.data);
+  },
+  saveElimRule(
+    id: string | null,
+    payload: { framework: number; shared: boolean; code: string; titleFa: string; leftSelector: string; rightSelector: string; tolerance: number; isActive: boolean },
+  ): Promise<string> {
+    return apiClient.post<{ id: string }>(id ? `/fs/elim-rules/${id}/update` : '/fs/elim-rules', payload).then((res) => res.data.id);
+  },
+  deleteElimRule(id: string): Promise<void> {
+    return apiClient.post(`/fs/elim-rules/${id}/delete`).then(() => undefined);
+  },
+  entities(): Promise<FsEntityDto[]> {
+    return apiClient.get<FsEntityDto[]>('/fs/entities').then((res) => res.data);
+  },
+  saveEntity(id: string | null, payload: { code: string; titleFa: string; currency: string; ownership: number; isActive: boolean }): Promise<string> {
+    return apiClient.post<{ id: string }>(id ? `/fs/entities/${id}/update` : '/fs/entities', payload).then((res) => res.data.id);
+  },
+  deleteEntity(id: string): Promise<void> {
+    return apiClient.post(`/fs/entities/${id}/delete`).then(() => undefined);
+  },
+  entityTb(id: string, year: string, toMonth: number): Promise<FsEntityTbDto> {
+    return apiClient.get<FsEntityTbDto>(`/fs/entities/${id}/tb`, { params: { year, toMonth } }).then((res) => res.data);
+  },
+  importEntityTb(
+    id: string,
+    payload: { year: string; toMonth: number; rows: FsEntityTbRow[]; openingRate: number | null; closingRate: number | null; averageRate: number | null },
+  ): Promise<number> {
+    return apiClient.post<{ rowCount: number }>(`/fs/entities/${id}/tb`, payload).then((res) => res.data.rowCount);
+  },
+  xbrlMaps(): Promise<FsXbrlMapDto[]> {
+    return apiClient.get<FsXbrlMapDto[]>('/fs/xbrl-maps').then((res) => res.data);
+  },
+  saveXbrlMap(id: string | null, payload: { templateCode: string; rowCode: string; element: string; periodType: number }): Promise<string> {
+    return apiClient.post<{ id: string }>(id ? `/fs/xbrl-maps/${id}/update` : '/fs/xbrl-maps', payload).then((res) => res.data.id);
+  },
+  deleteXbrlMap(id: string): Promise<void> {
+    return apiClient.post(`/fs/xbrl-maps/${id}/delete`).then(() => undefined);
+  },
+  worksheet(runId: string): Promise<FsWorksheetDto> {
+    return apiClient.get<FsWorksheetDto>(`/fs/runs/${runId}/worksheet`).then((res) => res.data);
+  },
+  async downloadXbrl(runId: string, fileName: string): Promise<void> {
+    const res = await apiClient.get<Blob>(`/fs/runs/${runId}/xbrl`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   },
 };
