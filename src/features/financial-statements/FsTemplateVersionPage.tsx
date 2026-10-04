@@ -47,8 +47,23 @@ import {
 } from '../../types/fsTemplate';
 import { fsTemplatesApi, fsTemplateVersionsApi } from './api';
 import { FsRowFormDialog } from './FsRowFormDialog';
-import { FsTemplatePreviewDialog } from "./FsTemplatePreviewDialog";
-import PreviewOutlinedIcon from "@mui/icons-material/PreviewOutlined";
+import { FsTemplatePreviewDialog } from './FsTemplatePreviewDialog';
+import PreviewOutlinedIcon from '@mui/icons-material/PreviewOutlined';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
+import { FsTemplateTreeDesigner, type FsRowMove } from './FsTemplateTreeDesigner';
+
+const VIEW_KEY = 'fs-template-version-view';
+
+function readView(): 'table' | 'tree' {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'tree' ? 'tree' : 'table';
+  } catch {
+    return 'table';
+  }
+}
 
 function nextRowCode(rows: FsTemplateRowDto[]): string {
   const last = rows[rows.length - 1]?.code;
@@ -78,6 +93,7 @@ export function FsTemplateVersionPage() {
   const [activateYear, setActivateYear] = useState('');
   const [check, setCheck] = useState<FsTemplateCheckResultDto | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [view, setView] = useState<'table' | 'tree'>(readView);
 
   const { unitCode } = useSession();
   const queryKey = ['fs-template-version', versionId, unitCode];
@@ -119,7 +135,7 @@ export function FsTemplateVersionPage() {
   });
 
   const moveMutation = useMutation({
-    mutationFn: (ids: string[]) => fsTemplateVersionsApi.reorderRows(versionId, ids),
+    mutationFn: (m: FsRowMove) => fsTemplateVersionsApi.reorderRows(versionId, m.rowIds, m.parentChanges),
     onSuccess: refresh,
   });
 
@@ -163,7 +179,7 @@ export function FsTemplateVersionPage() {
     const target = index + delta;
     if (target < 0 || target >= ids.length) return;
     [ids[index], ids[target]] = [ids[target], ids[index]];
-    moveMutation.mutate(ids);
+    moveMutation.mutate({ rowIds: ids, parentChanges: [] });
   }
 
   const columns: DataTableColumn<FsTemplateRowDto>[] = [
@@ -394,7 +410,45 @@ export function FsTemplateVersionPage() {
         </Alert>
       )}
 
-      {!versionQuery.isError && (
+      {!versionQuery.isError && version && rows.length > 0 && (
+        <Stack direction="row" sx={{ mb: 1, justifyContent: 'flex-end' }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, v: 'table' | 'tree' | null) => {
+              if (!v) return;
+              setView(v);
+              try {
+                localStorage.setItem(VIEW_KEY, v);
+              } catch {
+                /* بی‌اهمیت */
+              }
+            }}
+          >
+            <ToggleButton value="table" aria-label="نمای جدولی">
+              <ViewListOutlinedIcon fontSize="small" sx={{ ml: 0.5 }} /> جدول
+            </ToggleButton>
+            <ToggleButton value="tree" aria-label="طراح درختی">
+              <AccountTreeOutlinedIcon fontSize="small" sx={{ ml: 0.5 }} /> درخت
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+      )}
+
+      {!versionQuery.isError && view === 'tree' && rows.length > 0 && (
+        <FsTemplateTreeDesigner
+          rows={rows}
+          editable={isDraft}
+          busy={moveMutation.isPending}
+          issuesByRow={issuesByRow}
+          onMove={(m) => moveMutation.mutate(m)}
+          onEdit={setEditing}
+          onDelete={setPendingDelete}
+        />
+      )}
+
+      {!versionQuery.isError && (view === 'table' || rows.length === 0) && (
         <DataTable
           columns={columns}
           rows={rows}

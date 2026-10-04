@@ -14,6 +14,8 @@ export interface FsRunSummaryDto {
   toMonth: number;
   minDocLife: number;
   hasPrior: boolean;
+  /** ستون سال قبل با برچسب «تجدید ارائه‌شده». */
+  priorRestated: boolean;
   usesDraft: boolean;
   state: number;
   description: string | null;
@@ -76,6 +78,10 @@ export interface FsRunDetailDto {
   checks: FsRunCheckDto[];
   actions: FsRunActionDto[];
   manualValues: FsRunManualDto[];
+  /** ح-۴ — پیشرفت مراحل گردش تأیید؛ خالی = گردش تک‌مرحله‌ای. */
+  approvalSteps: FsRunApprovalStepDto[] | null;
+  /** ح-۵ — V-11: واحدهای دامنه با دورهٔ قفل‌نشده (فقط برای اجرای تأییدشده پر می‌شود). */
+  unlockedUnits: string[] | null;
 }
 
 export interface GenerateFsRunPayload {
@@ -85,6 +91,8 @@ export interface GenerateFsRunPayload {
   includeSubUnits: boolean;
   minDocLife: number;
   includePrior: boolean;
+  /** ح-۲ — فقط برچسب «تجدید ارائه‌شده» روی ستون سال قبل. */
+  priorRestated?: boolean;
   useDraftVersions: boolean;
   description: string | null;
   noteStartNo: number;
@@ -186,6 +194,26 @@ export interface FsRunCheckDto {
   message: string | null;
   difference: number | null;
   rowRef: string | null;
+  /** ح-۳ — شناسه برای ارجاع و گفت‌وگو (اجراهای قدیمی هم دارند). */
+  id: string | null;
+  assigneeUserId: string | null;
+  assigneeName: string | null;
+  /** مهلت، شمسی YYYYMMDD. */
+  dueDate: string | null;
+  /** 1 = باز، 2 = رفع‌شده. */
+  assignState: 1 | 2 | null;
+  assignedBy: string | null;
+}
+
+/** ح-۳ — «نظر» روی ردیف (`rowId`)، کنترل (`checkId`) یا کل اجرا (هر دو null). */
+export interface FsRunCommentDto {
+  id: string;
+  rowId: string | null;
+  checkId: string | null;
+  body: string;
+  userId: string;
+  createdDate: string;
+  isMine: boolean;
 }
 
 export interface FsRunActionDto {
@@ -195,6 +223,8 @@ export interface FsRunActionDto {
   userId: string;
   comments: string | null;
   createdDate: string;
+  /** ح-۴ — شمارهٔ مرحلهٔ گردش برای «تأیید». */
+  stepNo: number | null;
 }
 
 export interface FsRunManualDto {
@@ -243,4 +273,88 @@ export interface FsCheckRuleDto {
   tolerance: number;
   severity: 1 | 2 | 3;
   isActive: boolean;
+}
+
+/** ح-۴ — پیشرفت یک مرحلهٔ گردش در اجرا. */
+export interface FsRunApprovalStepDto {
+  stepNo: number;
+  titleFa: string;
+  approverUserIds: string[];
+  approvedBy: string | null;
+  approvedDate: string | null;
+  isCurrent: boolean;
+  canApprove: boolean;
+  cannotApproveReason: string | null;
+}
+
+/** ح-۴ — تعریف یک مرحلهٔ گردش (مشترک یا اختصاصی واحد). */
+export interface FsApprovalStepDto {
+  id: string;
+  ownerVahedCode: string | null;
+  canEdit: boolean;
+  framework: number;
+  stepNo: number;
+  titleFa: string;
+  approverUserIds: string[];
+  isActive: boolean;
+}
+
+/* ---- ح-۵ — بستن دورهٔ صورت‌ها ---- */
+
+/** 1 = باز، 2 = بستهٔ موقت، 3 = قفل. */
+export type FsPeriodStateValue = 1 | 2 | 3;
+
+export const FS_PERIOD_STATE_META: Record<FsPeriodStateValue, { label: string; color: 'default' | 'warning' | 'success' }> = {
+  1: { label: 'باز', color: 'default' },
+  2: { label: 'بستهٔ موقت', color: 'warning' },
+  3: { label: 'قفل', color: 'success' },
+};
+
+export const FS_PERIOD_ACTION = { Close: 1, Lock: 2, Reopen: 3, RequestReopen: 4, ApproveReopen: 5, RejectReopen: 6 } as const;
+
+export const FS_PERIOD_ACTION_LABEL: Record<number, string> = {
+  1: 'بستن موقت',
+  2: 'قفل',
+  3: 'بازگشایی',
+  4: 'درخواست بازگشایی',
+  5: 'تأیید درخواست بازگشایی',
+  6: 'رد درخواست بازگشایی',
+};
+
+export interface FsUnitRunStatusDto {
+  vahedCode: string;
+  runId: string;
+  runNo: number;
+  framework: number;
+  state: number;
+  createdDate: string;
+  blockingFailed: number;
+}
+
+export interface FsPeriodUnitDto {
+  vahedCode: string;
+  vahedName: string | null;
+  isSelf: boolean;
+  state: FsPeriodStateValue;
+  /** قفل از طریق واحد بالادستی (کد آن). */
+  lockedVia: string | null;
+  reopenRequested: boolean;
+  reopenReason: string | null;
+  reopenRequestedBy: string | null;
+  latestRun: FsUnitRunStatusDto | null;
+}
+
+export interface FsPeriodBoardDto {
+  year: string;
+  isHeadquarters: boolean;
+  units: FsPeriodUnitDto[];
+}
+
+export interface FsPeriodLogDto {
+  action: number;
+  fromState: FsPeriodStateValue;
+  toState: FsPeriodStateValue;
+  userId: string;
+  reason: string | null;
+  createdDate: string;
 }

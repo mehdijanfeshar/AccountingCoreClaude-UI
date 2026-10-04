@@ -272,7 +272,7 @@ export function Layout({ children }: { children: ReactNode }) {
         رفتن به محتوای اصلی
       </a>
 
-      <AppBar position="sticky">
+      <AppBar position="sticky" sx={{ displayPrint: "none" }}>
         <Box
           sx={{
             height: 3,
@@ -359,6 +359,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <Drawer
             variant="permanent"
             sx={{
+              displayPrint: "none",
               width: DRAWER_WIDTH,
               flexShrink: 0,
               '& .MuiDrawer-paper': {
@@ -376,7 +377,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </Drawer>
         )}
 
-        <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, p: 3 }}>
+        <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, p: 3, "@media print": { p: 0 } }}>
           {children}
         </Box>
       </Box>

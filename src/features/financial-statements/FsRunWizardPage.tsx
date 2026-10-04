@@ -31,6 +31,29 @@ import { fsRunsApi } from './api';
 
 const STEPS = ['مجموعه و دوره', 'دامنه و اسناد', 'گزینه‌ها و اجرا'];
 
+const DEFAULTS_KEY = 'fs-run-wizard-defaults';
+
+interface WizardDefaults {
+  framework: FsFrameworkValue;
+  toMonth: number;
+  includeSubUnits: boolean;
+  minDocLife: number;
+  includePrior: boolean;
+  priorRestated: boolean;
+  useDraftVersions: boolean;
+  noteStartNo: string;
+}
+
+/** تنظیمات پیش‌فرض ویزارد (سند منبع §۱۲-۳) — فقط در همین مرورگر؛ سال و توضیح ذخیره نمی‌شوند. */
+function readDefaults(): WizardDefaults | null {
+  try {
+    const raw = localStorage.getItem(DEFAULTS_KEY);
+    return raw ? (JSON.parse(raw) as WizardDefaults) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * ویزارد «تهیهٔ صورت‌های مالی» (بخش ۴۵-ب، سند منبع §۱۲-۳). سه مرحله به‌جای چهار: ستون‌های مقایسه
  * فعلاً فقط «سال قبل» است و بودجه نداریم. واحد همان واحد جاری نشست است (هدر `X-Vahed-Code`).
@@ -39,16 +62,28 @@ export function FsRunWizardPage() {
   const navigate = useNavigate();
   const { financialYear, unitName, unitCode } = useSession();
 
+  const [saved, setSaved] = useState<WizardDefaults | null>(readDefaults);
   const [step, setStep] = useState(0);
-  const [framework, setFramework] = useState<FsFrameworkValue>(1);
+  const [framework, setFramework] = useState<FsFrameworkValue>(saved?.framework ?? 1);
   const [year, setYear] = useState(financialYear || '');
-  const [toMonth, setToMonth] = useState(12);
-  const [includeSubUnits, setIncludeSubUnits] = useState(true);
-  const [minDocLife, setMinDocLife] = useState(4);
-  const [includePrior, setIncludePrior] = useState(true);
-  const [useDraftVersions, setUseDraftVersions] = useState(false);
+  const [toMonth, setToMonth] = useState(saved?.toMonth ?? 12);
+  const [includeSubUnits, setIncludeSubUnits] = useState(saved?.includeSubUnits ?? true);
+  const [minDocLife, setMinDocLife] = useState(saved?.minDocLife ?? 4);
+  const [includePrior, setIncludePrior] = useState(saved?.includePrior ?? true);
+  const [priorRestated, setPriorRestated] = useState(saved?.priorRestated ?? false);
+  const [useDraftVersions, setUseDraftVersions] = useState(saved?.useDraftVersions ?? false);
   const [description, setDescription] = useState('');
-  const [noteStartNo, setNoteStartNo] = useState("1");
+  const [noteStartNo, setNoteStartNo] = useState(saved?.noteStartNo ?? '1');
+
+  function saveDefaults() {
+    const d: WizardDefaults = { framework, toMonth, includeSubUnits, minDocLife, includePrior, priorRestated, useDraftVersions, noteStartNo };
+    try {
+      localStorage.setItem(DEFAULTS_KEY, JSON.stringify(d));
+      setSaved(d);
+    } catch {
+      /* مرورگر اجازهٔ ذخیره نداد — بی‌اهمیت */
+    }
+  }
 
   const yearValid = /^1[34]\d{2}$/.test(year);
 
@@ -61,6 +96,7 @@ export function FsRunWizardPage() {
         includeSubUnits,
         minDocLife,
         includePrior,
+        priorRestated: includePrior && priorRestated,
         useDraftVersions,
         description: description.trim() || null,
         noteStartNo: Number(noteStartNo) || 1,
@@ -171,6 +207,13 @@ export function FsRunWizardPage() {
                 control={<Checkbox checked={includePrior} onChange={(e) => setIncludePrior(e.target.checked)} />}
                 label="ستون مقایسه‌ای: همان دوره در سال قبل"
               />
+              {includePrior && (
+                <FormControlLabel
+                  sx={{ pr: 4, display: 'flex' }}
+                  control={<Checkbox checked={priorRestated} onChange={(e) => setPriorRestated(e.target.checked)} />}
+                  label="برچسب «تجدید ارائه‌شده» روی ستون سال قبل"
+                />
+              )}
             </Grid>
             <Grid size={12}>
               <FormControlLabel
@@ -205,7 +248,7 @@ export function FsRunWizardPage() {
                   {unitName || unitCode}
                   {includeSubUnits ? ' و زیرمجموعه‌ها (ترکیبی)' : ' (جداگانه)'} · اسناد از وضعیت «
                   {labelOf(DOC_LIFE_OPTIONS, minDocLife)}» به بالا
-                  {includePrior ? ' · با ستون سال قبل' : ''}
+                  {includePrior ? (priorRestated ? ' · با ستون سال قبل (تجدید ارائه‌شده)' : ' · با ستون سال قبل') : ''}
                   {useDraftVersions ? ' · آزمایشی' : ''}
                 </Typography>
               </Box>
@@ -219,9 +262,27 @@ export function FsRunWizardPage() {
         )}
 
         <Stack direction="row" spacing={1} sx={{ mt: 3, justifyContent: 'space-between' }}>
-          <Button disabled={step === 0 || mutation.isPending} onClick={() => setStep((s) => s - 1)}>
-            قبلی
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button disabled={step === 0 || mutation.isPending} onClick={() => setStep((s) => s - 1)}>
+              قبلی
+            </Button>
+            {step === STEPS.length - 1 && (
+              <Button variant="text" onClick={saveDefaults}>
+                ذخیره به‌عنوان پیش‌فرض
+              </Button>
+            )}
+            {step === 0 && saved && (
+              <Button
+                variant="outlined"
+                color="success"
+                startIcon={<PlayArrowOutlinedIcon />}
+                disabled={mutation.isPending || !yearValid}
+                onClick={() => mutation.mutate()}
+              >
+                اجرا با تنظیمات پیش‌فرض
+              </Button>
+            )}
+          </Stack>
           {step < STEPS.length - 1 ? (
             <Button variant="contained" disabled={step === 0 && !yearValid} onClick={() => setStep((s) => s + 1)}>
               بعدی

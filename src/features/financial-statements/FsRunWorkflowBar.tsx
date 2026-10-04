@@ -74,8 +74,20 @@ export function FsRunWorkflowBar({ detail, onChanged, onManualValues, onRegenera
     : blockingFailed > 0
       ? `${blockingFailed} کنترل مسدودکننده ناموفق است`
       : '';
-  const approveBlock = isPreparer || (!!me && me === submitter) ? 'تهیه‌کننده/ارسال‌کننده نمی‌تواند تأیید کند (تفکیک وظایف)' : '';
-  const publishBlock = isPreparer ? 'تهیه‌کننده نمی‌تواند منتشر کند (تفکیک وظایف)' : '';
+  // ح-۴ — گردش چندمرحله‌ای: مرحلهٔ جاری، علت ناتوانی کاربر جاری را سرور می‌دهد.
+  const steps = detail.approvalSteps ?? [];
+  const currentStep = steps.find((s) => s.isCurrent);
+  const approveBlock = currentStep
+    ? (currentStep.cannotApproveReason ?? '')
+    : isPreparer || (!!me && me === submitter)
+      ? 'تهیه‌کننده/ارسال‌کننده نمی‌تواند تأیید کند (تفکیک وظایف)'
+      : '';
+  const unlocked = detail.unlockedUnits ?? [];
+  const publishBlock = isPreparer
+    ? 'تهیه‌کننده نمی‌تواند منتشر کند (تفکیک وظایف)'
+    : unlocked.length > 0
+      ? `V-11: دورهٔ ${unlocked.length.toLocaleString('fa-IR')} واحد قفل نیست (${unlocked.slice(0, 5).join('، ')}${unlocked.length > 5 ? '، …' : ''}) — صفحهٔ «بستن دوره»`
+      : '';
 
   const act = (action: number) => mutation.mutate({ action, comments: null });
 
@@ -136,7 +148,7 @@ export function FsRunWorkflowBar({ detail, onChanged, onManualValues, onRegenera
                     disabled={!!approveBlock || mutation.isPending}
                     onClick={() => act(FS_RUN_ACTION.Approve)}
                   >
-                    تأیید
+                    {currentStep ? `تأیید «${currentStep.titleFa}»` : 'تأیید'}
                   </Button>
                 </span>
               </Tooltip>
@@ -164,6 +176,31 @@ export function FsRunWorkflowBar({ detail, onChanged, onManualValues, onRegenera
             )}
           </Stack>
         </Stack>
+        {steps.length > 0 && (
+          <Stack direction="row" spacing={0.5} sx={{ mt: 1.5, alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+            {steps.map((s, i) => (
+              <Stack key={s.stepNo} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                {i > 0 && <span aria-hidden>←</span>}
+                <Tooltip
+                  title={
+                    s.approvedBy
+                      ? `تأیید: ${s.approvedBy} — ${new Date(s.approvedDate!).toLocaleString('fa-IR')}`
+                      : s.approverUserIds.length > 0
+                        ? `تأییدکنندگان: ${s.approverUserIds.join('، ')}`
+                        : 'هر کاربری جز تهیه‌کننده و تأییدکنندگان قبلی'
+                  }
+                >
+                  <Chip
+                    size="small"
+                    color={s.approvedBy ? 'success' : s.isCurrent ? 'primary' : 'default'}
+                    variant={s.isCurrent ? 'filled' : 'outlined'}
+                    label={`${s.stepNo.toLocaleString('fa-IR')}. ${s.titleFa}`}
+                  />
+                </Tooltip>
+              </Stack>
+            ))}
+          </Stack>
+        )}
         {mutation.isError && !returning && <ErrorBanner error={mutation.error} />}
       </Paper>
 

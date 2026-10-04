@@ -211,6 +211,8 @@ export interface FsAccountMappingDto {
   statementMatchCount: number;
   doubleCounted: boolean;
   matches: FsMappingMatchDto[];
+  /** فقط برای «بدون نگاشت»: پرتکرارترین ردیف بین معین‌های هم‌کل، وگرنه هم‌گروه. */
+  suggestion: FsMappingSuggestionDto | null;
 }
 
 /** بخش ۴۵-و — پیش‌نمایش زندهٔ یک نسخهٔ قالب (بدون ذخیرهٔ اجرا). */
@@ -220,4 +222,32 @@ export interface FsTemplatePreviewDto {
   /** خطای محاسبه (ارجاع/دور)؛ در این صورت مبالغ خالی‌اند. */
   error: string | null;
   rows: import('./fsRun').FsRunRowDto[];
+}
+
+export interface FsMappingSuggestionDto {
+  templateCode: string;
+  templateTitle: string;
+  rowCode: string;
+  rowTitle: string | null;
+  basis: 'kol' | 'group';
+  siblingCount: number;
+}
+
+/** یک سطر نگاشت: معین به ردیف از قالب. */
+export interface FsMappingAssignment {
+  accCode: string;
+  templateCode: string;
+  rowCode: string;
+}
+
+export interface FsMappingApplyItemResult extends FsMappingAssignment {
+  status: 'applied' | 'unchanged' | 'error';
+  message: string | null;
+}
+
+export interface FsMappingApplyResultDto {
+  appliedCount: number;
+  errorCount: number;
+  dryRun: boolean;
+  items: FsMappingApplyItemResult[];
 }

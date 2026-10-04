@@ -31,6 +31,11 @@ import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import LinearScaleOutlinedIcon from "@mui/icons-material/LinearScaleOutlined";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+import FunctionsOutlinedIcon from "@mui/icons-material/FunctionsOutlined";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 
 /**
@@ -286,6 +291,12 @@ export const NAV_GROUPS: NavGroup[] = [
     color: 'primary',
     items: [
       {
+        label: "داشبورد صورت‌ها",
+        description: "شاخص‌ها، وضعیت بستن سال واحدها و کارهای من",
+        to: "/fs/dashboard",
+        icon: <DashboardOutlinedIcon fontSize="small" />,
+      },
+      {
         label: 'تهیهٔ صورت‌های مالی',
         description: 'اجرای قالب‌ها روی اسناد یک دوره',
         to: '/fs/runs',
@@ -308,6 +319,36 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "قواعد تساوی بین صورت‌ها که با هر تهیه اجرا می‌شوند",
         to: "/fs/check-rules",
         icon: <RuleOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "گردش تأیید صورت‌ها",
+        description: "مراحل تأیید پس از ارسال و تأییدکنندگان هر مرحله",
+        to: "/fs/approval-steps",
+        icon: <LinearScaleOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "بستن دوره",
+        description: "بستن و قفل دورهٔ سال هر واحد؛ پیش‌شرط انتشار صورت‌ها",
+        to: "/fs/period-close",
+        icon: <EventAvailableOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "یادداشت‌های توضیحی",
+        description: "متن یادداشت‌ها با متغیر، بازبینی و انتقال از سال قبل",
+        to: "/fs/narratives",
+        icon: <NotesOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "تحلیل و نسبت‌ها",
+        description: "نسبت‌های کلیدی، روند چندساله و مقایسهٔ اقلام اصلی",
+        to: "/fs/analysis",
+        icon: <InsightsOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "تعریف نسبت‌ها",
+        description: "فرمول نسبت‌های مالی با زبان قالب",
+        to: "/fs/ratios",
+        icon: <FunctionsOutlinedIcon fontSize="small" />,
       },
     ],
   },

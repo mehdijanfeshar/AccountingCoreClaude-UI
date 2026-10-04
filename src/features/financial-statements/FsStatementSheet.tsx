@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { FS_ROW_TYPE } from '../../types/fsTemplate';
 import type { FsRunRowDto, FsRunStatementDto } from '../../types/fsRun';
@@ -29,9 +30,26 @@ interface Props {
   onNoteClick?: (noteNo: string) => void;
   /** کلیک روی مبلغ ردیف «حساب» قابل ریزشدن ⇒ Drill-down (بخش ۴۵-د). */
   onDrill?: (row: FsRunRowDto) => void;
+  /** ح-۲ — تحلیل عمودی: درصد ستون جاری از مبلغ این ردیف پایه. */
+  verticalBaseId?: string | null;
+  /** ح-۲ — نمای فشرده (فاصلهٔ کمتر بین ردیف‌ها). */
+  dense?: boolean;
+  /** ح-۲ — ردیف انتخاب‌شده با صفحه‌کلید (↑↓). */
+  focusedRowId?: string | null;
+  /** ح-۳ — تعداد نظر هر ردیف (کلید = شناسهٔ ردیف) و باز کردن گفت‌وگوی ردیف. */
+  commentCounts?: Record<string, number>;
+  onComment?: (row: FsRunRowDto) => void;
 }
 
-const VALUE_TYPES = new Set<number>([FS_ROW_TYPE.Account, FS_ROW_TYPE.Formula, FS_ROW_TYPE.External]);
+export const VALUE_TYPES = new Set<number>([FS_ROW_TYPE.Account, FS_ROW_TYPE.Formula, FS_ROW_TYPE.External]);
+
+/** ردیف‌های نمایش‌داده‌شده (با «پنهان اگر صفر» در همان واحد مبلغ) — برگه و ناوبری صفحه‌کلید هم‌سان. */
+export function visibleRows(statement: FsRunStatementDto, unitDivisor: number): FsRunRowDto[] {
+  return statement.rows.filter((r) => {
+    if (!r.format.hideIfZero || !VALUE_TYPES.has(r.rowType)) return true;
+    return Math.round((r.amountCur ?? 0) / unitDivisor) !== 0 || Math.round((r.amountPrv ?? 0) / unitDivisor) !== 0;
+  });
+}
 
 /** مبلغ داخلی (بدهکار مثبت) ⇒ مبلغ نمایشی: ماهیت بستانکار قرینه می‌شود. */
 export function displayAmount(row: FsRunRowDto, amount: number | null): number | null {
@@ -72,16 +90,18 @@ export function FsStatementSheet({
   variant = "statement",
   onNoteClick,
   onDrill,
+  verticalBaseId = null,
+  dense = false,
+  focusedRowId = null,
+  commentCounts,
+  onComment,
 }: Props) {
   const isNoteSheet = variant === "note";
-  const rows = useMemo(
-    () =>
-      statement.rows.filter((r) => {
-        if (!r.format.hideIfZero || !VALUE_TYPES.has(r.rowType)) return true;
-        return Math.round((r.amountCur ?? 0) / unitDivisor) !== 0 || Math.round((r.amountPrv ?? 0) / unitDivisor) !== 0;
-      }),
-    [statement.rows, unitDivisor],
-  );
+  const rows = useMemo(() => visibleRows(statement, unitDivisor), [statement, unitDivisor]);
+  const baseRow = verticalBaseId ? statement.rows.find((r) => r.id === verticalBaseId) : undefined;
+  const baseAmount = baseRow ? displayAmount(baseRow, baseRow.amountCur) : null;
+  const showVertical = !!baseAmount;
+  const rowPy = dense ? 0.2 : 0.6;
 
   const hasInner = rows.some((r) => r.format.innerColumn && VALUE_TYPES.has(r.rowType));
   const hasPrior = priorLabel !== null;
@@ -95,7 +115,7 @@ export function FsStatementSheet({
     textAlign: 'left' as const,
     whiteSpace: 'nowrap' as const,
     px: 1.5,
-    py: 0.6,
+    py: rowPy,
     minWidth: 110,
   };
 
@@ -170,6 +190,15 @@ export function FsStatementSheet({
                   {p.label}
                 </Box>
               ))}
+              {showVertical && (
+                <Box
+                  component="th"
+                  title={`درصد از «${baseRow!.titleFa ?? baseRow!.code}»`}
+                  sx={{ px: 1.5, py: 1, fontWeight: 600, borderBottom: '1px solid', borderColor: 'divider' }}
+                >
+                  ٪ از پایه
+                </Box>
+              )}
               {showChange && hasPrior && (
                 <>
                   <Box component="th" sx={{ px: 1.5, py: 1, fontWeight: 600, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -249,22 +278,60 @@ export function FsStatementSheet({
 
               const change = isValue && cur !== null && prv !== null ? cur - prv : null;
               const pct = change !== null && prv ? (change / Math.abs(prv)) * 100 : null;
+              const vertical = showVertical && isValue && cur !== null ? (cur / Math.abs(baseAmount!)) * 100 : null;
+              const focused = focusedRowId === r.id;
 
               return (
-                <tr key={r.id}>
+                <Box
+                  component="tr"
+                  key={r.id}
+                  id={`fs-row-${r.id}`}
+                  sx={{
+                    bgcolor: focused ? 'action.selected' : undefined,
+                    outline: focused ? '2px solid' : undefined,
+                    outlineColor: 'primary.main',
+                    scrollMarginTop: 120,
+                    scrollMarginBottom: 80,
+                  }}
+                >
                   <Box
                     component="td"
                     sx={{
                       px: 1,
-                      py: 0.6,
+                      py: rowPy,
                       pr: 1 + (r.format.indent ?? 0) * 2,
                       fontWeight: bold ? 700 : 400,
                       fontStyle: r.format.italic ? 'italic' : undefined,
-                      pt: isHeader ? 1.5 : 0.6,
+                      pt: isHeader ? (dense ? 0.8 : 1.5) : rowPy,
                     }}
                   >
                     {isNoteSheet && isHeader && r.noteRef ? `${toPersianDigits(r.noteRef)}. ` : ''}
                     {r.titleFa}
+                    {onComment && (
+                      <Box
+                        component="button"
+                        type="button"
+                        onClick={() => onComment(r)}
+                        title="نظرها"
+                        className="fs-comment-btn"
+                        sx={{
+                          border: 0,
+                          bgcolor: 'transparent',
+                          cursor: 'pointer',
+                          p: 0,
+                          mr: 0.75,
+                          font: 'inherit',
+                          fontSize: 12,
+                          color: commentCounts?.[r.id] ? 'primary.main' : 'text.disabled',
+                          opacity: commentCounts?.[r.id] ? 1 : 0,
+                          displayPrint: 'none',
+                          'tr:hover &, &:focus-visible': { opacity: 1 },
+                        }}
+                      >
+                        <ChatBubbleOutlineIcon sx={{ fontSize: 14, verticalAlign: 'middle' }} />
+                        {commentCounts?.[r.id] ? toPersianDigits(commentCounts[r.id]) : ''}
+                      </Box>
+                    )}
                   </Box>
                   {hasNotes && (
                     <Box component="td" sx={{ textAlign: 'center', px: 1 }}>
@@ -296,6 +363,11 @@ export function FsStatementSheet({
                   )}
                   {renderPeriod(cur)}
                   {hasPrior && renderPeriod(prv)}
+                  {showVertical && (
+                    <Box component="td" sx={{ ...numCell, minWidth: 70, color: 'text.secondary' }}>
+                      {vertical !== null ? `${toPersianDigits(vertical.toFixed(1))}٪` : ''}
+                    </Box>
+                  )}
                   {showChange && hasPrior && (
                     <>
                       <Box component="td" sx={{ ...numCell, color: 'text.secondary' }}>
@@ -306,7 +378,7 @@ export function FsStatementSheet({
                       </Box>
                     </>
                   )}
-                </tr>
+                </Box>
               );
             })}
           </tbody>

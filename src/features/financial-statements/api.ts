@@ -1,10 +1,16 @@
 import { apiClient } from '../../lib/api/client';
+import type { FsNarrativeDto, FsNarrativeVersionDto, FsRunNarrativeDto } from '../../types/fsNarrative';
+import type { FsDashboardDto, FsRatioDto, FsRatioTrendYearDto, FsRatioValueDto } from '../../types/fsRatio';
 import type {
   FsDrillAccountDto,
   FsDrillUnitDto,
   FsDrillVoucherPageDto,
   FsCheckRuleDto,
   FsRunDiffRowDto,
+  FsRunCommentDto,
+  FsApprovalStepDto,
+  FsPeriodBoardDto,
+  FsPeriodLogDto,
   FsRunStalenessDto,
   FsRunDetailDto,
   FsRunSummaryDto,
@@ -16,6 +22,8 @@ import type {
   FsTemplateDto,
   FsTemplateRowInput,
   FsAccountMappingDto,
+  FsMappingApplyResultDto,
+  FsMappingAssignment,
   FsTemplatePreviewDto,
   FsTemplateVersionDetailDto,
 } from '../../types/fsTemplate';
@@ -71,6 +79,15 @@ export const fsTemplatesApi = {
       .get<FsAccountMappingDto[]>("/fs/account-mapping", { params: { framework, year, useDrafts } })
       .then((res) => res.data);
   },
+  /** ۴۵-و — اعمال نگاشت روی پیش‌نویس قالب‌های واحد جاری؛ `dryRun` = فقط نتیجه. */
+  applyAccountMapping(payload: {
+    framework: FsFrameworkValue;
+    year: number;
+    items: FsMappingAssignment[];
+    dryRun: boolean;
+  }): Promise<FsMappingApplyResultDto> {
+    return apiClient.post<FsMappingApplyResultDto>('/fs/account-mapping/apply', payload).then((res) => res.data);
+  },
   createVersion(templateId: string, payload: { sourceVersionId: string | null; description: string | null }): Promise<string> {
     return apiClient
       .post<{ id: string }>(`/fs/templates/${templateId}/versions`, payload)
@@ -119,8 +136,15 @@ export const fsTemplateVersionsApi = {
       .get<FsTemplatePreviewDto>(`/fs/template-versions/${versionId}/preview`, { params })
       .then((res) => res.data);
   },
-  reorderRows(versionId: string, rowIds: string[]): Promise<void> {
-    return apiClient.post(`/fs/template-versions/${versionId}/rows/reorder`, { rowIds }).then(() => undefined);
+  /** ترتیب کامل ردیف‌ها؛ `parentChanges` (طراح درختی ۴۵-و) والد ردیف جابه‌جاشده را در همان تراکنش عوض می‌کند. */
+  reorderRows(
+    versionId: string,
+    rowIds: string[],
+    parentChanges?: { rowId: string; parentCode: string | null }[],
+  ): Promise<void> {
+    return apiClient
+      .post(`/fs/template-versions/${versionId}/rows/reorder`, { rowIds, parentChanges })
+      .then(() => undefined);
   },
 };
 
@@ -214,6 +238,26 @@ export const fsRunWorkflowApi = {
   diff(runId: string, otherId: string): Promise<FsRunDiffRowDto[]> {
     return apiClient.get<FsRunDiffRowDto[]>(`/fs/runs/${runId}/diff/${otherId}`).then((res) => res.data);
   },
+  /** ح-۳ — نظرها و ارجاع کنترل‌ها. */
+  comments(runId: string): Promise<FsRunCommentDto[]> {
+    return apiClient.get<FsRunCommentDto[]>(`/fs/runs/${runId}/comments`).then((res) => res.data);
+  },
+  addComment(runId: string, payload: { rowId: string | null; checkId: string | null; body: string }): Promise<string> {
+    return apiClient.post<{ id: string }>(`/fs/runs/${runId}/comments`, payload).then((res) => res.data.id);
+  },
+  deleteComment(runId: string, commentId: string): Promise<void> {
+    return apiClient.post(`/fs/runs/${runId}/comments/${commentId}/delete`).then(() => undefined);
+  },
+  assignCheck(
+    runId: string,
+    checkId: string,
+    payload: { assigneeUserId: string; assigneeName: string | null; dueDate: string | null; note: string | null },
+  ): Promise<void> {
+    return apiClient.post(`/fs/runs/${runId}/checks/${checkId}/assign`, payload).then(() => undefined);
+  },
+  resolveCheck(runId: string, checkId: string, note: string | null): Promise<void> {
+    return apiClient.post(`/fs/runs/${runId}/checks/${checkId}/resolve`, { note }).then(() => undefined);
+  },
 };
 
 /** بخش ۴۵-ه — قواعد کنترل تساوی بین صورت‌ها (مشترک فقط ستاد). */
@@ -244,5 +288,119 @@ export const fsCheckRulesApi = {
   },
   remove(id: string): Promise<void> {
     return apiClient.post(`/fs/check-rules/${id}/delete`).then(() => undefined);
+  },
+};
+
+/** ح-۴ — مراحل گردش تأیید (مشترک فقط ستاد). */
+export const fsApprovalStepsApi = {
+  list(framework?: number): Promise<FsApprovalStepDto[]> {
+    return apiClient
+      .get<FsApprovalStepDto[]>("/fs/approval-steps", { params: framework ? { framework } : undefined })
+      .then((res) => res.data);
+  },
+  create(payload: { framework: number; shared: boolean; stepNo: number; titleFa: string; approverUserIds: string | null; isActive: boolean }): Promise<string> {
+    return apiClient.post<{ id: string }>("/fs/approval-steps", payload).then((res) => res.data.id);
+  },
+  update(id: string, payload: { stepNo: number; titleFa: string; approverUserIds: string | null; isActive: boolean }): Promise<void> {
+    return apiClient.post(`/fs/approval-steps/${id}/update`, payload).then(() => undefined);
+  },
+  remove(id: string): Promise<void> {
+    return apiClient.post(`/fs/approval-steps/${id}/delete`).then(() => undefined);
+  },
+};
+
+/** ح-۵ — بستن دورهٔ صورت‌ها (فقط برای صورت‌ها؛ V-11 هنگام انتشار). */
+export const fsPeriodsApi = {
+  board(year: string): Promise<FsPeriodBoardDto> {
+    return apiClient.get<FsPeriodBoardDto>('/fs/periods', { params: { year } }).then((res) => res.data);
+  },
+  log(unitCode: string, year: string): Promise<FsPeriodLogDto[]> {
+    return apiClient.get<FsPeriodLogDto[]>(`/fs/periods/${unitCode}/log`, { params: { year } }).then((res) => res.data);
+  },
+  transition(unitCode: string, year: string, action: number, reason: string | null): Promise<number> {
+    return apiClient
+      .post<{ state: number }>(`/fs/periods/${unitCode}/transitions`, { year, action, reason })
+      .then((res) => res.data.state);
+  },
+};
+
+/** ح-۶ — یادداشت‌های توضیحی متنی (واحد هدر). */
+export const fsNarrativesApi = {
+  list(framework: number, year: string): Promise<FsNarrativeDto[]> {
+    return apiClient.get<FsNarrativeDto[]>('/fs/narratives', { params: { framework, year } }).then((res) => res.data);
+  },
+  create(payload: { framework: number; year: string; titleFa: string; linkedTemplateCode: string | null; responsibleUserId: string | null }): Promise<string> {
+    return apiClient.post<{ id: string }>('/fs/narratives', payload).then((res) => res.data.id);
+  },
+  save(id: string, payload: { titleFa: string; linkedTemplateCode: string | null; responsibleUserId: string | null; contentJson: string | null }): Promise<number> {
+    return apiClient.post<{ versionNo: number }>(`/fs/narratives/${id}/update`, payload).then((res) => res.data.versionNo);
+  },
+  remove(id: string): Promise<void> {
+    return apiClient.post(`/fs/narratives/${id}/delete`).then(() => undefined);
+  },
+  reorder(framework: number, year: string, ids: string[]): Promise<void> {
+    return apiClient.post('/fs/narratives/reorder', { framework, year, ids }).then(() => undefined);
+  },
+  transition(id: string, action: number, comment: string | null): Promise<number> {
+    return apiClient.post<{ state: number }>(`/fs/narratives/${id}/transitions`, { action, comment }).then((res) => res.data.state);
+  },
+  rollForward(framework: number, year: string): Promise<number> {
+    return apiClient.post<{ count: number }>('/fs/narratives/roll-forward', { framework, year }).then((res) => res.data.count);
+  },
+  versions(id: string): Promise<FsNarrativeVersionDto[]> {
+    return apiClient.get<FsNarrativeVersionDto[]>(`/fs/narratives/${id}/versions`).then((res) => res.data);
+  },
+  forRun(runId: string): Promise<FsRunNarrativeDto[]> {
+    return apiClient.get<FsRunNarrativeDto[]>(`/fs/runs/${runId}/narratives`).then((res) => res.data);
+  },
+  async downloadDocx(runId: string, divisor: number, fileName: string): Promise<void> {
+    const res = await apiClient.get<Blob>(`/fs/runs/${runId}/narratives.docx`, { params: { divisor }, responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+};
+
+/** ح-۸ — نسبت‌های مالی (مشترک فقط ستاد) و ارزیابی روی اجرا/روند. */
+export const fsRatiosApi = {
+  list(framework?: number): Promise<FsRatioDto[]> {
+    return apiClient.get<FsRatioDto[]>('/fs/ratios', { params: framework ? { framework } : undefined }).then((res) => res.data);
+  },
+  forRun(runId: string): Promise<FsRatioValueDto[]> {
+    return apiClient.get<FsRatioValueDto[]>(`/fs/runs/${runId}/ratios`).then((res) => res.data);
+  },
+  trend(framework: number, toYear: string, years = 5): Promise<FsRatioTrendYearDto[]> {
+    return apiClient.get<FsRatioTrendYearDto[]>('/fs/ratios/trend', { params: { framework, toYear, years } }).then((res) => res.data);
+  },
+  create(payload: {
+    framework: number;
+    shared: boolean;
+    code: string;
+    titleFa: string;
+    numeratorExpr: string;
+    denominatorExpr: string | null;
+    format: number;
+    orderNo: number;
+    isActive: boolean;
+  }): Promise<string> {
+    return apiClient.post<{ id: string }>('/fs/ratios', payload).then((res) => res.data.id);
+  },
+  update(id: string, payload: { titleFa: string; numeratorExpr: string; denominatorExpr: string | null; format: number; orderNo: number; isActive: boolean }): Promise<void> {
+    return apiClient.post(`/fs/ratios/${id}/update`, payload).then(() => undefined);
+  },
+  remove(id: string): Promise<void> {
+    return apiClient.post(`/fs/ratios/${id}/delete`).then(() => undefined);
+  },
+  seedDefaults(): Promise<string[]> {
+    return apiClient.post<string[]>('/fs/ratios/seed-defaults').then((res) => res.data);
+  },
+  /** ح-۹ — شاخص‌ها و «کارهای من». */
+  dashboard(framework: number, year: string): Promise<FsDashboardDto> {
+    return apiClient.get<FsDashboardDto>('/fs/dashboard', { params: { framework, year } }).then((res) => res.data);
   },
 };

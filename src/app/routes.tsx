@@ -60,6 +60,13 @@ import { FsRunWizardPage } from '../features/financial-statements/FsRunWizardPag
 import { FsRunViewPage } from '../features/financial-statements/FsRunViewPage';
 import { FsCheckRulesPage } from "../features/financial-statements/FsCheckRulesPage";
 import { FsAccountMappingPage } from "../features/financial-statements/FsAccountMappingPage";
+import { FsApprovalStepsPage } from "../features/financial-statements/FsApprovalStepsPage";
+import { FsPeriodClosePage } from "../features/financial-statements/FsPeriodClosePage";
+import { FsNarrativesPage } from "../features/financial-statements/narratives/FsNarrativesPage";
+import { FsRunPrintPage } from "../features/financial-statements/FsRunPrintPage";
+import { FsAnalysisPage } from "../features/financial-statements/ratios/FsAnalysisPage";
+import { FsRatiosPage } from "../features/financial-statements/ratios/FsRatiosPage";
+import { FsDashboardPage } from "../features/financial-statements/FsDashboardPage";
 
 /** Routes rendered without the authenticated Layout/RequireAuth shell — see App.tsx. */
 export const PUBLIC_PATHS = new Set<string>(['/login']);
@@ -175,8 +182,21 @@ export const routes: RouteObject[] = [
   { path: '/fs/runs', element: <FsRunsListPage /> },
   { path: '/fs/runs/new', element: <FsRunWizardPage /> },
   { path: '/fs/runs/:id', element: <FsRunViewPage /> },
+  // ح-۷ — بستهٔ رسمی چاپ / PDF.
+  { path: '/fs/runs/:id/print', element: <FsRunPrintPage /> },
   // بخش ۴۵-ه — قواعد کنترل.
   { path: "/fs/check-rules", element: <FsCheckRulesPage /> },
   // بخش ۴۵-و — نگاشت حساب‌ها.
   { path: "/fs/account-mapping", element: <FsAccountMappingPage /> },
+  // ح-۴ — مراحل گردش تأیید.
+  { path: "/fs/approval-steps", element: <FsApprovalStepsPage /> },
+  // ح-۵ — بستن دوره.
+  { path: "/fs/period-close", element: <FsPeriodClosePage /> },
+  // ح-۶ — یادداشت‌های توضیحی متنی.
+  { path: "/fs/narratives", element: <FsNarrativesPage /> },
+  // ح-۸ — تحلیل و نسبت‌ها.
+  { path: "/fs/analysis", element: <FsAnalysisPage /> },
+  { path: "/fs/ratios", element: <FsRatiosPage /> },
+  // ح-۹ — داشبورد.
+  { path: "/fs/dashboard", element: <FsDashboardPage /> },
 ];
