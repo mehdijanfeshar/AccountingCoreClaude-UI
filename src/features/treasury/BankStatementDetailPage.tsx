@@ -14,6 +14,7 @@ import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -228,6 +229,14 @@ export function BankStatementDetailPage() {
           onClick={() => fileInputRef.current?.click()}
         >
           بارگذاری فایل دیسکت
+        </Button>
+
+        <Button
+          variant="outlined"
+          startIcon={<PrintOutlinedIcon fontSize="small" />}
+          onClick={() => navigate(`/treasury/khazaneh/bank-reconciliation/${id}/print`)}
+        >
+          صورت مغایرت
         </Button>
 
         <Box sx={{ flexGrow: 1 }} />

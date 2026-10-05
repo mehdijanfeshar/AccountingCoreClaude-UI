@@ -497,6 +497,8 @@ export interface BankStatementBookLineDto {
   description: string | null;
   /** مرجع بانک سند خزانهٔ صادرکننده (درخواست پرداخت/دریافت/انتقال)، اگر قابل‌تشخیص باشد. */
   sourceBankReference: string | null;
+  /** شمارهٔ چک/فیش خود ردیف سند (CHECK_ID/RECEIP_ID) — کلید تطبیق با دیسکت. */
+  documentNumber?: string | null;
 }
 
 /** `GET api/treasury/statements/{id}` — `BankStatementDto` — جزئیات کامل. */

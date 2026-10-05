@@ -32,6 +32,11 @@ import { TrialBalancePage } from '../features/reports/trial-balance/TrialBalance
 import { AccountReviewPage } from '../features/reports/account-review/AccountReviewPage';
 import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
 import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
+import { BankCardPage } from '../features/bank-cards/BankCardPage';
+import { BankCardReconciliationPage } from '../features/bank-cards/BankCardReconciliationPage';
+import { ElamsListPage } from "../features/elams/ElamsListPage";
+import { ElamFormPage } from "../features/elams/ElamFormPage";
+import { AttributeAccountReconciliationPage } from '../features/reports/attribute-accounts/AttributeAccountReconciliationPage';
 import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
 import { PettyCashFundsListPage } from '../features/petty-cash/PettyCashFundsListPage';
 import { PettyCashCartablePage } from '../features/petty-cash/PettyCashCartablePage';
@@ -51,6 +56,7 @@ import { ReceiptsTransfersPage } from '../features/treasury/ReceiptsTransfersPag
 import { ReceiptFormPage } from '../features/treasury/ReceiptFormPage';
 import { TransferFormPage } from '../features/treasury/TransferFormPage';
 import { BankStatementListPage } from '../features/treasury/BankStatementListPage';
+import { BankReconciliationPrintPage } from '../features/treasury/BankReconciliationPrintPage';
 import { BankStatementDetailPage } from '../features/treasury/BankStatementDetailPage';
 import { TreasuryDashboardPage } from '../features/treasury/TreasuryDashboardPage';
 import { FsTemplatesPage } from '../features/financial-statements/FsTemplatesPage';
@@ -132,6 +138,11 @@ export const routes: RouteObject[] = [
   // Read-only. The only way into a reviewed/accepted voucher, which the edit route refuses.
   { path: '/operation/vouchers/:id/view', element: <VoucherViewPage /> },
 
+  { path: '/operation/elams', element: <ElamsListPage /> },
+  { path: '/operation/bank-card', element: <BankCardPage /> },
+  { path: '/operation/bank-card/reconciliation', element: <BankCardReconciliationPage /> },
+  { path: '/operation/elams/new', element: <ElamFormPage /> },
+  { path: '/operation/elams/:id', element: <ElamFormPage /> },
   { path: '/operation/pay-recive-heads', element: <PayReciveHeadsListPage /> },
   { path: '/operation/pay-recive-heads/new', element: <PayReciveHeadFormPage /> },
   { path: '/operation/pay-recive-heads/:id/edit', element: <PayReciveHeadFormPage /> },
@@ -140,6 +151,7 @@ export const routes: RouteObject[] = [
   { path: '/reports/account-review', element: <AccountReviewPage /> },
   { path: '/reports/matrix', element: <MatrixReportPage /> },
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
+  { path: '/reports/attribute-accounts', element: <AttributeAccountReconciliationPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
 
   // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه») + بخش ۳-الف
@@ -176,6 +188,7 @@ export const routes: RouteObject[] = [
   // بخش ۴-د — مغایرت‌گیری بانکی + داشبورد خزانه.
   { path: '/treasury/khazaneh/bank-reconciliation', element: <BankStatementListPage /> },
   { path: '/treasury/khazaneh/bank-reconciliation/:id', element: <BankStatementDetailPage /> },
+  { path: '/treasury/khazaneh/bank-reconciliation/:id/print', element: <BankReconciliationPrintPage /> },
   { path: '/treasury/khazaneh/dashboard', element: <TreasuryDashboardPage /> },
   // صورت‌های مالی، بخش ۴۵-الف — قالب صورت‌ها.
   { path: '/fs/templates', element: <FsTemplatesPage /> },

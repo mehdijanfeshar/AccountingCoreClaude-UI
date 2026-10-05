@@ -30,6 +30,7 @@ import SettingsSuggestOutlinedIcon from '@mui/icons-material/SettingsSuggestOutl
 import RequestQuoteOutlinedIcon from '@mui/icons-material/RequestQuoteOutlined';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
 import LinearScaleOutlinedIcon from "@mui/icons-material/LinearScaleOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
@@ -135,6 +136,18 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/operation/vouchers/new',
         icon: <PostAddOutlinedIcon fontSize="small" />,
       },
+      {
+        label: 'اسناد اعلامیه',
+        description: 'اعلامیه‌های صادره، رسیده و درآمد — صدور سند و ارسال به واحد دیگر',
+        to: '/operation/elams',
+        icon: <CampaignOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'کارت حساب جاری',
+        description: 'صورت‌حساب بانک هر حساب جاری در هر ماه — دیسکت بانک، مغایرت‌گیری و صورت مغایرت',
+        to: '/operation/bank-card',
+        icon: <AccountBalanceOutlinedIcon fontSize="small" />,
+      },
     ],
   },
   {
@@ -166,6 +179,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'گردش و ماندهٔ حساب‌ها در هر سطح، با پیمایش از کل به جزء',
         to: '/reports/account-review',
         icon: <ManageSearchOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'مغایرت‌گیری حساب‌های شناسه‌دار',
+        description: 'شناسه‌های تسویه‌نشده و ردیف‌های بی‌شناسه روی معین‌های شناسه‌دار',
+        to: '/reports/attribute-accounts',
+        icon: <RuleOutlinedIcon fontSize="small" />,
       },
       { label: 'ترازنامه', icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
       {
