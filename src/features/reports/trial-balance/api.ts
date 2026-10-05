@@ -1,3 +1,4 @@
+import { reportUnitScopeParams } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type {
   TrialBalanceParams,
@@ -42,7 +43,7 @@ export const trialBalanceApi = {
     });
 
     return apiClient
-      .get<TrialBalanceRow[]>(`/reports/trial-balance-${variant}`, { params })
+      .get<TrialBalanceRow[]>(`/reports/trial-balance-${variant}`, { params: { ...params, ...reportUnitScopeParams() } })
       .then((res) => res.data);
   },
 };

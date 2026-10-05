@@ -1,3 +1,4 @@
+import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
@@ -263,6 +264,7 @@ export function AccountReviewPage() {
             </Stack>
           }
         />
+        <ReportUnitScopeBar />
 
         {!isConfigured && (
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>

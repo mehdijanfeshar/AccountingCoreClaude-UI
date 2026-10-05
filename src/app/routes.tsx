@@ -32,11 +32,14 @@ import { TrialBalancePage } from '../features/reports/trial-balance/TrialBalance
 import { AccountReviewPage } from '../features/reports/account-review/AccountReviewPage';
 import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
 import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
+import { ChequeBookPage } from '../features/cheque-book/ChequeBookPage';
+import { ChequePrintPage } from '../features/cheque-book/ChequePrintPage';
 import { BankCardPage } from '../features/bank-cards/BankCardPage';
 import { BankCardReconciliationPage } from '../features/bank-cards/BankCardReconciliationPage';
 import { ElamsListPage } from "../features/elams/ElamsListPage";
 import { ElamFormPage } from "../features/elams/ElamFormPage";
 import { AttributeAccountReconciliationPage } from '../features/reports/attribute-accounts/AttributeAccountReconciliationPage';
+import { GeneralLedgerPage } from '../features/reports/general-ledger/GeneralLedgerPage';
 import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
 import { PettyCashFundsListPage } from '../features/petty-cash/PettyCashFundsListPage';
 import { PettyCashCartablePage } from '../features/petty-cash/PettyCashCartablePage';
@@ -140,6 +143,8 @@ export const routes: RouteObject[] = [
 
   { path: '/operation/elams', element: <ElamsListPage /> },
   { path: '/operation/bank-card', element: <BankCardPage /> },
+  { path: '/operation/cheque-book', element: <ChequeBookPage /> },
+  { path: '/operation/cheque-book/:id/print', element: <ChequePrintPage /> },
   { path: '/operation/bank-card/reconciliation', element: <BankCardReconciliationPage /> },
   { path: '/operation/elams/new', element: <ElamFormPage /> },
   { path: '/operation/elams/:id', element: <ElamFormPage /> },
@@ -153,6 +158,7 @@ export const routes: RouteObject[] = [
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
   { path: '/reports/attribute-accounts', element: <AttributeAccountReconciliationPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
+  { path: '/reports/general-ledger', element: <GeneralLedgerPage /> },
 
   // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه») + بخش ۳-الف
   // (داشبورد، شارژ و ترمیم، گزارش گردش). «تسویه دوره» در `navConfig.tsx` عمداً بدون `to` مانده تا

@@ -19,20 +19,20 @@ export const checkBookFormSchema = z.object({
     .trim()
     .min(1, 'تاریخ صدور دسته‌چک الزامی است')
     .max(8, 'حداکثر ۸ کاراکتر است'),
-  fromCheckNumber: z
-    .string()
-    .trim()
-    .min(1, 'شماره اولین برگه چک الزامی است')
-    .max(14, 'حداکثر ۱۴ کاراکتر است'),
-  toCheckNumber: z
-    .string()
-    .trim()
-    .min(1, 'شماره آخرین برگه چک الزامی است')
-    .max(14, 'حداکثر ۱۴ کاراکتر است'),
+  // چک صوری: بازه را سرور می‌سازد (سال + کد واحد + ۰۰۰۱ تا ۱۰۰۰) — الزام فقط برای چک واقعی (superRefine پایین).
+  fromCheckNumber: z.string().trim().max(14, 'حداکثر ۱۴ کاراکتر است'),
+  toCheckNumber: z.string().trim().max(14, 'حداکثر ۱۴ کاراکتر است'),
   checkTypeId: z.string().nullable(),
   checkBookType: enumFieldSchema(CHECK_TYPE_VALUES, 'نوع دسته‌چک نامعتبر است'),
   serial: z.string().trim().max(20, 'حداکثر ۲۰ کاراکتر است').optional().or(z.literal('')),
+}).superRefine((v, ctx) => {
+  if (v.checkBookType === SORI_CHECK_TYPE) return;
+  if (!v.fromCheckNumber) ctx.addIssue({ code: 'custom', path: ['fromCheckNumber'], message: 'شماره اولین برگه چک الزامی است' });
+  if (!v.toCheckNumber) ctx.addIssue({ code: 'custom', path: ['toCheckNumber'], message: 'شماره آخرین برگه چک الزامی است' });
 });
+
+/** `CheckType.Sori` — دسته‌چک صوری (اعلامیه صوری): بی‌برگ؛ برگ هنگام استفاده در سند ساخته می‌شود. */
+export const SORI_CHECK_TYPE = 1;
 
 export type CheckBookFormValues = z.infer<typeof checkBookFormSchema>;
 

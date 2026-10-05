@@ -11,11 +11,13 @@ import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
 import { NAV_GROUPS } from '../lib/navConfig';
+import { useRoles, visibleNavGroups } from '../lib/roles';
 import { useSession } from '../lib/session/SessionContext';
 import { SHELL } from '../theme';
 import { toPersianDigits } from '../lib/format/numbers';
 
 export function HomePage() {
+  const roleState = useRoles();
   const { financialYear } = useSession();
 
   return (
@@ -75,7 +77,7 @@ export function HomePage() {
         </Stack>
       </Paper>
 
-      {NAV_GROUPS.map((group) => {
+      {visibleNavGroups(NAV_GROUPS, roleState).map((group) => {
         const liveItems = group.items.filter((item) => item.to);
         if (liveItems.length === 0) return null;
 

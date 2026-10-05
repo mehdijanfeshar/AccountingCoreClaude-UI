@@ -54,7 +54,10 @@ export function FsRunsListPage() {
     {
       key: 'scope',
       header: 'دامنه',
-      render: (r) => (r.includeSubUnits ? `ترکیبی (${toPersianDigits(r.unitCount)} واحد)` : 'جداگانه'),
+      render: (r) =>
+        r.includeSubUnits
+          ? `ترکیبی (${toPersianDigits(r.unitCount)} واحد${r.unitCategory ? ` — ${({ 1: 'بیمه‌ای', 2: 'درمانی', 3: 'ستادی' } as Record<number, string>)[r.unitCategory]}` : ''})`
+          : 'جداگانه',
     },
     {
       key: 'state',

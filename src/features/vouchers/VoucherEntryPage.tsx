@@ -194,7 +194,15 @@ export function VoucherEntryPage() {
       voucherHeadId: headId,
       accountId: line.accountId || null,
       receiptId: null,
-      checkId: null,
+      checkId: line.checkId || null,
+      cheque: line.checkId || line.soriCheckBookId
+        ? {
+            payTo: line.chequePayTo.trim() || null,
+            chequeDate: line.chequeDate || null,
+            description: line.chequeDesc.trim() || null,
+            soriCheckBookId: line.checkId ? null : line.soriCheckBookId,
+          }
+        : null,
       lowLevelCodeId: null,
       etebarId: null,
       description: line.description?.trim() ? line.description.trim() : null,

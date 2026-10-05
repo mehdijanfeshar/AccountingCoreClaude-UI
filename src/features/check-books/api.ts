@@ -1,4 +1,5 @@
 import { createResourceApi } from '../../lib/api/createResourceApi';
+import { apiClient } from '../../lib/api/client';
 import type { CheckBookDto } from '../../types/checkBook';
 
 /**
@@ -22,3 +23,27 @@ export interface CheckBookWritePayload {
 export const checkBooksApi = createResourceApi<CheckBookDto, CheckBookWritePayload, CheckBookWritePayload>(
   'check-books',
 );
+
+/** یک برگ چک در «اوراق چک» دسته‌چک — `ChequeLeafDto`. `paperDescription` = بابت. */
+export interface ChequeLeafDto {
+  checkId: string;
+  chequeNo: string;
+  chequeDate: string | null;
+  payTo: string | null;
+  paperDescription: string | null;
+  isCanceled: boolean;
+  isPrinted: boolean;
+  voucherHeadId: string | null;
+  voucherNumber: string | null;
+  voucherDate: string | null;
+  amount: number | null;
+  approvalState: 1 | 2 | 3 | 4 | null;
+}
+
+export const checkBookLeavesApi = {
+  list: (checkBookId: string) =>
+    apiClient.get<ChequeLeafDto[]>(`/check-books/${checkBookId}/leaves`).then((r) => r.data),
+  /** ساخت برگ‌های جاافتادهٔ دسته‌چک‌های قدیمی؛ تعداد برگ تازه. */
+  generate: (checkBookId: string) =>
+    apiClient.post<number>(`/check-books/${checkBookId}/generate-leaves`).then((r) => r.data),
+};

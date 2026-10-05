@@ -60,11 +60,14 @@ export interface NavGroup {
   icon: ReactElement;
   color: NavAccentColor;
   items: NavItem[];
+  /** نمایش بر اساس نقش: any = هر نقش، operate = نقش‌های عملیاتی، operateOrNational = + مدیریتی سطح کشور. */
+  access?: 'any' | 'operate' | 'operateOrNational';
 }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'اطلاعات پایه',
+    access: 'operateOrNational',
     icon: <FolderOutlinedIcon fontSize="small" />,
     color: 'primary',
     items: [
@@ -121,6 +124,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: 'عملیات',
+    access: 'operate',
     icon: <BoltOutlinedIcon fontSize="small" />,
     color: 'secondary',
     items: [
@@ -148,6 +152,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/operation/bank-card',
         icon: <AccountBalanceOutlinedIcon fontSize="small" />,
       },
+      {
+        label: 'دفتر چک',
+        description: 'چک‌های اسناد — دستور پرداخت، تأیید رئیس حسابداری و مدیر واحد (تاییدیه) و چاپ چک',
+        to: '/operation/cheque-book',
+        icon: <MenuBookOutlinedIcon fontSize="small" />,
+      },
     ],
   },
   {
@@ -161,7 +171,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/reports/trial-balance',
         icon: <BarChartOutlinedIcon fontSize="small" />,
       },
-      { label: 'دفتر کل', icon: <MenuBookOutlinedIcon fontSize="small" /> },
+      {
+        label: 'دفتر کل',
+        description: 'گردش هر حساب کل به تفکیک سند با ماندهٔ ابتدا، جاری و پایان دوره',
+        to: '/reports/general-ledger',
+        icon: <MenuBookOutlinedIcon fontSize="small" />,
+      },
       {
         label: 'دفتر روزنامه',
         description: 'همهٔ ردیف‌های اسناد، به ترتیب تاریخ و شماره سند',
@@ -206,6 +221,7 @@ export const NAV_GROUPS: NavGroup[] = [
    */
   {
     title: 'تنخواه و خزانه‌داری',
+    access: 'operate',
     icon: <WalletOutlinedIcon fontSize="small" />,
     color: 'secondary',
     items: [

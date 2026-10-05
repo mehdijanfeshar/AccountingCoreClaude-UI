@@ -5,11 +5,13 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
+import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../components/PageHeader';
 import { BankAccountsTab } from '../features/bank-accounts/BankAccountsTab';
 import { CheckBooksTab } from '../features/check-books/CheckBooksTab';
+import { ChequeTypesTab } from '../features/cheque-types/ChequeTypesTab';
 
-const TABS = ['accounts', 'checkBooks'] as const;
+const TABS = ['accounts', 'checkBooks', 'chequeSettings'] as const;
 type TabKey = (typeof TABS)[number];
 
 /**
@@ -45,7 +47,7 @@ export function BankPage() {
         eyebrow="اطلاعات پایه"
         icon={<AccountBalanceOutlinedIcon />}
         title="بانک"
-        description="حساب‌های بانکی سازمان و دسته‌چک‌های صادرشده برای هر حساب."
+        description="حساب‌های بانکی سازمان، دسته‌چک‌های هر حساب و تنظیمات محیطی چاپ چک."
       />
 
       <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
@@ -62,6 +64,12 @@ export function BankPage() {
             icon={<BookOutlinedIcon fontSize="small" sx={tabIconSx} />}
             label="دسته‌چک"
           />
+          <Tab
+            value="chequeSettings"
+            iconPosition="start"
+            icon={<PrintOutlinedIcon fontSize="small" sx={tabIconSx} />}
+            label="تنظیمات محیطی چک"
+          />
         </Tabs>
       </Paper>
 
@@ -70,6 +78,8 @@ export function BankPage() {
       {tab === 'checkBooks' && (
         <CheckBooksTab accountFilter={accountFilter} onAccountFilterChange={setAccountFilter} />
       )}
+
+      {tab === 'chequeSettings' && <ChequeTypesTab />}
     </Box>
   );
 }

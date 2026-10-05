@@ -32,6 +32,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { useAuth } from '../lib/auth/AuthContext';
 import { useSession } from '../lib/session/SessionContext';
 import { NAV_GROUPS, type NavItem } from '../lib/navConfig';
+import { useRoles, visibleNavGroups } from '../lib/roles';
 import { InitialSettingsDialog } from '../features/session/InitialSettingsDialog';
 import { useSessionDefaults } from '../features/session/useSessionDefaults';
 import { toPersianDigits } from '../lib/format/numbers';
@@ -122,6 +123,8 @@ function NavListItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsedGroups);
+  const roleState = useRoles();
+  const groups = visibleNavGroups(NAV_GROUPS, roleState);
 
   // Whichever group holds the currently active route is always forced open — a collapsed
   // group must never hide the page the user is actually on.
@@ -147,7 +150,12 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <List component="nav" aria-label="منوی اصلی" disablePadding>
-      {NAV_GROUPS.map((group, groupIndex) => {
+      {roleState.none && (
+        <Box sx={{ px: 2, py: 1.5, color: '#FFB4A9', fontSize: '0.8rem' }}>
+          برای شما در سامانهٔ ورود سازمان نقشی در سامانهٔ مالی تعریف نشده است.
+        </Box>
+      )}
+      {groups.map((group, groupIndex) => {
         const isOpen = !collapsed[group.title];
         return (
           <Fragment key={group.title}>

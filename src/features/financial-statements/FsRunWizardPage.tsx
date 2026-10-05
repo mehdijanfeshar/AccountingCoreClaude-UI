@@ -70,6 +70,8 @@ export function FsRunWizardPage() {
   const [year, setYear] = useState(financialYear || '');
   const [toMonth, setToMonth] = useState(saved?.toMonth ?? 12);
   const [includeSubUnits, setIncludeSubUnits] = useState(saved?.includeSubUnits ?? true);
+  // فاز ۴۸ — فقط واحدهای یک گروه (1 بیمه‌ای، 2 درمانی، 3 ستادی) در صورت ترکیبی.
+  const [unitCategory, setUnitCategory] = useState<number | ''>('');
   const [minDocLife, setMinDocLife] = useState(saved?.minDocLife ?? 4);
   const [includePrior, setIncludePrior] = useState(saved?.includePrior ?? true);
   const [priorRestated, setPriorRestated] = useState(saved?.priorRestated ?? false);
@@ -107,6 +109,7 @@ export function FsRunWizardPage() {
     description: description.trim() || null,
     noteStartNo: Number(noteStartNo) || 1,
     includeEntities,
+    unitCategory: includeSubUnits && unitCategory !== '' ? unitCategory : null,
   });
 
   const mutation = useMutation({
@@ -203,6 +206,22 @@ export function FsRunWizardPage() {
                 control={<Checkbox checked={includeSubUnits} onChange={(e) => setIncludeSubUnits(e.target.checked)} />}
                 label="صورت ترکیبی: اسناد همهٔ واحدهای زیرمجموعه هم جمع شود"
               />
+              {includeSubUnits && (
+                <TextField
+                  select
+                  size="small"
+                  label="گروه واحدها"
+                  value={unitCategory}
+                  onChange={(e) => setUnitCategory(e.target.value === '' ? '' : Number(e.target.value))}
+                  helperText="مثلاً فقط واحدهای درمانی یا فقط بیمه‌ای؛ نقش مدیریتی سطح کشور از واحد ستاد همهٔ واحدها را دارد"
+                  sx={{ mt: 1, minWidth: 220 }}
+                >
+                  <MenuItem value="">همهٔ گروه‌ها</MenuItem>
+                  <MenuItem value={1}>بیمه‌ای</MenuItem>
+                  <MenuItem value={2}>درمانی</MenuItem>
+                  <MenuItem value={3}>ستادی</MenuItem>
+                </TextField>
+              )}
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField

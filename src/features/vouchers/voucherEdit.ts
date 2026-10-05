@@ -101,6 +101,11 @@ export function toFormValues(
       creditor: detail.creditor ? String(detail.creditor) : '',
       tafsili,
       tafsiliLabels,
+      checkId: detail.checkId ?? '',
+      soriCheckBookId: '',
+      chequeSori: false,
+      // اطلاعات چک (شماره، در وجه، …) را ردیف از سرور می‌خواند — VoucherLineRow.
+      chequeLoaded: !detail.checkId,
     };
   });
 
@@ -138,7 +143,16 @@ function buildPayload(
     voucherHeadId: headId,
     accountId: line.accountId || null,
     receiptId: original?.receiptId ?? null,
-    checkId: original?.checkId ?? null,
+    checkId: line.checkId || null,
+    cheque:
+      (line.checkId && line.chequeLoaded) || (!line.checkId && line.soriCheckBookId)
+        ? {
+            payTo: line.chequePayTo.trim() || null,
+            chequeDate: line.chequeDate || null,
+            description: line.chequeDesc.trim() || null,
+            soriCheckBookId: line.checkId ? null : line.soriCheckBookId,
+          }
+        : null,
     lowLevelCodeId: original?.lowLevelCodeId ?? null,
     etebarId: original?.etebarId ?? null,
     description: line.description?.trim() ? line.description.trim() : null,

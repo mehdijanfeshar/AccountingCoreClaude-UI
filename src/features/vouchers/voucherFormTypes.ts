@@ -23,5 +23,13 @@ export function createEmptyVoucherLine(): VoucherLineFormValue {
     creditor: '',
     tafsili: {},
     tafsiliLabels: {},
+    checkId: '',
+    checkLabel: '',
+    soriCheckBookId: '',
+    chequeSori: false,
+    chequeLoaded: true,
+    chequePayTo: '',
+    chequeDate: '',
+    chequeDesc: '',
   };
 }

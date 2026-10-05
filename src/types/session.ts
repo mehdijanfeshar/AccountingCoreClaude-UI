@@ -7,6 +7,8 @@ export interface CurrentUserDto {
   vahedName: string | null;
   /** True when this unit may act as every unit (TYPECODE 17 / ستاد مرکزی). */
   isHeadquarters: boolean;
+  /** نقش‌های سامانهٔ مالی کاربر (از توکن سامانهٔ ورود). */
+  roles?: string[];
 }
 
 /** Mirrors Accounting.Api's AccessibleUnitDto exactly — `GET /api/me/accessible-units`. */

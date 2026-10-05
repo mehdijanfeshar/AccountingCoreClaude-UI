@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Chip from '@mui/material/Chip';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink } from 'react-router-dom';
 import Button from '@mui/material/Button';
@@ -8,6 +9,7 @@ import Tooltip from '@mui/material/Tooltip';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import Alert from '@mui/material/Alert';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -22,6 +24,7 @@ import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { bankAccountsApi } from '../bank-accounts/api';
 import { checkBooksApi } from './api';
+import { CheckBookLeavesDialog } from './CheckBookLeavesDialog';
 import type { CheckBookDto } from '../../types/checkBook';
 
 const PAGE_SIZE = 20;
@@ -50,6 +53,7 @@ export function CheckBooksTab({
   const [pageNumber, setPageNumber] = useState(1);
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<CheckBookDto | null>(null);
+  const [leavesBook, setLeavesBook] = useState<CheckBookDto | null>(null);
 
   const query = useQuery({
     queryKey: ['check-books', pageNumber, PAGE_SIZE],
@@ -104,7 +108,16 @@ export function CheckBooksTab({
     {
       key: 'account',
       header: 'حساب بانکی',
-      render: (row) => accountLabelById.get(row.accountId) ?? row.accountId,
+      render: (row) => (
+        <>
+          {row.accountNumber
+            ? `${row.accountNumber} - ${row.accountHolder ?? ''}`
+            : accountLabelById.get(row.accountId) ?? '—'}
+          {row.accountDeleted && (
+            <Chip size="small" color="warning" variant="outlined" label="حساب حذف‌شده" sx={{ ml: 1 }} />
+          )}
+        </>
+      ),
     },
     { key: 'checkBookTitle', header: 'عنوان', render: (row) => row.checkBookTitle ?? '—' },
     {
@@ -125,6 +138,16 @@ export function CheckBooksTab({
       header: 'عملیات',
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
+          <Tooltip title="اوراق چک">
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => setLeavesBook(row)}
+              aria-label={`اوراق چک دسته‌چک ${row.fromCheckNumber} تا ${row.toCheckNumber}`}
+            >
+              <ReceiptLongOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="ویرایش">
             <IconButton
               size="small"
@@ -222,6 +245,8 @@ export function CheckBooksTab({
           )}
         </>
       )}
+
+      <CheckBookLeavesDialog book={leavesBook} onClose={() => setLeavesBook(null)} />
 
       <ConfirmDialog
         open={pendingDelete !== null}

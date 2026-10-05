@@ -31,6 +31,23 @@ const lineSchema = z.object({
   creditor: z.string().optional().or(z.literal('')),
   tafsili: z.record(z.string(), z.string()),
   tafsiliLabels: z.record(z.string(), z.string()),
+  // دفتر چک — چک ردیف و «در وجه»/تاریخ/شرح آن (روی TB_CHECK).
+  checkId: z.string(),
+  checkLabel: z.string(),
+  /** چک صوری: دسته‌چک صوری انتخاب‌شده؛ شماره و برگ `TB_CHECK` هنگام ثبت ردیف در سرور ساخته می‌شود. */
+  soriCheckBookId: z.string(),
+  /** چک صوری (اعلامیه): «در وجه» و تاریخ الزامی نیست. */
+  chequeSori: z.boolean(),
+  /** اطلاعات چک موجود از سرور خوانده شده است (در حالت ویرایش)؛ تا آنگاه به سرور «دست نزن» فرستاده می‌شود. */
+  chequeLoaded: z.boolean(),
+  chequePayTo: z.string().max(200, '«در وجه» حداکثر ۲۰۰ کاراکتر است'),
+  chequeDate: z.string(),
+  chequeDesc: z.string().max(800, 'شرح چک حداکثر ۸۰۰ کاراکتر است'),
+}).superRefine((line, ctx) => {
+  if (line.checkId && line.chequeLoaded && !line.chequeSori) {
+    if (!line.chequePayTo.trim()) ctx.addIssue({ code: 'custom', path: ['chequePayTo'], message: '«در وجه» چک الزامی است' });
+    if (!line.chequeDate) ctx.addIssue({ code: 'custom', path: ['chequeDate'], message: 'تاریخ چک الزامی است' });
+  }
 });
 
 const baseVoucherFormSchema = z.object({

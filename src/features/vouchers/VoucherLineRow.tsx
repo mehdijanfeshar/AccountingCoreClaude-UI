@@ -25,6 +25,7 @@ import { TafsiliItemSelect, type TafsiliSelection } from '../../components/dynam
 import type { AccountCodeDto } from '../../types/accountCode';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
+import { VoucherLineCheque } from './VoucherLineCheque';
 
 interface VoucherLineRowProps {
   form: UseFormReturn<VoucherEntryFormSchema>;
@@ -244,6 +245,8 @@ export function VoucherLineRow({
         <Grid size={{ xs: 6, sm: 3 }}>
           <AmountField control={control} name={`lines.${index}.creditor`} label="بستانکار" />
         </Grid>
+
+        <VoucherLineCheque form={form} index={index} />
       </Grid>
 
       <AccountCodePickerDialog

@@ -72,6 +72,8 @@ export interface CreateVoucherDetailPayload {
   creditor: number | null;
   year: string | null;
   tafsiliLinks: { tafsiliId: string; levelId: string }[] | null;
+  /** دفتر چک — اطلاعات چک ردیف؛ null = دست نزن. */
+  cheque?: { payTo: string | null; chequeDate: string | null; description: string | null; soriCheckBookId?: string | null } | null;
 }
 
 export const voucherHeadsApi = createResourceApi<

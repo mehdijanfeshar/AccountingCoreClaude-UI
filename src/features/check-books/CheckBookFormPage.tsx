@@ -26,7 +26,8 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { BankAccountPickerDialog } from '../../components/BankAccountPickerDialog';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
-import { toLatinDigits } from '../../lib/format/numbers';
+import Alert from '@mui/material/Alert';
+import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { bankAccountsApi } from '../bank-accounts/api';
 import { chequeTypesApi } from '../../lib/api/chequeTypesApi';
 import { checkBooksApi } from './api';
@@ -35,6 +36,7 @@ import {
   checkBookFormSchema,
   checkBookFormValuesToPayload,
   emptyCheckBookFormValues,
+  SORI_CHECK_TYPE,
   type CheckBookFormValues,
 } from './schema';
 import type { BankAccountDto } from '../../types/bankAccount';
@@ -127,6 +129,7 @@ export function CheckBookFormPage() {
   }
 
   const accountLabel = watch('accountLabel');
+  const isSori = watch('checkBookType') === SORI_CHECK_TYPE;
 
   if (isEdit && (existingQuery.isLoading || (accountId !== null && existingAccountQuery.isLoading))) {
     return <FormLoadingSkeleton />;
@@ -137,7 +140,7 @@ export function CheckBookFormPage() {
   }
 
   const duplicateMessage =
-    submitError instanceof ApiError && submitError.status === 409
+    submitError instanceof ApiError && submitError.status === 409 && !submitError.detail
       ? 'دسته‌چکی با همین بازه شماره برای این حساب بانکی قبلاً ثبت شده است.'
       : null;
 
@@ -213,6 +216,16 @@ export function CheckBookFormPage() {
             />
           </Grid>
 
+          {isSori ? (
+            <Grid size={{ xs: 12, sm: 8 }}>
+              <Alert severity="info">
+                {isEdit
+                  ? `دسته‌چک صوری: ${toPersianDigits(existingQuery.data?.fromCheckNumber ?? '')} تا ${toPersianDigits(existingQuery.data?.toCheckNumber ?? '')}`
+                  : 'دسته‌چک صوری برگ ندارد. شماره‌ها خودکار «سال تاریخ صدور + کد واحد + ۰۰۰۱» تا «… + ۱۰۰۰» است و هر شماره هنگام استفاده در سند صادر می‌شود.'}
+              </Alert>
+            </Grid>
+          ) : (
+          <>
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               {...register('fromCheckNumber', { setValueAs: (v) => toLatinDigits(String(v ?? '')) })}
@@ -241,6 +254,8 @@ export function CheckBookFormPage() {
               helperText={errors.toCheckNumber?.message}
             />
           </Grid>
+          </>
+          )}
           <Grid size={{ xs: 12, sm: 4 }}>
             <TextField
               {...register('serial')}
@@ -295,8 +310,9 @@ export function CheckBookFormPage() {
                 <TextField
                   select
                   fullWidth
-                  label="نوع دسته‌چک"
-                  helperText={errors.checkBookType?.message ?? 'checkBookType'}
+                  label="صوری / واقعی"
+                  disabled={isEdit}
+                  helperText={errors.checkBookType?.message ?? (isEdit ? 'پس از ثبت قابل تغییر نیست.' : 'دسته‌چک واقعی هنگام ثبت اوراقش ساخته می‌شود.')}
                   error={!!errors.checkBookType}
                   value={field.value ?? UNSET}
                   onChange={(e) => field.onChange(toEnumFieldValue(e.target.value))}

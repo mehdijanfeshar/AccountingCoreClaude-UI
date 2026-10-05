@@ -20,4 +20,9 @@ export interface CheckBookDto {
   addUserId: string;
   changeUserId: string | null;
   isDeleted: boolean;
+  /** شمارهٔ حساب بانکی از خود دسته‌چک (حتی اگر حساب حذف نرم شده باشد). */
+  accountNumber?: string | null;
+  accountHolder?: string | null;
+  /** حساب بانکی این دسته‌چک حذف شده است (ریسک ۲-الف). */
+  accountDeleted?: boolean | null;
 }

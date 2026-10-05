@@ -1,3 +1,4 @@
+import { reportUnitScopeParams } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type { MatrixParams, MatrixResult } from '../../../types/matrixReport';
 
@@ -36,7 +37,7 @@ export const matrixReportApi = {
     if (columnCodeFilter) params.columnCodeFilter = columnCodeFilter;
 
     return apiClient
-      .get<MatrixResult>('/reports/matrix', { params })
+      .get<MatrixResult>('/reports/matrix', { params: { ...params, ...reportUnitScopeParams() } })
       .then((res) => res.data);
   },
 };

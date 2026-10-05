@@ -1,3 +1,4 @@
+import { reportUnitScopeParams } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type { AccountReviewParams, AccountReviewResult } from '../../../types/accountReview';
 
@@ -43,7 +44,7 @@ export const accountReviewApi = {
     });
 
     return apiClient
-      .get<AccountReviewResult>('/reports/account-review', { params })
+      .get<AccountReviewResult>('/reports/account-review', { params: { ...params, ...reportUnitScopeParams() } })
       .then((res) => res.data);
   },
 };

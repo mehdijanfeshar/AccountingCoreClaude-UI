@@ -1,3 +1,4 @@
+import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -499,6 +500,7 @@ export function MatrixReportPage() {
             </Stack>
           }
         />
+        <ReportUnitScopeBar />
 
         {!isConfigured && (
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>

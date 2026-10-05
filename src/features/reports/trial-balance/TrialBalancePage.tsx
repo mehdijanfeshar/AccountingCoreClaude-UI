@@ -1,3 +1,4 @@
+import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -225,6 +226,7 @@ export function TrialBalancePage() {
               </Stack>
             }
           />
+          <ReportUnitScopeBar />
         </Box>
 
         {!isConfigured && (

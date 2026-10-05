@@ -18,6 +18,8 @@ export interface FsRunSummaryDto {
   priorRestated: boolean;
   /** ط-۵ — تلفیق با شرکت‌های تابعه. */
   includeEntities: boolean;
+  /** فاز ۴۸ — گروه واحدها در اجرای ترکیبی: 1 بیمه‌ای، 2 درمانی، 3 ستادی؛ null = همه. */
+  unitCategory?: number | null;
   usesDraft: boolean;
   state: number;
   description: string | null;
@@ -97,6 +99,7 @@ export interface GenerateFsRunPayload {
   priorRestated?: boolean;
   /** ط-۵ — تلفیق با شرکت‌های تابعه. */
   includeEntities?: boolean;
+  unitCategory?: number | null;
   useDraftVersions: boolean;
   description: string | null;
   noteStartNo: number;
