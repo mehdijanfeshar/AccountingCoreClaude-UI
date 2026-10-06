@@ -50,6 +50,7 @@ import {
 } from './voucherEdit';
 import { useAllAccountCodes } from '../chart-of-accounts/useAllAccountCodes';
 import { voucherDetailsApi, voucherHeadsApi, type CreateVoucherDetailPayload, type CreateVoucherHeadPayload } from './api';
+import { lineExtrasPayload } from './lineExtras';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 
 type LineSubmissionState = 'idle' | 'pending' | 'success' | 'error';
@@ -212,6 +213,7 @@ export function VoucherEntryPage() {
       year: year || null,
       tafsiliLinks:
         tafsiliEntries.length > 0 ? tafsiliEntries.map(([levelId, tafsiliId]) => ({ tafsiliId, levelId })) : null,
+      extras: lineExtrasPayload(line),
     };
   }
 

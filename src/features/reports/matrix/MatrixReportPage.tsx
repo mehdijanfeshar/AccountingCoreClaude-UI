@@ -44,7 +44,9 @@ import { DOC_LIFE_OPTIONS } from '../../vouchers/api';
 import { matrixReportApi } from './api';
 import { exportMatrixToExcel, exportMatrixToPdf } from './export';
 import { MATRIX_REPORT_PRINT_STYLES } from './printStyles';
+import { useReportUrlParams } from '../_shared/reportUrlParams';
 import {
+  MATRIX_ALL_DIMENSIONS,
   MATRIX_CODING_DIMENSIONS,
   MATRIX_DIMENSION,
   MATRIX_TAFSILI_DIMENSIONS,
@@ -229,11 +231,14 @@ export function MatrixReportPage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
   const notify = useNotify();
 
+  // مقدار اولیه از آدرس (گزارش با حسابیار / گزارش ذخیره‌شده)؛ بدون پارامتر همان پیش‌فرض‌های قبلی.
+  const url = useReportUrlParams();
+  const dimensionValues = MATRIX_ALL_DIMENSIONS.map((d) => d.value);
   const [rowDimension, setRowDimension] = useState<MatrixDimensionValue>(
-    MATRIX_DIMENSION.tafsili1,
+    () => url.oneOf('row', dimensionValues, MATRIX_DIMENSION.tafsili1),
   );
   const [columnDimension, setColumnDimension] = useState<MatrixDimensionValue>(
-    MATRIX_DIMENSION.moin,
+    () => url.oneOf('col', dimensionValues, MATRIX_DIMENSION.moin),
   );
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [pageNumber, setPageNumber] = useState(1);
@@ -289,8 +294,15 @@ export function MatrixReportPage() {
     rowCodeFilter: '',
     columnCodeFilter: '',
   };
-  const [draft, setDraft] = useState(emptyDraft);
-  const [applied, setApplied] = useState(emptyDraft);
+  const [initialDraft] = useState(() => ({
+    fromDate: url.date('from'),
+    toDate: url.date('to'),
+    docLife: String(url.oneOf('docLife', [0, 1, 2, 3, 4] as const, 0) || ''),
+    rowCodeFilter: url.text('rowCode'),
+    columnCodeFilter: url.text('colCode'),
+  }));
+  const [draft, setDraft] = useState(initialDraft);
+  const [applied, setApplied] = useState(initialDraft);
 
   const report = useQuery({
     queryKey: ['matrix-report', financialYear, rowDimension, columnDimension, applied],

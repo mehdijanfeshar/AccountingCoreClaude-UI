@@ -39,6 +39,10 @@ import FunctionsOutlinedIcon from "@mui/icons-material/FunctionsOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -120,6 +124,45 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <FactoryOutlinedIcon fontSize="small" />,
       },
       { label: 'سال مالی', icon: <EventOutlinedIcon fontSize="small" /> },
+    ],
+  },
+  {
+    // Agent-UX — ماژول جدا؛ صفحه‌های قبلی صدور سند دست نخورده‌اند.
+    title: 'حسابیار',
+    access: 'operate',
+    icon: <AutoAwesomeOutlinedIcon fontSize="small" />,
+    color: 'warning',
+    items: [
+      {
+        label: 'ثبت سند با حسابیار',
+        description: 'عملیات را بگویید، سند از الگو ساخته می‌شود؛ یا سند کامل را در یک مرحله ثبت کنید',
+        to: '/assistant',
+        icon: <AutoAwesomeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'سندهای حسابیار',
+        description: 'سندهایی که با حسابیار ساخته شده‌اند: با کدام الگو، توسط چه کسی و چه زمانی',
+        to: '/assistant/history',
+        icon: <HistoryOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'گزارش با حسابیار',
+        description: 'بگویید چه گزارشی می‌خواهید؛ تراز، ماتریسی، مرور حساب‌ها یا اسناد با همان پارامترها باز می‌شود',
+        to: '/assistant/reports',
+        icon: <AssessmentOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'گزارش‌های ذخیره‌شده',
+        description: 'گزارش با تنظیمات دلخواه و اسم، برای کاربران غیرمالی (مدیر ستاد)',
+        to: '/assistant/reports/manage',
+        icon: <BookmarkBorderOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'الگوهای عملیات',
+        description: 'تعریف عملیات روزمره و سندی که هرکدام می‌سازد (مدیر ستاد)',
+        to: '/assistant/templates',
+        icon: <DesignServicesOutlinedIcon fontSize="small" />,
+      },
     ],
   },
   {

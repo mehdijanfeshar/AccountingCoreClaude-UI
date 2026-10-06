@@ -25,6 +25,13 @@ import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
 import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
 import { VoucherViewPage } from '../features/vouchers/VoucherViewPage';
+import { AssistantPage } from '../features/assistant/AssistantPage';
+import { TemplatesListPage } from '../features/assistant/templates/TemplatesListPage';
+import { TemplateDesignerPage } from '../features/assistant/templates/TemplateDesignerPage';
+import { AssistantErrorBoundary } from '../features/assistant/AssistantErrorBoundary';
+import { AssistantHistoryPage } from '../features/assistant/AssistantHistoryPage';
+import { ReportAssistantPage } from '../features/assistant/reports/ReportAssistantPage';
+import { SavedReportsPage } from '../features/assistant/reports/SavedReportsPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
@@ -134,6 +141,14 @@ export const routes: RouteObject[] = [
   { path: '/base/work-shops', element: <WorkShopsListPage /> },
   { path: '/base/work-shops/new', element: <WorkShopFormPage /> },
   { path: '/base/work-shops/:id/edit', element: <WorkShopFormPage /> },
+
+  { path: '/assistant', element: <AssistantErrorBoundary><AssistantPage /></AssistantErrorBoundary> },
+  { path: '/assistant/templates', element: <AssistantErrorBoundary><TemplatesListPage /></AssistantErrorBoundary> },
+  { path: '/assistant/history', element: <AssistantErrorBoundary><AssistantHistoryPage /></AssistantErrorBoundary> },
+  { path: '/assistant/reports', element: <AssistantErrorBoundary><ReportAssistantPage /></AssistantErrorBoundary> },
+  { path: '/assistant/reports/manage', element: <AssistantErrorBoundary><SavedReportsPage /></AssistantErrorBoundary> },
+  { path: '/assistant/templates/new', element: <AssistantErrorBoundary><TemplateDesignerPage /></AssistantErrorBoundary> },
+  { path: '/assistant/templates/:id/edit', element: <AssistantErrorBoundary key="edit"><TemplateDesignerPage /></AssistantErrorBoundary> },
 
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },

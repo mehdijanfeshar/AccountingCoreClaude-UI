@@ -32,6 +32,7 @@ import { emptyTotals, sumTotals } from './columns';
 import { describePeriod, exportToExcel, exportToPdf, type ReportContext } from './export';
 import { TRIAL_BALANCE_PRINT_STYLES } from './printStyles';
 import { TrialBalanceTable } from './TrialBalanceTable';
+import { useReportUrlParams } from '../_shared/reportUrlParams';
 import {
   DOC_LIFE_FILTER_OPTIONS,
   SEARCH_OPERATOR,
@@ -53,23 +54,26 @@ export function TrialBalancePage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
   const notify = useNotify();
 
-  const [variant, setVariant] = useState<TrialBalanceVariant>(4);
-  const [level, setLevel] = useState<TrialBalanceLevel>(TRIAL_BALANCE_LEVEL.Moin);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [docLife, setDocLife] = useState<number | ''>('');
-  const [codeFilter, setCodeFilter] = useState('');
+  // مقدار اولیه از آدرس (گزارش با حسابیار / گزارش ذخیره‌شده)؛ بدون پارامتر همان پیش‌فرض‌های قبلی.
+  const url = useReportUrlParams();
+  const [variant, setVariant] = useState<TrialBalanceVariant>(() => url.oneOf('variant', [4, 6, 8] as const, 4));
+  const [level, setLevel] = useState<TrialBalanceLevel>(() =>
+    url.oneOf('level', [TRIAL_BALANCE_LEVEL.Group, TRIAL_BALANCE_LEVEL.Kol, TRIAL_BALANCE_LEVEL.Moin] as const, TRIAL_BALANCE_LEVEL.Moin));
+  const [fromDate, setFromDate] = useState(() => url.date('from'));
+  const [toDate, setToDate] = useState(() => url.date('to'));
+  const [docLife, setDocLife] = useState<number | ''>(() => url.oneOf('docLife', [0, 1, 2, 3, 4] as const, 0) || '');
+  const [codeFilter, setCodeFilter] = useState(() => url.text('code'));
   const [isExporting, setIsExporting] = useState(false);
 
   // The filters being typed are not the filters the report was run with. Holding the applied set
   // separately keeps the report from re-querying on every keystroke and gives "اعمال فیلتر"
   // something to mean.
-  const [applied, setApplied] = useState({
-    fromDate: '',
-    toDate: '',
-    docLife: '' as number | '',
-    code: '',
-  });
+  const [applied, setApplied] = useState(() => ({
+    fromDate,
+    toDate,
+    docLife: docLife as number | '',
+    code: codeFilter,
+  }));
 
   /**
    * Account-code filtering is server-side, in the backend's generic `SearchParam` shape, so the

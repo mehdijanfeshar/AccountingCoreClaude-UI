@@ -3,6 +3,7 @@ import { apiClient } from '../../lib/api/client';
 import type { PagedResult } from '../../types/pagedResult';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 import type { VoucherDetailDto } from '../../types/voucherDetail';
+import type { VoucherLineExtrasPayload } from './lineExtras';
 
 /**
  * ⚠️ No `vahedCode` here on purpose — GET /api/voucher-heads does not (and
@@ -74,6 +75,8 @@ export interface CreateVoucherDetailPayload {
   tafsiliLinks: { tafsiliId: string; levelId: string }[] | null;
   /** دفتر چک — اطلاعات چک ردیف؛ null = دست نزن. */
   cheque?: { payTo: string | null; chequeDate: string | null; description: string | null; soriCheckBookId?: string | null } | null;
+  /** شناسه/ویژگی/فیش — null روی ویرایش = دست نزن. */
+  extras?: VoucherLineExtrasPayload | null;
 }
 
 export const voucherHeadsApi = createResourceApi<

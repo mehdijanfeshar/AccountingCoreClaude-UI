@@ -1,5 +1,6 @@
 import { voucherDetailsApi } from './api';
 import type { CreateVoucherDetailPayload } from './api';
+import { lineExtrasPayload } from './lineExtras';
 import { createEmptyVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
 import type { VoucherDetailDto } from '../../types/voucherDetail';
 import type { VoucherHeadDto } from '../../types/voucherHead';
@@ -106,6 +107,9 @@ export function toFormValues(
       chequeSori: false,
       // اطلاعات چک (شماره، در وجه، …) را ردیف از سرور می‌خواند — VoucherLineRow.
       chequeLoaded: !detail.checkId,
+      // شناسه/ویژگی/فیش را ردیف از سرور می‌خواند — VoucherLineExtras.
+      extrasLoaded: false,
+      extrasDetailId: detail.id,
     };
   });
 
@@ -142,7 +146,8 @@ function buildPayload(
   return {
     voucherHeadId: headId,
     accountId: line.accountId || null,
-    receiptId: original?.receiptId ?? null,
+    // فیش پاک‌شده ⇒ null؛ فیش موجود ⇒ همان (سرور اطلاعاتش را اصلاح می‌کند).
+    receiptId: line.extrasLoaded && !line.receiptNo.trim() ? null : original?.receiptId ?? null,
     checkId: line.checkId || null,
     cheque:
       (line.checkId && line.chequeLoaded) || (!line.checkId && line.soriCheckBookId)
@@ -165,6 +170,7 @@ function buildPayload(
     // may have just cleared a تفصیلی or changed the account the old ones belonged to. An empty
     // list says "this line has none", which is what the form actually means.
     tafsiliLinks: tafsiliEntries.map(([levelId, tafsiliId]) => ({ tafsiliId, levelId })),
+    extras: lineExtrasPayload(line),
   };
 }
 

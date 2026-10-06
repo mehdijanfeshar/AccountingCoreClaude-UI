@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { RefObject } from 'react';
 import type { TafsiliLevelDto } from '../../types/tafsili';
+import { missingExtras, type VoucherLineRequirements } from './lineExtras';
 
 /**
  * Dynamic Zod schema for the voucher entry form.
@@ -43,7 +44,22 @@ const lineSchema = z.object({
   chequePayTo: z.string().max(200, '«در وجه» حداکثر ۲۰۰ کاراکتر است'),
   chequeDate: z.string(),
   chequeDesc: z.string().max(800, 'شرح چک حداکثر ۸۰۰ کاراکتر است'),
+  // شناسه/ویژگی/فیش ردیف (lineExtras.ts). extrasLoaded=false: ردیف موجود که هنوز مقادیرش از سرور نیامده.
+  extrasLoaded: z.boolean(),
+  extrasDetailId: z.string(),
+  extrasReq: z.custom<VoucherLineRequirements | null>(),
+  attributes: z.record(z.string(), z.string()),
+  identities: z.record(z.string(), z.object({ headId: z.string(), values: z.record(z.string(), z.string()) })),
+  receiptKind: z.string(),
+  receiptNo: z.string().max(8, 'شمارهٔ فیش حداکثر ۸ رقم است'),
+  receiptDate: z.string(),
 }).superRefine((line, ctx) => {
+  if (line.extrasLoaded) {
+    const missing = missingExtras(line);
+    if (missing.length > 0) {
+      ctx.addIssue({ code: 'custom', path: ['attributes'], message: `این ردیف کامل نیست: ${missing.join('، ')}` });
+    }
+  }
   if (line.checkId && line.chequeLoaded && !line.chequeSori) {
     if (!line.chequePayTo.trim()) ctx.addIssue({ code: 'custom', path: ['chequePayTo'], message: '«در وجه» چک الزامی است' });
     if (!line.chequeDate) ctx.addIssue({ code: 'custom', path: ['chequeDate'], message: 'تاریخ چک الزامی است' });

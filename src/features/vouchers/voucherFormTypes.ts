@@ -1,5 +1,6 @@
 import { newClientId } from '../../lib/ids';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
+import { emptyLineExtras } from './lineExtras';
 
 /**
  * Client-only form shapes for the voucher entry form (`VoucherEntryPage`), derived from the
@@ -31,5 +32,6 @@ export function createEmptyVoucherLine(): VoucherLineFormValue {
     chequePayTo: '',
     chequeDate: '',
     chequeDesc: '',
+    ...emptyLineExtras(),
   };
 }

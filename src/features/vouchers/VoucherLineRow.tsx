@@ -26,6 +26,7 @@ import type { AccountCodeDto } from '../../types/accountCode';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
 import { VoucherLineCheque } from './VoucherLineCheque';
+import { VoucherLineExtras } from './VoucherLineExtras';
 
 interface VoucherLineRowProps {
   form: UseFormReturn<VoucherEntryFormSchema>;
@@ -92,6 +93,9 @@ export function VoucherLineRow({
     // Selecting a different معین invalidates every previously selected تفصیلی value.
     setValue(`lines.${index}.tafsili`, {}, { shouldDirty: true });
     setValue(`lines.${index}.tafsiliLabels`, {}, { shouldDirty: true });
+    // شناسه/ویژگی مال حساب قبلی بود.
+    setValue(`lines.${index}.attributes`, {}, { shouldDirty: true });
+    setValue(`lines.${index}.identities`, {}, { shouldDirty: true });
   }
 
   function onTafsiliChange(selection: TafsiliSelection | null) {
@@ -247,6 +251,8 @@ export function VoucherLineRow({
         </Grid>
 
         <VoucherLineCheque form={form} index={index} />
+
+        <VoucherLineExtras form={form} index={index} />
       </Grid>
 
       <AccountCodePickerDialog

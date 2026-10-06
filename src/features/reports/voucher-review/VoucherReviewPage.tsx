@@ -41,6 +41,7 @@ import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
 import { DOC_LIFE_OPTIONS, getDocLifeLabel, getDocLifeTone } from '../../vouchers/api';
 import { isVoucherBalanced } from '../../../types/voucherReview';
 import { voucherReviewApi } from './api';
+import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { exportVoucherReviewToExcel, exportVoucherReviewToPdf } from './export';
 import { VOUCHER_REVIEW_PRINT_STYLES } from './printStyles';
 
@@ -92,8 +93,18 @@ export function VoucherReviewPage() {
     systemTypeId: '' as string,
     description: '',
   };
-  const [draft, setDraft] = useState(emptyDraft);
-  const [applied, setApplied] = useState(emptyDraft);
+  // مقدار اولیه از آدرس (گزارش با حسابیار / گزارش ذخیره‌شده)؛ بدون پارامتر همان پیش‌فرض‌های قبلی.
+  const url = useReportUrlParams();
+  const [initialDraft] = useState(() => ({
+    ...emptyDraft,
+    fromDate: url.date('from'),
+    toDate: url.date('to'),
+    docLife: String(url.oneOf('docLife', [0, 1, 2, 3, 4] as const, 0) || ''),
+    systemTypeId: url.text('sysType'),
+    description: url.text('desc'),
+  }));
+  const [draft, setDraft] = useState(initialDraft);
+  const [applied, setApplied] = useState(initialDraft);
 
   const sysTypes = useQuery({ queryKey: ['sys-types'], queryFn: sysTypesApi.list });
 

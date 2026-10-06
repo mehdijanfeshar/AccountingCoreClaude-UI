@@ -47,6 +47,7 @@ import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
 import { DOC_LIFE_OPTIONS } from '../../vouchers/api';
 import { accountReviewApi } from './api';
+import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { exportAccountReviewToExcel, exportAccountReviewToPdf, sumAccountReviewRows } from './export';
 import { ACCOUNT_REVIEW_PRINT_STYLES } from './printStyles';
 import {
@@ -87,7 +88,10 @@ export function AccountReviewPage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
   const notify = useNotify();
 
-  const [level, setLevel] = useState<AccountReviewLevelValue>(ACCOUNT_REVIEW_LEVEL.moin);
+  // مقدار اولیه از آدرس (گزارش با حسابیار / گزارش ذخیره‌شده)؛ بدون پارامتر همان پیش‌فرض‌های قبلی.
+  const url = useReportUrlParams();
+  const [level, setLevel] = useState<AccountReviewLevelValue>(() =>
+    url.oneOf('level', Object.values(ACCOUNT_REVIEW_LEVEL), ACCOUNT_REVIEW_LEVEL.moin));
   const [scope, setScope] = useState<AccountReviewScopeStep[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [pageNumber, setPageNumber] = useState(1);
@@ -102,9 +106,15 @@ export function AccountReviewPage() {
     toVoucherNo: '',
     docLife: '' as string,
   };
-  const [draft, setDraft] = useState(emptyDraft);
-  const [applied, setApplied] = useState(emptyDraft);
-  const [codeSearch, setCodeSearch] = useState('');
+  const [initialDraft] = useState(() => ({
+    ...emptyDraft,
+    fromDate: url.date('from'),
+    toDate: url.date('to'),
+    docLife: String(url.oneOf('docLife', [0, 1, 2, 3, 4] as const, 0) || ''),
+  }));
+  const [draft, setDraft] = useState(initialDraft);
+  const [applied, setApplied] = useState(initialDraft);
+  const [codeSearch, setCodeSearch] = useState(() => url.text('code'));
 
   const report = useQuery({
     queryKey: ['account-review', financialYear, level, scope, applied],
