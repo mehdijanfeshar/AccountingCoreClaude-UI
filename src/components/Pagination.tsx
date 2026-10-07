@@ -31,7 +31,15 @@ interface PaginationProps {
    */
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: number[];
+  /**
+   * Adds «همه» to the selector — only for grids paged on the client, where showing every row costs no
+   * server request. Chosen, it arrives as {@link ALL_ROWS}.
+   */
+  allowAll?: boolean;
 }
+
+/** Page size meaning «every row» — see `allowAll`. */
+export const ALL_ROWS = -1;
 
 /**
  * Wraps MUI's numbered `Pagination` component. Kept 1-based `pageNumber` in
@@ -45,12 +53,13 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
+  allowAll = false,
 }: PaginationProps) {
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const totalPages = pageSize === ALL_ROWS ? 1 : Math.max(1, Math.ceil(totalCount / pageSize));
 
   // The size shown is the one the server reported, which need not be one of the offered values.
   // Folding it in keeps the select showing the size actually in force instead of rendering blank.
-  const options = pageSizeOptions.includes(pageSize)
+  const options = pageSizeOptions.includes(pageSize) || pageSize === ALL_ROWS
     ? pageSizeOptions
     : [...pageSizeOptions, pageSize].sort((a, b) => a - b);
 
@@ -82,6 +91,7 @@ export function Pagination({
                 {toPersianDigits(option)}
               </MenuItem>
             ))}
+            {allowAll && <MenuItem value={ALL_ROWS}>همه</MenuItem>}
           </TextField>
         )}
 

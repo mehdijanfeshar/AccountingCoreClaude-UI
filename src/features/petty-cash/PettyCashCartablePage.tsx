@@ -96,6 +96,7 @@ export function PettyCashCartablePage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [statusTab, setStatusTab] = useState<StatusTab>('in-progress');
   const [search, setSearch] = useState('');
   const [fundFilter, setFundFilter] = useState('');
@@ -179,11 +180,11 @@ export function PettyCashCartablePage() {
   // drives every tab's badge, regardless of which tab issued the request (spec §۵: the response
   // always carries the full breakdown).
   const singleStateQuery = useQuery({
-    queryKey: ['petty-cash-expense-docs', 'single', pageNumber, PAGE_SIZE, statusTab, search, fundFilter],
+    queryKey: ['petty-cash-expense-docs', 'single', pageNumber, pageSize, statusTab, search, fundFilter],
     queryFn: () =>
       pettyCashExpenseDocsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         state: statusTab && statusTab !== 'in-progress' ? Number(statusTab) : undefined,
         search: search || undefined,
         fundId: fundFilter || undefined,
@@ -217,7 +218,7 @@ export function PettyCashCartablePage() {
     return [...merged].sort((a, b) => (b.registerDate ?? '').localeCompare(a.registerDate ?? ''));
   }, [inProgressQueries, statusTab]);
   const inProgressTotal = inProgressRows.length;
-  const inProgressPageRows = inProgressRows.slice((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE);
+  const inProgressPageRows = inProgressRows.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
   // stateCounts for the tab badges: any response carries the full breakdown (spec §۵), so grab it
   // from whichever query actually ran.
@@ -532,6 +533,7 @@ export function PettyCashCartablePage() {
           )}
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -553,10 +555,15 @@ export function PettyCashCartablePage() {
 
           <Pagination
             pageNumber={pageNumber}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             totalCount={totalCount}
             onPageChange={(page) => {
               setPageNumber(page);
+              clearSelection();
+            }}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNumber(1);
               clearSelection();
             }}
           />

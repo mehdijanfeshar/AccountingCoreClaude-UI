@@ -31,6 +31,7 @@ const PAGE_SIZE = 20;
 export function ReplenishmentsListPage() {
   const navigate = useNavigate();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [fundFilter, setFundFilter] = useState('');
   const [stateFilter, setStateFilter] = useState('');
 
@@ -38,11 +39,11 @@ export function ReplenishmentsListPage() {
   const funds = fundsQuery.data ?? [];
 
   const query = useQuery({
-    queryKey: ['petty-cash-replenishments', pageNumber, fundFilter, stateFilter],
+    queryKey: ['petty-cash-replenishments', pageNumber, pageSize, fundFilter, stateFilter],
     queryFn: () =>
       pettyCashReplenishmentsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         fundId: fundFilter || undefined,
         state: stateFilter ? (Number(stateFilter) as 1 | 2 | 3 | 4 | 5) : undefined,
       }),
@@ -151,6 +152,7 @@ export function ReplenishmentsListPage() {
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -168,7 +170,12 @@ export function ReplenishmentsListPage() {
               </Button>
             }
           />
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination pageNumber={pageNumber} pageSize={pageSize} totalCount={totalCount} onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
         </>
       )}
     </section>

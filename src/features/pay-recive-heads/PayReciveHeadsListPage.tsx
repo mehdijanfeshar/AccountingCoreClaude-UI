@@ -31,12 +31,13 @@ export function PayReciveHeadsListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PayReciveHeadDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['pay-recive-heads', pageNumber, PAGE_SIZE],
-    queryFn: () => payReciveHeadsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['pay-recive-heads', pageNumber, pageSize],
+    queryFn: () => payReciveHeadsApi.list({ pageNumber, pageSize: pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -153,6 +154,7 @@ export function PayReciveHeadsListPage() {
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -173,10 +175,14 @@ export function PayReciveHeadsListPage() {
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

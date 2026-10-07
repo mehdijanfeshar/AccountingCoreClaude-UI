@@ -57,12 +57,13 @@ export function IdentitySubGroupsTab({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [pendingDelete, setPendingDelete] = useState<IdentitySubGroupDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['identity-sub-groups', selectedGroupId, pageNumber, PAGE_SIZE],
+    queryKey: ['identity-sub-groups', selectedGroupId, pageNumber, pageSize],
     queryFn: () =>
-      identitySubGroupsApi.list({ pageNumber, pageSize: PAGE_SIZE, identityGroupId: selectedGroupId }),
+      identitySubGroupsApi.list({ pageNumber, pageSize, identityGroupId: selectedGroupId }),
     placeholderData: (previous) => previous,
     enabled: Boolean(selectedGroupId),
   });
@@ -192,6 +193,7 @@ export function IdentitySubGroupsTab({
       {selectedGroupId && !query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -212,10 +214,14 @@ export function IdentitySubGroupsTab({
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

@@ -50,6 +50,7 @@ export function TransferListPanel() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<TransferListItemDto | null>(null);
@@ -60,11 +61,11 @@ export function TransferListPanel() {
   }
 
   const listQuery = useQuery({
-    queryKey: ['treasury-transfers', pageNumber, PAGE_SIZE, statusTab, search],
+    queryKey: ['treasury-transfers', pageNumber, pageSize, statusTab, search],
     queryFn: () =>
       transfersApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         state: statusTab || undefined,
         search: search || undefined,
       }),
@@ -232,6 +233,7 @@ export function TransferListPanel() {
           />
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -251,7 +253,16 @@ export function TransferListPanel() {
             }
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination
+            pageNumber={pageNumber}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={setPageNumber}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNumber(1);
+            }}
+          />
         </>
       )}
 

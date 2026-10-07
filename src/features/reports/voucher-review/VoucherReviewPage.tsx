@@ -534,6 +534,11 @@ export function VoucherReviewPage() {
           pageSize={pageSize}
           totalCount={totalCount}
           onPageChange={setPageNumber}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageNumber(1);
+          }}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
         />
       </Box>
     </section>

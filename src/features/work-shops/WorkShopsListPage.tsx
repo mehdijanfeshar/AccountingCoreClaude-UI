@@ -28,12 +28,13 @@ export function WorkShopsListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<WorkShopDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['work-shops', pageNumber, PAGE_SIZE],
-    queryFn: () => workShopsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['work-shops', pageNumber, pageSize],
+    queryFn: () => workShopsApi.list({ pageNumber, pageSize: pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -116,6 +117,7 @@ export function WorkShopsListPage() {
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -136,10 +138,14 @@ export function WorkShopsListPage() {
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

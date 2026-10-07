@@ -42,6 +42,7 @@ export function ReceiptListPanel() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<ReceiptListItemDto | null>(null);
@@ -53,11 +54,11 @@ export function ReceiptListPanel() {
   }
 
   const listQuery = useQuery({
-    queryKey: ['treasury-receipts', pageNumber, PAGE_SIZE, statusTab, search],
+    queryKey: ['treasury-receipts', pageNumber, pageSize, statusTab, search],
     queryFn: () =>
       receiptsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         state: statusTab || undefined,
         search: search || undefined,
       }),
@@ -209,6 +210,7 @@ export function ReceiptListPanel() {
           />
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -228,7 +230,12 @@ export function ReceiptListPanel() {
             }
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination pageNumber={pageNumber} pageSize={pageSize} totalCount={totalCount} onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
         </>
       )}
 

@@ -38,6 +38,7 @@ const PAGE_SIZE = 20;
  */
 export function PaymentExecutionListPage() {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
 
   const [executeTarget, setExecuteTarget] = useState<PaymentRequestListItemDto | null>(null);
@@ -45,11 +46,11 @@ export function PaymentExecutionListPage() {
   const [resumeTarget, setResumeTarget] = useState<PaymentRequestListItemDto | null>(null);
 
   const listQuery = useQuery({
-    queryKey: ['treasury-payment-requests', 'for-execution', pageNumber, PAGE_SIZE, search],
+    queryKey: ['treasury-payment-requests', 'for-execution', pageNumber, pageSize, search],
     queryFn: () =>
       paymentRequestsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         search: search || undefined,
         forExecution: true,
       }),
@@ -137,6 +138,7 @@ export function PaymentExecutionListPage() {
           />
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -144,7 +146,12 @@ export function PaymentExecutionListPage() {
             emptyMessage={search ? 'درخواستی با این جستجو یافت نشد.' : 'در حال حاضر درخواستی آمادهٔ اجرا نیست.'}
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination pageNumber={pageNumber} pageSize={pageSize} totalCount={totalCount} onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
         </>
       )}
 

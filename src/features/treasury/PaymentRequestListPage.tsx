@@ -54,6 +54,7 @@ export function PaymentRequestListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PaymentRequestListItemDto | null>(null);
@@ -64,11 +65,11 @@ export function PaymentRequestListPage() {
   }
 
   const listQuery = useQuery({
-    queryKey: ['treasury-payment-requests', pageNumber, PAGE_SIZE, statusTab, search],
+    queryKey: ['treasury-payment-requests', pageNumber, pageSize, statusTab, search],
     queryFn: () =>
       paymentRequestsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         state: statusTab || undefined,
         search: search || undefined,
       }),
@@ -237,6 +238,7 @@ export function PaymentRequestListPage() {
           />
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -256,7 +258,12 @@ export function PaymentRequestListPage() {
             }
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination pageNumber={pageNumber} pageSize={pageSize} totalCount={totalCount} onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
         </>
       )}
 

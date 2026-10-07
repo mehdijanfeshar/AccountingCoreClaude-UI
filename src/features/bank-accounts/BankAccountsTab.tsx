@@ -129,6 +129,7 @@ export function BankAccountsTab({ onOpenCheckBooks }: { onOpenCheckBooks: (accou
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}

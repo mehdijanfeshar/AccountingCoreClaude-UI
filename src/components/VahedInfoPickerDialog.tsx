@@ -30,11 +30,12 @@ interface VahedInfoPickerDialogProps {
  */
 export function VahedInfoPickerDialog({ open, title = 'انتخاب واحد سازمانی', onClose, onSelect }: VahedInfoPickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [pageFilter, setPageFilter] = useState('');
 
   const query = useQuery({
-    queryKey: ['vahed-infos-picker', pageNumber],
-    queryFn: () => vahedInfosApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['vahed-infos-picker', pageNumber, pageSize],
+    queryFn: () => vahedInfosApi.list({ pageNumber, pageSize: pageSize }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -91,6 +92,7 @@ export function VahedInfoPickerDialog({ open, title = 'انتخاب واحد س�
         {!query.isError && (
           <>
             <DataTable
+              pageable={false}
               columns={columns}
               rows={rows}
               getRowKey={(row) => row.id}
@@ -100,10 +102,14 @@ export function VahedInfoPickerDialog({ open, title = 'انتخاب واحد س�
             {query.data && (
               <Pagination
                 pageNumber={query.data.pageNumber}
-                pageSize={query.data.pageSize}
+                pageSize={pageSize}
                 totalCount={query.data.totalCount}
                 onPageChange={setPageNumber}
-              />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
             )}
           </>
         )}

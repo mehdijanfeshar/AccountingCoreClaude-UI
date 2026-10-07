@@ -30,11 +30,12 @@ interface BankAccountPickerDialogProps {
  */
 export function BankAccountPickerDialog({ open, title = 'انتخاب حساب بانکی', onClose, onSelect }: BankAccountPickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [pageFilter, setPageFilter] = useState('');
 
   const query = useQuery({
-    queryKey: ['bank-accounts-picker', pageNumber],
-    queryFn: () => bankAccountsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['bank-accounts-picker', pageNumber, pageSize],
+    queryFn: () => bankAccountsApi.list({ pageNumber, pageSize: pageSize }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -91,6 +92,7 @@ export function BankAccountPickerDialog({ open, title = 'انتخاب حساب �
         {!query.isError && (
           <>
             <DataTable
+              pageable={false}
               columns={columns}
               rows={rows}
               getRowKey={(row) => row.id}
@@ -100,10 +102,14 @@ export function BankAccountPickerDialog({ open, title = 'انتخاب حساب �
             {query.data && (
               <Pagination
                 pageNumber={query.data.pageNumber}
-                pageSize={query.data.pageSize}
+                pageSize={pageSize}
                 totalCount={query.data.totalCount}
                 onPageChange={setPageNumber}
-              />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
             )}
           </>
         )}

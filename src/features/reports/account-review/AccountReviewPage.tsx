@@ -666,6 +666,8 @@ export function AccountReviewPage() {
           pageSize={rowsPerPage}
           totalCount={rows.length}
           onPageChange={setPageNumber}
+          onPageSizeChange={setRowsPerPage}
+          pageSizeOptions={ROWS_PER_PAGE_OPTIONS}
         />
       </Box>
     </section>

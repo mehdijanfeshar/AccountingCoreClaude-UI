@@ -225,6 +225,7 @@ export function AccountCodeLevelTab({
       {!isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={pageRows}
             getRowKey={(row) => row.id}

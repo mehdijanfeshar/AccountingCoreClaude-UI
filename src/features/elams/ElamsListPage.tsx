@@ -79,18 +79,19 @@ export function ElamsListPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [applied, setApplied] = useState(emptyDraft);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [pending, setPending] = useState<PendingAction>(null);
 
   const units = useQuery({ queryKey: ['elam-units'], queryFn: elamsApi.units, enabled: isConfigured });
 
   const list = useQuery({
-    queryKey: ['elams', financialYear, kind, pageNumber, applied],
+    queryKey: ['elams', financialYear, kind, pageNumber, pageSize, applied],
     queryFn: () =>
       elamsApi.cartable({
         year: financialYear,
         kind,
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         serialFrom: toLatinDigits(applied.serialFrom) || undefined,
         serialTo: toLatinDigits(applied.serialTo) || undefined,
         dateFrom: applied.dateFrom || undefined,
@@ -301,6 +302,7 @@ export function ElamsListPage() {
       {action.isError && <ErrorBanner error={action.error} />}
 
       <DataTable
+        pageable={false}
         columns={columns}
         rows={list.data?.items ?? []}
         getRowKey={(r) => r.id}
@@ -313,9 +315,13 @@ export function ElamsListPage() {
       />
       <Pagination
         pageNumber={pageNumber}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         totalCount={list.data?.totalCount ?? 0}
         onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
       />
 
       <ConfirmDialog

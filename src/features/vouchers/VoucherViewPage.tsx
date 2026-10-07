@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { apiClient } from '../../lib/api/client';
 import { useQuery } from '@tanstack/react-query';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -49,16 +50,24 @@ export function VoucherViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { items: accountCodes } = useAllAccountCodes();
+  // `?unit=` — set by multi-unit reports (e.g. دفتر کل over «همهٔ واحدها») when the voucher belongs to
+  // another unit. Sent as that unit's X-Vahed-Code; the server still checks the caller may see it.
+  const [searchParams] = useSearchParams();
+  const otherUnit = searchParams.get('unit') || null;
 
   const voucher = useQuery({
-    queryKey: ['voucher-heads', id, 'with-lines'],
+    queryKey: ['voucher-heads', id, 'with-lines', otherUnit],
     queryFn: async () => {
-      const head = await voucherHeadsApi.getById(id as string);
-      const lines = await voucherDetailsApi.list({
-        pageNumber: 1,
-        pageSize: 200,
-        voucherHeadId: id,
-      });
+      const headers = otherUnit ? { 'X-Vahed-Code': otherUnit } : undefined;
+      const head = await apiClient
+        .get<Awaited<ReturnType<typeof voucherHeadsApi.getById>>>(`/voucher-heads/${id}`, { headers })
+        .then((res) => res.data);
+      const lines = await apiClient
+        .get<Awaited<ReturnType<typeof voucherDetailsApi.list>>>('/voucher-details', {
+          params: { pageNumber: 1, pageSize: 200, voucherHeadId: id },
+          headers,
+        })
+        .then((res) => res.data);
       return { head, lines: lines.items };
     },
     enabled: Boolean(id),
@@ -85,7 +94,8 @@ export function VoucherViewPage() {
 
   const head = voucher.data!.head;
   const lines = voucher.data!.lines;
-  const editable = isVoucherEditable(head.docLife);
+  // Opened from a multi-unit report for another unit's voucher: view only, no edit shortcut.
+  const editable = isVoucherEditable(head.docLife) && !otherUnit;
   const isBalanced = totals.debtor === totals.creditor;
 
   return (

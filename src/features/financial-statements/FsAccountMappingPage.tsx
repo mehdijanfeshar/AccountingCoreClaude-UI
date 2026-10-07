@@ -49,6 +49,7 @@ export function FsAccountMappingPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [applying, setApplying] = useState<FsMappingAssignment[] | "file" | null>(null);
   const queryClient = useQueryClient();
   const notify = useNotify();
@@ -91,7 +92,7 @@ export function FsAccountMappingPage() {
     [rows],
   );
 
-  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   const openTemplate = (templateCode: string) => {
     const t = (templatesQuery.data ?? []).find((x) => x.code === templateCode);
@@ -244,13 +245,19 @@ export function FsAccountMappingPage() {
       {query.isError && <ErrorBanner error={query.error} />}
 
       <DataTable
+        pageable={false}
         columns={columns}
         rows={pageRows}
         getRowKey={(m) => m.accCode}
         isLoading={query.isLoading && yearValid}
         emptyMessage={all.length === 0 ? 'این مجموعه برای این سال قالبی ندارد، یا کدینگ خالی است.' : 'موردی با این فیلتر نیست.'}
       />
-      {rows.length > PAGE_SIZE && <Pagination pageNumber={page} pageSize={PAGE_SIZE} totalCount={rows.length} onPageChange={setPage} />}
+      {rows.length > pageSize && <Pagination pageNumber={page} pageSize={pageSize} totalCount={rows.length} onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />}
       {applying && (
         <FsMappingApplyDialog
           framework={framework}

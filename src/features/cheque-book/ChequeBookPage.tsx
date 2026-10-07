@@ -72,6 +72,7 @@ export function ChequeBookPage() {
   const [draft, setDraft] = useState(empty);
   const [applied, setApplied] = useState(empty);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<{ action: 1 | 2 | 4; ids: string[] } | null>(null);
   const [note, setNote] = useState('');
@@ -87,7 +88,7 @@ export function ChequeBookPage() {
   const params: ChequeBookParams = {
     year: financialYear,
     pageNumber: page,
-    pageSize: PAGE_SIZE,
+    pageSize,
     bankAccountId: applied.bankAccountId || undefined,
     fromDate: applied.fromDate || undefined,
     toDate: applied.toDate || undefined,
@@ -285,13 +286,19 @@ export function ChequeBookPage() {
       {list.isError && <ErrorBanner error={list.error} />}
       {cancel.isError && <ErrorBanner error={cancel.error} />}
       <DataTable
+        pageable={false}
         columns={columns}
         rows={rows}
         getRowKey={(r) => r.checkId}
         isLoading={list.isLoading}
         emptyMessage="چکی با این شرایط در اسناد نیست."
       />
-      <Pagination pageNumber={page} pageSize={PAGE_SIZE} totalCount={list.data?.totalCount ?? 0} onPageChange={setPage} />
+      <Pagination pageNumber={page} pageSize={pageSize} totalCount={list.data?.totalCount ?? 0} onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
 
       <Dialog open={pending !== null} onClose={() => setPending(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{pending ? actionTitle[pending.action] : ''}</DialogTitle>

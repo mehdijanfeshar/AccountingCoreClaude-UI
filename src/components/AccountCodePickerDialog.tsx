@@ -51,11 +51,12 @@ export function AccountCodePickerDialog({
   filterRows,
 }: AccountCodePickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [pageFilter, setPageFilter] = useState('');
 
   const query = useQuery({
-    queryKey: ['account-codes-picker', pageNumber],
-    queryFn: () => accountCodesApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['account-codes-picker', pageNumber, pageSize],
+    queryFn: () => accountCodesApi.list({ pageNumber, pageSize: pageSize }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -116,6 +117,7 @@ export function AccountCodePickerDialog({
         {!query.isError && (
           <>
             <DataTable
+              pageable={false}
               columns={columns}
               rows={rows}
               getRowKey={(row) => row.id}
@@ -125,10 +127,14 @@ export function AccountCodePickerDialog({
             {query.data && (
               <Pagination
                 pageNumber={query.data.pageNumber}
-                pageSize={query.data.pageSize}
+                pageSize={pageSize}
                 totalCount={query.data.totalCount}
                 onPageChange={setPageNumber}
-              />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
             )}
           </>
         )}

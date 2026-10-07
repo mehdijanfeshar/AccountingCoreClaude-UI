@@ -51,6 +51,7 @@ function bankAccountLabel(account: { accountNumber: string | null; accountHolder
 /** فهرست صورت‌حساب‌های بانکی — خزانه‌داری بخش ۴-د (`docs/tankhah-khazaneh-module.md` §۱۰). */
 export function BankStatementListPage() {
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -60,8 +61,8 @@ export function BankStatementListPage() {
   }
 
   const listQuery = useQuery({
-    queryKey: ['treasury-bank-statements', pageNumber, PAGE_SIZE, statusTab],
-    queryFn: () => bankStatementsApi.list({ pageNumber, pageSize: PAGE_SIZE, state: statusTab || undefined }),
+    queryKey: ['treasury-bank-statements', pageNumber, pageSize, statusTab],
+    queryFn: () => bankStatementsApi.list({ pageNumber, pageSize, state: statusTab || undefined }),
     placeholderData: (previous) => previous,
   });
 
@@ -178,6 +179,7 @@ export function BankStatementListPage() {
           <ListToolbar summary={`${toPersianDigits(totalCount)} صورت‌حساب`} />
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -190,7 +192,16 @@ export function BankStatementListPage() {
             }
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination
+            pageNumber={pageNumber}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={setPageNumber}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPageNumber(1);
+            }}
+          />
         </>
       )}
 

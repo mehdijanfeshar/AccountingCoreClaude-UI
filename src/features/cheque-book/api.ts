@@ -1,3 +1,4 @@
+import type { ChequeFieldLayout } from './chequeLayout';
 import { apiClient } from '../../lib/api/client';
 
 /**
@@ -106,6 +107,8 @@ export interface ChequePrintDto {
   marginLeft: number | null;
   /** base64 */
   image: string | null;
+  /** جای فیلدهای تنظیم‌شده در «تنظیمات محیطی چک»؛ فیلد نیامده = جای پیش‌فرض قالب. */
+  fields?: ChequeFieldLayout[] | null;
 }
 
 export interface ChequeBookParams {

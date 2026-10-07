@@ -1,5 +1,6 @@
 import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -32,6 +33,7 @@ import { emptyTotals, sumTotals } from './columns';
 import { describePeriod, exportToExcel, exportToPdf, type ReportContext } from './export';
 import { TRIAL_BALANCE_PRINT_STYLES } from './printStyles';
 import { TrialBalanceTable } from './TrialBalanceTable';
+import { ALL_ROWS, Pagination } from '../../../components/Pagination';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import {
   DOC_LIFE_FILTER_OPTIONS,
@@ -196,6 +198,26 @@ export function TrialBalancePage() {
     normalizeNumericInput(codeFilter) !== applied.code;
 
   const hasRows = rows.length > 0;
+
+  // صفحه‌بندی سمت کلاینت (کل تراز یک‌جا می‌آید). جمع‌ها همیشه از همهٔ ردیف‌ها‌ست، نه صفحهٔ جاری؛ و هنگام چاپ
+  // همهٔ ردیف‌ها نمایش داده می‌شوند (beforeprint) تا خروجی چاپی ناقص نشود.
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+  const showAll = printing || pageSize === ALL_ROWS;
+  const lastPage = showAll ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(pageNumber, lastPage);
+  const pageRows = showAll ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <>
@@ -408,7 +430,7 @@ export function TrialBalancePage() {
 
           <Box className="tb-scroll">
             <TrialBalanceTable
-              rows={rows}
+              rows={pageRows}
               variant={variant}
               totals={totals}
               isLoading={query.isLoading}
@@ -419,6 +441,23 @@ export function TrialBalancePage() {
               }
             />
           </Box>
+
+          {hasRows && (
+            <Box className="tb-no-print">
+              <Pagination
+                pageNumber={currentPage}
+                pageSize={pageSize}
+                totalCount={rows.length}
+                onPageChange={setPageNumber}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPageNumber(1);
+                }}
+                pageSizeOptions={[50, 100, 200, 500]}
+                allowAll
+              />
+            </Box>
+          )}
 
           {hasRows && (
             <Stack

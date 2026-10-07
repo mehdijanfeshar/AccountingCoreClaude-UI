@@ -82,6 +82,7 @@ export function CodingPermissionsListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [createOpen, setCreateOpen] = useState(false);
   const [createInitial, setCreateInitial] = useState<
@@ -115,11 +116,11 @@ export function CodingPermissionsListPage() {
   });
 
   const query = useQuery({
-    queryKey: ['coding-permissions', pageNumber, PAGE_SIZE, filters],
+    queryKey: ['coding-permissions', pageNumber, pageSize, filters],
     queryFn: () =>
       codingPermissionsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         vahedTypeId: filters.vahedTypeId || undefined,
         state: filters.state ? Number(filters.state) : undefined,
         fromAuthorizedDate: filters.fromAuthorizedDate || undefined,
@@ -370,6 +371,7 @@ export function CodingPermissionsListPage() {
       {query.isError && <ErrorBanner error={query.error} />}
 
       <DataTable
+        pageable={false}
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
@@ -380,10 +382,14 @@ export function CodingPermissionsListPage() {
       {query.data && (
         <Pagination
           pageNumber={query.data.pageNumber}
-          pageSize={query.data.pageSize}
+          pageSize={pageSize}
           totalCount={query.data.totalCount}
           onPageChange={setPageNumber}
-        />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
       )}
 
       <CodingPermissionCreateDialog

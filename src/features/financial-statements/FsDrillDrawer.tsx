@@ -58,6 +58,7 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
   const [level, setLevel] = useState<Level>({ kind: 'accounts' });
   const [column, setColumn] = useState<'CUR' | 'PRV'>('CUR');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const fmt = (v: number | null) => formatAmount(displayAmount(row, v), unitDivisor);
   const fmtRial = (v: number) => formatAmount(v, 1);
@@ -77,7 +78,7 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
 
   const vouchersKey = level.kind === 'vouchers' ? [level.acc.accCode, level.unit?.vahedCode ?? ''] : [];
   const vouchersQuery = useQuery({
-    queryKey: ['fs-drill-vouchers', runId, row.id, ...vouchersKey, column, page],
+    queryKey: ['fs-drill-vouchers', runId, row.id, ...vouchersKey, column, page, pageSize],
     queryFn: () =>
       level.kind === 'vouchers'
         ? fsDrillApi.vouchers(runId, row.id, {
@@ -85,7 +86,7 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
             unit: level.unit?.vahedCode,
             column,
             page,
-            pageSize: PAGE_SIZE,
+            pageSize,
           })
         : Promise.reject(new Error('no level')),
     enabled: level.kind === 'vouchers',
@@ -325,6 +326,7 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
           </Stack>
           {vouchersQuery.isError && <ErrorBanner error={vouchersQuery.error} />}
           <DataTable
+            pageable={false}
             columns={voucherColumns}
             rows={vouchersQuery.data?.items ?? []}
             getRowKey={(v) => `${v.voucherHeadId}-${v.docNum}-${v.debtor}-${v.creditor}-${v.lineDesc}`}
@@ -336,10 +338,14 @@ export function FsDrillDrawer({ runId, row, hasPrior, unitDivisor, unitLabel, on
             <>
               <Pagination
                 pageNumber={vouchersQuery.data.pageNumber}
-                pageSize={vouchersQuery.data.pageSize}
+                pageSize={pageSize}
                 totalCount={vouchersQuery.data.totalCount}
                 onPageChange={setPage}
-              />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
               <Stack direction="row" spacing={2} sx={{ mt: 1, justifyContent: 'flex-end' }}>
                 <Typography variant="body2">جمع بدهکار: {fmtRial(vouchersQuery.data.sumDebtor)}</Typography>
                 <Typography variant="body2">جمع بستانکار: {fmtRial(vouchersQuery.data.sumCreditor)}</Typography>

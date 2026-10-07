@@ -67,6 +67,7 @@ export function AccountCodesListPage() {
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={query.data?.items ?? []}
             getRowKey={(row) => row.id}

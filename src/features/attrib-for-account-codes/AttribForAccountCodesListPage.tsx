@@ -75,6 +75,7 @@ export function AttribForAccountCodesListPage() {
   const queryClient = useQueryClient();
   const { financialYear } = useSession();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<Filters>({ year: financialYear, ...EMPTY_FILTERS });
   const [pendingDelete, setPendingDelete] = useState<AttribForAccountCodeDto | null>(null);
 
@@ -98,11 +99,11 @@ export function AttribForAccountCodesListPage() {
     filters.moinCodeFrom > filters.moinCodeTo;
 
   const query = useQuery({
-    queryKey: ['attrib-for-account-codes', pageNumber, PAGE_SIZE, filters],
+    queryKey: ['attrib-for-account-codes', pageNumber, pageSize, filters],
     queryFn: () =>
       attribForAccountCodesApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         year: filters.year || undefined,
         moinCodeFrom: filters.moinCodeFrom || undefined,
         moinCodeTo: filters.moinCodeTo || undefined,
@@ -300,6 +301,7 @@ export function AttribForAccountCodesListPage() {
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -332,10 +334,14 @@ export function AttribForAccountCodesListPage() {
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

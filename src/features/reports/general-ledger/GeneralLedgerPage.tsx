@@ -79,11 +79,12 @@ export function GeneralLedgerPage() {
   const [draft, setDraft] = useState(empty);
   const [applied, setApplied] = useState(empty);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const query = useQuery({
-    queryKey: ['trial-balance', 'general-ledger', financialYear, applied, page, getReportUnitScope()],
+    queryKey: ['trial-balance', 'general-ledger', financialYear, applied, page, pageSize, getReportUnitScope()],
     queryFn: () => {
-      const params: Record<string, string | number> = { year: financialYear, pageNumber: page, pageSize: PAGE_SIZE };
+      const params: Record<string, string | number> = { year: financialYear, pageNumber: page, pageSize };
       if (applied.fromDate) params.fromDate = applied.fromDate;
       if (applied.toDate) params.toDate = applied.toDate;
       if (applied.fromKol) params.fromKol = toLatinDigits(applied.fromKol);
@@ -222,7 +223,7 @@ export function GeneralLedgerPage() {
                       </TableCell>
                       <TableCell>{formatLegacyJalaliDate(r.dateDoc)}</TableCell>
                       <TableCell>
-                        <Button size="small" onClick={() => navigate(`/operation/vouchers/${r.voucherHeadId}/view`)}>
+                        <Button size="small" onClick={() => navigate(`/operation/vouchers/${r.voucherHeadId}/view${getReportUnitScope().unitScope !== 0 && r.vahedCode ? `?unit=${encodeURIComponent(r.vahedCode)}` : ''}`)}>
                           {toPersianDigits(r.docNum ?? '—')}
                         </Button>
                       </TableCell>
@@ -237,7 +238,16 @@ export function GeneralLedgerPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Pagination pageNumber={page} pageSize={PAGE_SIZE} totalCount={data.totalCount} onPageChange={setPage} />
+          <Pagination
+            pageNumber={page}
+            pageSize={pageSize}
+            totalCount={data.totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </>
       )}
     </section>

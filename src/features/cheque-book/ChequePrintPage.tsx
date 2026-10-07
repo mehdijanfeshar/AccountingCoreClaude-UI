@@ -17,22 +17,14 @@ import { numberToPersianWords } from '../../lib/format/numberToWords';
 import { formatThousands, toPersianDigits } from '../../lib/format/numbers';
 import { PERSIAN_MONTHS } from '../../types/fsRun';
 import { chequeBookApi } from './api';
+import { BASE_H, BASE_W, resolveField, type ChequeFieldKey } from './chequeLayout';
 
 /*
- * چاپ چک روی برگ چک — جای فیلدها از قالب سیستم قدیم (Extensions/Template.html: برگ ۱۷۰×۸۵ میلی‌متر،
- * تبدیل pt به mm) و نسبت به طول/عرض «تنظیمات محیطی چک» مقیاس می‌شود؛ حاشیهٔ بالا و چپ چاپگر (می‌تواند
- * منفی باشد) کل برگ را جابه‌جا می‌کند. تصویر چک فقط برای پیش‌نمایش است و در چاپ نمی‌آید (مگر کلید روشن شود).
+ * چاپ چک روی برگ چک — جای هر فیلد از «تنظیمات محیطی چک → جای فیلدها» (`TB_CHECK_TYPE.CHEQUE_*`)؛ فیلدی که
+ * تنظیم نشده جای قالب سیستم قدیم را می‌گیرد (Extensions/Template.html: برگ ۱۷۰×۸۵ میلی‌متر، مقیاس‌شده با
+ * طول/عرض برگ) — `chequeLayout.ts`. حاشیهٔ بالا و چپ چاپگر (می‌تواند منفی باشد) کل برگ را جابه‌جا می‌کند.
+ * تصویر چک فقط برای پیش‌نمایش است و در چاپ نمی‌آید (مگر کلید روشن شود).
  */
-const BASE_W = 170;
-const BASE_H = 85;
-const FIELDS = {
-  numericDate: { left: 110, top: 10.5, width: 33 },
-  dateWords: { left: 39.5, top: 17.7, width: 97 },
-  amountWords: { left: 16.2, top: 28.4, width: 111 },
-  payTo: { left: 89.7, top: 38.3, width: 63.6 },
-  amountDigits: { left: 5, top: 56.3, width: 71.5 },
-  description: { left: 98, top: 60, width: 62 },
-};
 
 const ORDINAL_DAYS = [
   'یکم', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم',
@@ -71,18 +63,19 @@ export function ChequePrintPage() {
 
   const w = c.width || BASE_W;
   const h = c.height || BASE_H;
-  const sx = w / BASE_W;
-  const sy = h / BASE_H;
-  const box = (f: { left: number; top: number; width: number }) => ({
-    position: 'absolute' as const,
-    left: `${f.left * sx}mm`,
-    top: `${f.top * sy}mm`,
-    width: `${f.width * sx}mm`,
-    fontSize: '10pt',
+  const box = (key: ChequeFieldKey) => {
+    const f = resolveField(key, c.fields, w, h);
+    return {
+      position: 'absolute' as const,
+      left: `${f.left}mm`,
+      top: `${f.top}mm`,
+      width: `${f.width}mm`,
+      fontSize: `${f.fontSize}pt`,
     lineHeight: 1.3,
     fontFamily: 'Vazirmatn, Tahoma, sans-serif',
-    color: '#000',
-  });
+      color: '#000',
+    };
+  };
   const amount = Math.round(c.amount);
   const numericDate = c.chequeDate?.length === 8 ? `${c.chequeDate.slice(0, 4)}/${c.chequeDate.slice(4, 6)}/${c.chequeDate.slice(6, 8)}` : '';
 
@@ -139,14 +132,14 @@ export function ChequePrintPage() {
           '@media print': { margin: 0, transform: `translate(${c.marginLeft ?? 0}mm, ${c.marginTop ?? 0}mm)` },
         }}
       >
-        <Box sx={{ ...box(FIELDS.numericDate), direction: 'ltr', fontWeight: 700, fontSize: '12pt' }}>{toPersianDigits(numericDate)}</Box>
-        <Box sx={box(FIELDS.dateWords)}>{dateInWords(c.chequeDate)}</Box>
-        <Box sx={box(FIELDS.amountWords)}>{`${numberToPersianWords(amount)} ریال`}</Box>
-        <Box sx={box(FIELDS.payTo)}>{c.payTo ?? ''}</Box>
-        <Box sx={{ ...box(FIELDS.amountDigits), direction: 'ltr', fontFamily: 'Arial', fontWeight: 700 }}>
+        <Box sx={{ ...box('NDATE'), direction: 'ltr', fontWeight: 700 }}>{toPersianDigits(numericDate)}</Box>
+        <Box sx={box('ADATE')}>{dateInWords(c.chequeDate)}</Box>
+        <Box sx={box('AAMOUNT')}>{`${numberToPersianWords(amount)} ریال`}</Box>
+        <Box sx={box('DESCRIBE1')}>{c.payTo ?? ''}</Box>
+        <Box sx={{ ...box('NAMOUNT'), direction: 'ltr', fontFamily: 'Arial', fontWeight: 700 }}>
           {`Rials ${formatThousands(amount)}/--`}
         </Box>
-        <Box sx={{ ...box(FIELDS.description), fontSize: '9pt' }}>{c.paperDescription ?? ''}</Box>
+        <Box sx={box('DESCRIBE2')}>{c.paperDescription ?? ''}</Box>
       </Box>
     </Box>
   );

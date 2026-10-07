@@ -118,6 +118,7 @@ export function VoucherHeadsListPage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filters, setFilters] = useState<Filters>({ year: financialYear, ...EMPTY_FILTERS });
   const [statusTab, setStatusTab] = useState<StatusTab>('');
   const [pendingDelete, setPendingDelete] = useState<VoucherHeadDto | null>(null);
@@ -250,11 +251,11 @@ export function VoucherHeadsListPage() {
   );
 
   const query = useQuery({
-    queryKey: ['voucher-heads', pageNumber, PAGE_SIZE, filters, statusTab],
+    queryKey: ['voucher-heads', pageNumber, pageSize, filters, statusTab],
     queryFn: () =>
       voucherHeadsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         year: filters.year || undefined,
         docNumFrom: filters.docNumFrom || undefined,
         docNumTo: filters.docNumTo || undefined,
@@ -690,6 +691,7 @@ export function VoucherHeadsListPage() {
           )}
 
           <DataTable
+            pageable={false}
             columns={tableColumns}
             rows={query.data?.items ?? []}
             getRowKey={(row) => row.id}
@@ -719,10 +721,14 @@ export function VoucherHeadsListPage() {
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

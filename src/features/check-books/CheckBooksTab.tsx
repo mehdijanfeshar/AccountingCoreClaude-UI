@@ -51,13 +51,14 @@ export function CheckBooksTab({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<CheckBookDto | null>(null);
   const [leavesBook, setLeavesBook] = useState<CheckBookDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['check-books', pageNumber, PAGE_SIZE],
-    queryFn: () => checkBooksApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['check-books', pageNumber, pageSize],
+    queryFn: () => checkBooksApi.list({ pageNumber, pageSize: pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -218,6 +219,7 @@ export function CheckBooksTab({
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -238,10 +240,14 @@ export function CheckBooksTab({
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

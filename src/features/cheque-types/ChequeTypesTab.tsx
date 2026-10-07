@@ -17,6 +17,7 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -24,14 +25,15 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { useSession } from '../../lib/session/SessionContext';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { apiClient } from '../../lib/api/client';
+import { ChequeLayoutDialog } from './ChequeLayoutDialog';
 
 /**
  * تنظیمات محیطی چک — `TB_CHECK_TYPE` (`api/cheque-types`)، معادل `base-cheque-setting` سیستم قدیم:
  * عنوان، طول و عرض برگ چک، حاشیهٔ بالا و چپ چاپگر (میلی‌متر) و تصویر چک.
  *
  * ⚠️ «ویرایش» در بک‌اند جایگزینی کامل است، پس فرم همهٔ فیلدهای دریافتی (مختصات چاپ تاریخ، مبلغ و …)
- * را دست‌نخورده برمی‌گرداند و فقط همین پنج فیلد و تصویر را عوض می‌کند. ستون‌های عددی در مدل
- * طول/عرض `byte` اند (۰ تا ۲۵۵)؛ حاشیه‌ها `short` و می‌توانند منفی باشند (عین سیستم قدیم، ۹۹۹- تا ۹۹۹).
+ * را دست‌نخورده برمی‌گرداند و فقط همین پنج فیلد و تصویر را عوض می‌کند؛ مختصات در «جای فیلدها» (`ChequeLayoutDialog`).
+ * طول/عرض ۰ تا ۹۹۹ (NUMBER(3))؛ حاشیه‌ها می‌توانند منفی باشند (عین سیستم قدیم، ۹۹۹- تا ۹۹۹).
  */
 
 type ChequeTypeDto = Record<string, unknown> & {
@@ -80,7 +82,7 @@ function byteError(value: string, required: boolean): string | undefined {
   const v = toLatinDigits(value).trim();
   if (v === '') return required ? 'الزامی است.' : undefined;
   if (!/^\d+$/.test(v)) return 'فقط عدد صحیح مثبت.';
-  if (Number(v) > 255) return 'حداکثر ۲۵۵ میلی‌متر.';
+  if (Number(v) > 999) return 'حداکثر ۹۹۹ میلی‌متر.';
   return undefined;
 }
 
@@ -109,6 +111,7 @@ export function ChequeTypesTab() {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ChequeTypeDto | null>(null);
   const [preview, setPreview] = useState<ChequeTypeDto | null>(null);
+  const [layoutTarget, setLayoutTarget] = useState<ChequeTypeDto | null>(null);
 
   const list = useQuery({ queryKey: ['cheque-types', 'settings'], queryFn: api.list });
 
@@ -164,6 +167,17 @@ export function ChequeTypesTab() {
     }
   }
 
+  async function openLayout(row: ChequeTypeDto) {
+    setLoadingEdit(true);
+    try {
+      setLayoutTarget(await api.get(row.id));
+    } catch (error) {
+      notify({ message: error instanceof Error ? error.message : 'دریافت تنظیمات با خطا مواجه شد.', severity: 'error' });
+    } finally {
+      setLoadingEdit(false);
+    }
+  }
+
   async function pickImage(file: File | undefined) {
     if (!file || !form) return;
     if (!file.type.startsWith('image/')) {
@@ -207,6 +221,13 @@ export function ChequeTypesTab() {
             <span>
               <IconButton size="small" color="primary" disabled={loadingEdit} onClick={() => openEdit(r)}>
                 <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="جای فیلدها روی چک">
+            <span>
+              <IconButton size="small" color="primary" disabled={loadingEdit} onClick={() => openLayout(r)}>
+                <SpaceDashboardOutlinedIcon fontSize="small" />
               </IconButton>
             </span>
           </Tooltip>
@@ -326,6 +347,8 @@ export function ChequeTypesTab() {
           <Button onClick={() => setPreview(null)}>بستن</Button>
         </DialogActions>
       </Dialog>
+
+      <ChequeLayoutDialog chequeType={layoutTarget} onClose={() => setLayoutTarget(null)} />
 
       <ConfirmDialog
         open={pendingDelete !== null}

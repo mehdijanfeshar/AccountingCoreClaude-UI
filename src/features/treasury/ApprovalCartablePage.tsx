@@ -47,6 +47,7 @@ export function ApprovalCartablePage() {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkApproveFailures, setBulkApproveFailures] = useState<BulkApproveFailure[] | null>(null);
 
@@ -75,8 +76,8 @@ export function ApprovalCartablePage() {
   }
 
   const cartableQuery = useQuery({
-    queryKey: ['treasury-approval-cartable', pageNumber, PAGE_SIZE],
-    queryFn: () => approvalCartableApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['treasury-approval-cartable', pageNumber, pageSize],
+    queryFn: () => approvalCartableApi.list({ pageNumber, pageSize: pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -267,6 +268,7 @@ export function ApprovalCartablePage() {
           )}
 
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => `${row.nature}-${row.id}`}
@@ -274,7 +276,12 @@ export function ApprovalCartablePage() {
             emptyMessage="کارتابل خالی است."
           />
 
-          <Pagination pageNumber={pageNumber} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPageNumber} />
+          <Pagination pageNumber={pageNumber} pageSize={pageSize} totalCount={totalCount} onPageChange={setPageNumber}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
         </>
       )}
 

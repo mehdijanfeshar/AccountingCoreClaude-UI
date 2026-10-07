@@ -35,12 +35,13 @@ export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: stri
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState('');
   const [pendingDelete, setPendingDelete] = useState<IdentityGroupDto | null>(null);
 
   const query = useQuery({
-    queryKey: ['identity-groups', pageNumber, PAGE_SIZE],
-    queryFn: () => identityGroupsApi.list({ pageNumber, pageSize: PAGE_SIZE }),
+    queryKey: ['identity-groups', pageNumber, pageSize],
+    queryFn: () => identityGroupsApi.list({ pageNumber, pageSize: pageSize }),
     placeholderData: (previous) => previous,
   });
 
@@ -132,6 +133,7 @@ export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: stri
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -158,10 +160,14 @@ export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: stri
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}

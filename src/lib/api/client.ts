@@ -30,7 +30,9 @@ apiClient.interceptors.request.use((config) => {
   // on every request and answers 403 for a unit they may not act as. Omitting it is always safe:
   // the server then falls back to the user's own unit from the token.
   const requestedUnit = getRequestedUnitCode();
-  if (requestedUnit) {
+  // A request that already names a unit (e.g. opening another unit's voucher from a multi-unit report)
+  // keeps it — the server still validates it the same way.
+  if (requestedUnit && !config.headers.has('X-Vahed-Code')) {
     config.headers.set('X-Vahed-Code', requestedUnit);
   }
 

@@ -50,6 +50,7 @@ export function IdentityHeadsTab({
   const queryClient = useQueryClient();
   const { financialYear } = useSession();
   const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [year, setYear] = useState(financialYear);
   const [groupId, setGroupId] = useState('');
   const [pendingDelete, setPendingDelete] = useState<IdentityHeadDto | null>(null);
@@ -60,11 +61,11 @@ export function IdentityHeadsTab({
   }, [financialYear]);
 
   const query = useQuery({
-    queryKey: ['identity-heads', pageNumber, PAGE_SIZE, groupId, year],
+    queryKey: ['identity-heads', pageNumber, pageSize, groupId, year],
     queryFn: () =>
       identityHeadsApi.list({
         pageNumber,
-        pageSize: PAGE_SIZE,
+        pageSize,
         identityGroupId: groupId || undefined,
         year: year || undefined,
       }),
@@ -223,6 +224,7 @@ export function IdentityHeadsTab({
       {!query.isError && (
         <>
           <DataTable
+            pageable={false}
             columns={columns}
             rows={rows}
             getRowKey={(row) => row.id}
@@ -243,10 +245,14 @@ export function IdentityHeadsTab({
           {query.data && (
             <Pagination
               pageNumber={query.data.pageNumber}
-              pageSize={query.data.pageSize}
+              pageSize={pageSize}
               totalCount={query.data.totalCount}
               onPageChange={setPageNumber}
-            />
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPageNumber(1);
+        }}
+      />
           )}
         </>
       )}
