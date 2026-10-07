@@ -23,6 +23,7 @@
     "axios": "^1.20.0",
     "exceljs": "^4.4.0",
     "motion": "^13.4.0",
+    "oidc-client-ts": "^3.5.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.87.0",

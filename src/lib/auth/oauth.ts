@@ -11,6 +11,7 @@
  */
 
 import { authConfig } from './authConfig';
+import { isKeycloak, keycloakLogin, keycloakLogout } from './keycloak';
 import {
   clearCodeVerifier,
   clearRedirectPath,
@@ -27,6 +28,10 @@ import {
  * they were trying to reach) — not to be confused with `redirect_uri`,
  * which is the fixed IDP-registered app origin. */
 export async function startLogin(returnTo?: string): Promise<void> {
+  if (isKeycloak) {
+    await keycloakLogin(returnTo);
+    return;
+  }
   clearToken();
   if (returnTo) {
     setRedirectPath(returnTo);
@@ -53,6 +58,10 @@ export async function startLogin(returnTo?: string): Promise<void> {
 
 /** Signs the user out both locally and at the IDP. */
 export function startLogout(): void {
+  if (isKeycloak) {
+    void keycloakLogout();
+    return;
+  }
   clearToken();
   const params = new URLSearchParams({ redirect_uri: authConfig.redirectUri });
   window.location.href = `${authConfig.authorizationServer}${authConfig.signoutPath}?${params.toString()}`;

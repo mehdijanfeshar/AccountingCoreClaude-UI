@@ -19,6 +19,7 @@
 
 import { authConfig } from './authConfig';
 import { applyToken, consumeCodeVerifier, consumeRedirectPath, exchangeCodeForToken } from './oauth';
+import { isKeycloak, keycloakBootstrap } from './keycloak';
 
 function stripAuthParamsFromUrl(): void {
   // Remove both hash and query string, but keep the current pathname —
@@ -35,6 +36,11 @@ function applyStoredRedirect(): void {
 }
 
 export async function bootstrapAuth(): Promise<void> {
+  if (isKeycloak) {
+    await keycloakBootstrap();
+    return;
+  }
+
   const isCodeFlow = authConfig.responseType === 'code';
   const paramsString = isCodeFlow ? window.location.search : window.location.hash;
 
