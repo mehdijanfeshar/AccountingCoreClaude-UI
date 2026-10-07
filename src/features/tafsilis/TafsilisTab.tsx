@@ -41,7 +41,6 @@ import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { tafsilGroupsApi } from '../tafsil-groups/api';
 import { tafsilisApi } from './api';
-import { monthReopenApi } from '../month-reopen/api';
 import {
   emptyTafsiliFormValues,
   tafsiliDtoToFormValues,
@@ -51,6 +50,7 @@ import {
 } from './schema';
 import type { TafsiliDto } from '../../types/tafsiliMaster';
 import type { TafsilGroupDto } from '../../types/tafsilGroup';
+import { ABILITIES, useRoles } from '../../lib/roles';
 import {
   OWNER_OPTIONS,
   PERSON_TYPE_OPTIONS,
@@ -260,9 +260,10 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
   const queryClient = useQueryClient();
   const [submitError, setSubmitError] = useState<unknown>(null);
   const isEdit = existing !== null;
-  // مالکیت، نوع واحد و دامنهٔ دیده‌شدن فقط برای ستاد مرکزی (سرور هم برای بقیه نادیده می‌گیرد).
-  const accessQuery = useQuery({ queryKey: ['month-reopen-access'], queryFn: monthReopenApi.access });
-  const isHq = !!accessQuery.data?.canIssue;
+  // مالکیت، نوع واحد و دامنهٔ دیده‌شدن = قابلیت «tafsili.scope» (پیش‌فرض ستاد مرکزی؛ در «دسترسی نقش‌ها» قابل تخصیص).
+  // سرور هم برای بقیه نادیده می‌گیرد.
+  const { hasAbility } = useRoles();
+  const isHq = hasAbility(ABILITIES.TafsiliScope);
 
   const {
     control,

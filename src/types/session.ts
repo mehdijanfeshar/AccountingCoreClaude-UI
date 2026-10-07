@@ -9,6 +9,13 @@ export interface CurrentUserDto {
   isHeadquarters: boolean;
   /** نقش‌های سامانهٔ مالی کاربر (از توکن سامانهٔ ورود). */
   roles?: string[];
+  /**
+   * سطح دسترسی به هر منو (کلید = مسیر صفحه؛ ۰ بدون دسترسی، ۱ مشاهده، ۲ ثبت و تغییر) وقتی «دسترسی نقش‌ها»
+   * پیکربندی شده؛ null/نبود = منو با قاعدهٔ ثابت گروه‌ها فیلتر می‌شود.
+   */
+  menuAccess?: Record<string, number> | null;
+  /** قابلیت‌های زیرمنو که کاربر دارد (مثل `tafsili.scope`) — بخش‌ها و دکمه‌های داخل فرم با آن فعال می‌شوند. */
+  abilities?: string[] | null;
 }
 
 /** Mirrors Accounting.Api's AccessibleUnitDto exactly — `GET /api/me/accessible-units`. */

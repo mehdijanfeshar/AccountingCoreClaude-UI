@@ -19,7 +19,7 @@ import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
 import { FormLoadingSkeleton } from '../../../components/FormLoadingSkeleton';
-import { useRoles } from '../../../lib/roles';
+import { ABILITIES, useRoles } from '../../../lib/roles';
 import { toPersianDigits } from '../../../lib/format/numbers';
 import { tafsilGroupsApi } from '../../tafsil-groups/api';
 import { sysTypesApi } from '../../../lib/api/sysTypesApi';
@@ -51,7 +51,9 @@ export function TemplateDesignerPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isSetad, loaded: rolesLoaded } = useRoles();
+  // تعریف الگوی سراسری = قابلیت «templates.define» (پیش‌فرض: کاربر ستاد مرکزی).
+  const { hasAbility, loaded: rolesLoaded } = useRoles();
+  const isSetad = hasAbility(ABILITIES.TemplatesDefine);
 
   const existing = useQuery({
     queryKey: ['operation-template-definition', id],

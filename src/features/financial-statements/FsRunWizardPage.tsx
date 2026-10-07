@@ -30,6 +30,7 @@ import { PERSIAN_MONTHS, describePeriod } from '../../types/fsRun';
 import { fsRunsApi } from './api';
 import { startBackgroundRun } from './backgroundRuns';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { ABILITIES, useRoles } from '../../lib/roles';
 
 const STEPS = ['مجموعه و دوره', 'دامنه و اسناد', 'گزینه‌ها و اجرا'];
 
@@ -62,6 +63,8 @@ function readDefaults(): WizardDefaults | null {
  */
 export function FsRunWizardPage() {
   const navigate = useNavigate();
+  // گروه واحد = قابلیت «fs.unit-category» (پیش‌فرض: ستاد مرکزی یا سطح کشور).
+  const { hasAbility } = useRoles();
   const { financialYear, unitName, unitCode } = useSession();
 
   const [saved, setSaved] = useState<WizardDefaults | null>(readDefaults);
@@ -206,7 +209,7 @@ export function FsRunWizardPage() {
                 control={<Checkbox checked={includeSubUnits} onChange={(e) => setIncludeSubUnits(e.target.checked)} />}
                 label="صورت ترکیبی: اسناد همهٔ واحدهای زیرمجموعه هم جمع شود"
               />
-              {includeSubUnits && (
+              {includeSubUnits && hasAbility(ABILITIES.FsUnitCategory) && (
                 <TextField
                   select
                   size="small"

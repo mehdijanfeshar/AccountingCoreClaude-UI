@@ -25,7 +25,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
-import { useRoles } from '../../../lib/roles';
+import { ABILITIES, useRoles } from '../../../lib/roles';
 import { useSession } from '../../../lib/session/SessionContext';
 import { vahedTypesApi } from '../../coding-permissions/api';
 import { REPORT_KINDS, buildReportUrl, kindSpec, type ReportKind } from './reportCatalog';
@@ -71,7 +71,9 @@ function fromDto(r: SavedReportDto): Draft {
 export function SavedReportsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isSetad, loaded } = useRoles();
+  // تعریف گزارش سراسری = قابلیت «saved-reports.define» (پیش‌فرض: کاربر ستاد مرکزی).
+  const { hasAbility, loaded } = useRoles();
+  const isSetad = hasAbility(ABILITIES.SavedReportsDefine);
   const list = useQuery({ queryKey: ['saved-report-definitions'], queryFn: savedReportsApi.definitions, retry: false });
   const [editing, setEditing] = useState<Draft | null>(null);
 
@@ -101,7 +103,7 @@ export function SavedReportsPage() {
         }
       />
 
-      {loaded && !isSetad && <Alert severity="info" sx={{ mb: 2 }}>تعریف و تغییر گزارش ذخیره‌شده فقط با نقش «مدیر ستاد» ممکن است.</Alert>}
+      {loaded && !isSetad && <Alert severity="info" sx={{ mb: 2 }}>تعریف و تغییر گزارش ذخیره‌شده فقط برای کاربر ستاد مرکزی یا نقشی که این قابلیت را دارد ممکن است.</Alert>}
       {list.error != null && <ErrorBanner error={list.error} />}
       {toggle.error != null && <ErrorBanner error={toggle.error} />}
 

@@ -6,7 +6,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
-import { useRoles } from '../../../lib/roles';
+import { ABILITIES, useRoles } from '../../../lib/roles';
 
 /**
  * دامنهٔ واحد گزارش‌های تراز آزمایشی، مرور حساب‌ها و ماتریسی (فاز ۴۸): واحد جاری (0)، واحد و زیرمجموعه (1)،
@@ -49,7 +49,9 @@ export function ReportUnitScopeBar() {
     getReportUnitScope,
   );
   const queryClient = useQueryClient();
-  const { canSeeAllUnits } = useRoles();
+  // «همهٔ واحدها» و گروه واحد = قابلیت «reports.unit-category» (پیش‌فرض: ستاد مرکزی یا سطح کشور).
+  const { hasAbility } = useRoles();
+  const canSeeAllUnits = hasAbility(ABILITIES.ReportsUnitCategory);
 
   function change(next: ReportUnitScopeValue) {
     setReportUnitScope(next);
@@ -73,7 +75,7 @@ export function ReportUnitScopeBar() {
         <MenuItem value={1}>واحد جاری و زیرمجموعه</MenuItem>
         {canSeeAllUnits && <MenuItem value={2}>همهٔ واحدهای کشور</MenuItem>}
       </TextField>
-      {value.unitScope !== 0 && (
+      {value.unitScope !== 0 && canSeeAllUnits && (
         <TextField
           select
           size="small"

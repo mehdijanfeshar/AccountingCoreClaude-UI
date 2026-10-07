@@ -58,6 +58,8 @@ export interface NavItem {
   description?: string;
   to?: string;
   icon: ReactElement;
+  /** فقط مدیر ستاد (مثل «دسترسی نقش‌ها») — در «دسترسی نقش‌ها» قابل تخصیص نیست. */
+  setadOnly?: boolean;
 }
 
 export type NavAccentColor = 'primary' | 'secondary' | 'warning';
@@ -125,6 +127,13 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'کارگاه‌ها و شعب مربوطه',
         to: '/base/work-shops',
         icon: <FactoryOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'دسترسی نقش‌ها',
+        description: 'هر نقش کدام منوها را ببیند و در کدام ثبت و تغییر کند',
+        to: '/base/role-access',
+        icon: <AdminPanelSettingsOutlinedIcon fontSize="small" />,
+        setadOnly: true,
       },
       { label: 'سال مالی', icon: <EventOutlinedIcon fontSize="small" /> },
     ],

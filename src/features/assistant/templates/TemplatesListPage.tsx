@@ -16,7 +16,7 @@ import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlin
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
-import { useRoles } from '../../../lib/roles';
+import { ABILITIES, useRoles } from '../../../lib/roles';
 import { toPersianDigits } from '../../../lib/format/numbers';
 import { assistantHistoryApi, templateDesignApi } from '../api';
 import type { TemplateUsage } from '../types';
@@ -36,7 +36,9 @@ function UsageChip({ usage, onClick }: { usage: TemplateUsage | undefined; onCli
 export function TemplatesListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isSetad, loaded } = useRoles();
+  // تعریف الگوی سراسری = قابلیت «templates.define» (پیش‌فرض: کاربر ستاد مرکزی).
+  const { hasAbility, loaded } = useRoles();
+  const isSetad = hasAbility(ABILITIES.TemplatesDefine);
   const list = useQuery({ queryKey: ['operation-template-definitions'], queryFn: templateDesignApi.list, retry: false });
   const usage = useQuery({ queryKey: ['operation-template-usage'], queryFn: assistantHistoryApi.usage, retry: false });
   const usageById = new Map((usage.data ?? []).map((u) => [u.templateId, u]));
@@ -64,7 +66,7 @@ export function TemplatesListPage() {
         }
       />
 
-      {loaded && !isSetad && <Alert severity="info" sx={{ mb: 2 }}>تعریف و تغییر الگو فقط با نقش «مدیر ستاد» ممکن است.</Alert>}
+      {loaded && !isSetad && <Alert severity="info" sx={{ mb: 2 }}>تعریف و تغییر الگو فقط برای کاربر ستاد مرکزی یا نقشی که این قابلیت را دارد ممکن است.</Alert>}
       {list.error != null && <ErrorBanner error={list.error} />}
       {toggle.error != null && <ErrorBanner error={toggle.error} />}
       {list.isLoading && <CircularProgress sx={{ display: 'block', mx: 'auto', my: 4 }} />}
