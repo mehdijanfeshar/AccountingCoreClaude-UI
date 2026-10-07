@@ -41,6 +41,7 @@ import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { tafsilGroupsApi } from '../tafsil-groups/api';
 import { tafsilisApi } from './api';
+import { monthReopenApi } from '../month-reopen/api';
 import {
   emptyTafsiliFormValues,
   tafsiliDtoToFormValues,
@@ -258,6 +259,9 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
   const queryClient = useQueryClient();
   const [submitError, setSubmitError] = useState<unknown>(null);
   const isEdit = existing !== null;
+  // مالکیت، نوع واحد و دامنهٔ دیده‌شدن فقط برای ستاد مرکزی (سرور هم برای بقیه نادیده می‌گیرد).
+  const accessQuery = useQuery({ queryKey: ['month-reopen-access'], queryFn: monthReopenApi.access });
+  const isHq = !!accessQuery.data?.canIssue;
 
   const {
     control,
@@ -400,6 +404,7 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
               />
             </Grid>
 
+            {isHq ? (
             <Grid size={{ xs: 12, sm: 6 }}>
               <Controller
                 control={control}
@@ -430,11 +435,19 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                 )}
               />
             </Grid>
+            ) : (
+              <Grid size={12}>
+                <FormHelperText>
+                  این تفصیلی فقط برای واحد شما تعریف می‌شود (مالکیت «داخلی»، نوع واحد خودکار بر اساس واحد شما). تعریف تفصیلی
+                  سراسری، بیمه‌ای یا درمانی فقط از ستاد مرکزی ممکن است.
+                </FormHelperText>
+              </Grid>
+            )}
 
             <Grid size={12}>
               <FormAdvancedSection
                 label="ویژگی‌های تکمیلی (اختیاری)"
-                caption="این چهار فیلد اختیاری‌اند — گزینهٔ «انتخاب نشده» مقدار را روی نامشخص (null) نگه می‌دارد."
+                caption="این فیلدها اختیاری‌اند — گزینهٔ «انتخاب نشده» مقدار را روی نامشخص (null) نگه می‌دارد."
               >
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 3 }}>
@@ -487,6 +500,8 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       )}
                     />
                   </Grid>
+                  {isHq && (
+                  <>
                   <Grid size={{ xs: 12, sm: 3 }}>
                     <Controller
                       control={control}
@@ -537,6 +552,8 @@ function TafsiliFormDialog({ existing, tafsilGroupOptions, onClose }: TafsiliFor
                       )}
                     />
                   </Grid>
+                  </>
+                  )}
                 </Grid>
               </FormAdvancedSection>
             </Grid>

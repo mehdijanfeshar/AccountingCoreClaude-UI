@@ -23,6 +23,10 @@ import { IdentityHeadFormPage } from '../features/identity/IdentityHeadFormPage'
 import { WorkShopsListPage } from '../features/work-shops/WorkShopsListPage';
 import { WorkShopFormPage } from '../features/work-shops/WorkShopFormPage';
 import { VoucherHeadsListPage } from '../features/vouchers/VoucherHeadsListPage';
+import { MonthReopenApplyPage } from '../features/month-reopen/MonthReopenApplyPage';
+import { MonthReopenIssuePage } from '../features/month-reopen/MonthReopenIssuePage';
+import { MonthClosePage } from '../features/month-reopen/MonthClosePage';
+import { SystemVoucherInboxPage } from '../features/system-inbox/SystemVoucherInboxPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
 import { VoucherViewPage } from '../features/vouchers/VoucherViewPage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
@@ -151,6 +155,10 @@ export const routes: RouteObject[] = [
   { path: '/assistant/templates/:id/edit', element: <AssistantErrorBoundary key="edit"><TemplateDesignerPage /></AssistantErrorBoundary> },
 
   { path: '/operation/voucher-heads', element: <VoucherHeadsListPage /> },
+  { path: '/operation/month-reopen', element: <MonthReopenApplyPage /> },
+  { path: '/operation/month-reopen/issue', element: <MonthReopenIssuePage /> },
+  { path: '/operation/month-close', element: <MonthClosePage /> },
+  { path: '/operation/system-voucher-inbox', element: <SystemVoucherInboxPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
   { path: '/operation/vouchers/:id/edit', element: <VoucherEntryPage /> },
   // Read-only. The only way into a reviewed/accepted voucher, which the edit route refuses.

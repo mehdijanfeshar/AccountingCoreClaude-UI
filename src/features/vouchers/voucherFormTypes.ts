@@ -35,3 +35,20 @@ export function createEmptyVoucherLine(): VoucherLineFormValue {
     ...emptyLineExtras(),
   };
 }
+
+/**
+ * کادر ورود ردیفِ دست‌نخورده (بدون معین، مبلغ، شرح، تفصیلی و چک). در جدول خلاصه نمی‌آید و پیش از
+ * «ذخیره سند» حذف می‌شود تا جلوی ذخیره را نگیرد.
+ */
+export function isBlankVoucherLine(line: VoucherLineFormValue | undefined): boolean {
+  if (!line) return true;
+  return (
+    !line.accountId &&
+    !String(line.debtor ?? '').trim() &&
+    !String(line.creditor ?? '').trim() &&
+    !String(line.description ?? '').trim() &&
+    Object.values(line.tafsili ?? {}).every((v) => !v) &&
+    !line.checkId &&
+    !line.soriCheckBookId
+  );
+}

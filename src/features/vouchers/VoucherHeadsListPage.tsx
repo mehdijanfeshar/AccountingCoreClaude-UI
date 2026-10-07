@@ -54,6 +54,8 @@ import {
   voucherHeadsApi,
 } from './api';
 import { SortVouchersDialog } from './SortVouchersDialog';
+import { DeletedVouchersDialog } from './DeletedVouchersDialog';
+import RestoreFromTrashOutlinedIcon from '@mui/icons-material/RestoreFromTrashOutlined';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 
 const PAGE_SIZE = 20;
@@ -122,6 +124,7 @@ export function VoucherHeadsListPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pendingReverse, setPendingReverse] = useState<VoucherHeadDto | null>(null);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [deletedDialogOpen, setDeletedDialogOpen] = useState(false);
   const [stateMenu, setStateMenu] = useState<{ anchor: HTMLElement; row: VoucherHeadDto } | null>(null);
 
   // The top-bar fiscal year seeds this page; changing it there resets the page's year filter.
@@ -474,6 +477,14 @@ export function VoucherHeadsListPage() {
             >
               مرتب‌سازی اسناد
             </Button>
+            <Button
+              variant="outlined"
+              startIcon={<RestoreFromTrashOutlinedIcon />}
+              onClick={() => setDeletedDialogOpen(true)}
+              disabled={!isConfigured}
+            >
+              سندهای حذف‌شده
+            </Button>
             <Button variant="contained" color="secondary" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/operation/vouchers/new">
               صدور سند جدید
             </Button>
@@ -743,6 +754,8 @@ export function VoucherHeadsListPage() {
         onCancel={() => setPendingReverse(null)}
         onConfirm={() => pendingReverse && reverseMutation.mutate(pendingReverse.id)}
       />
+
+      <DeletedVouchersDialog open={deletedDialogOpen} year={filters.year ?? ''} onClose={() => setDeletedDialogOpen(false)} />
 
       <SortVouchersDialog
         open={sortDialogOpen}

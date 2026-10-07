@@ -86,6 +86,45 @@ export const voucherHeadsApi = createResourceApi<
   VoucherHeadListParams
 >('voucher-heads');
 
+/** شمارهٔ پیشنهادی سند بعدی واحد جاری در سال (بزرگ‌ترین + ۱) — پیش‌فرض فرم صدور سند. */
+export function getNextDocNum(year: string): Promise<string> {
+  return apiClient
+    .get<{ docNum: string }>('/voucher-heads/next-doc-num', { params: { year } })
+    .then((res) => res.data.docNum);
+}
+
+/** یک ردیف در ذخیرهٔ اتمیک — همان payload ردیف، بی سرسند و سال؛ `id` خالی = ردیف تازه. */
+export type SaveVoucherLinePayload = Omit<CreateVoucherDetailPayload, 'voucherHeadId' | 'year'> & {
+  id: string | null;
+};
+
+export interface SaveVoucherPayload {
+  /** null = سند جدید. */
+  headId: string | null;
+  head: CreateVoucherHeadPayload;
+  lines: SaveVoucherLinePayload[];
+  deletedLineIds: string[];
+  /** ویرایش: `updatedDate` سرسند هنگام بارشدن فرم — اگر کسی در این فاصله سند را عوض کرده باشد، ۴۰۹. */
+  concurrency?: { updatedDate: string | null } | null;
+}
+
+/**
+ * ذخیرهٔ اتمیک سند — `POST /api/voucher-heads/save` (ریسک #۲۱، فاز ۵۲).
+ * سرسند، همهٔ ردیف‌ها و حذف‌ها در یک تراکنش: یا همه ثبت می‌شود یا هیچ.
+ */
+export function saveVoucher(payload: SaveVoucherPayload): Promise<string> {
+  return apiClient
+    .post<{ headId: string }>('/voucher-heads/save', payload)
+    .then((res) => res.data.headId);
+}
+
+/** payload ردیف ← قالب ردیفِ ذخیرهٔ اتمیک. */
+export function toSaveLine(id: string | null, detail: CreateVoucherDetailPayload): SaveVoucherLinePayload {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { voucherHeadId, year, ...rest } = detail;
+  return { id, ...rest };
+}
+
 /**
  * Hand-written rather than `createResourceApi<...>`, because `list` takes extra query params
  * (`voucherHeadId`/`year`) that do not fit the generic helper's plain `ListParams`. It now carries
@@ -245,3 +284,25 @@ export function sortVouchers(payload: SortVouchersPayload): Promise<number> {
  * API answers 409 regardless of what the UI shows.
  */
 export const DOC_LIFE_ACCEPTED = 4;
+
+export interface DeletedVoucher {
+  id: string;
+  docNum: string | null;
+  dateDoc: string | null;
+  headDesc: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  lineCount: number;
+  debtor: number;
+  creditor: number;
+}
+
+/** سندهای حذف‌شده و بازگردانی — `GET voucher-heads/deleted`، `POST voucher-heads/{id}/restore`. */
+export const deletedVouchersApi = {
+  list: (year: string) =>
+    apiClient.get<DeletedVoucher[]>('/voucher-heads/deleted', { params: { year } }).then((r) => r.data),
+  restore: (id: string) =>
+    apiClient
+      .post<{ id: string; docNum: string; renumbered: boolean; restoredLines: number }>(`/voucher-heads/${id}/restore`)
+      .then((r) => r.data),
+};

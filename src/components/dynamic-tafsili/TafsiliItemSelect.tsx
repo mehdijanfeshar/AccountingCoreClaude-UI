@@ -50,13 +50,18 @@ export function TafsiliItemSelect({ accountCodeId, level, value, onChange, error
   const [accumulated, setAccumulated] = useState<TafsiliLookupItemDto[]>([]);
 
   useEffect(() => {
+    // Only a real change of the search text may clear the list. The timer used to fire on mount
+    // too (typedQuery '' → ''), and when the first response had already arrived — e.g. served
+    // from cache — it wiped the options; the query key did not change, so nothing refetched and
+    // the dropdown stayed at «موردی یافت نشد» / «۰ از ۳».
+    if (typedQuery === debouncedSearch) return;
     const timer = setTimeout(() => {
       setDebouncedSearch(typedQuery);
       setPageNumber(1);
       setAccumulated([]);
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [typedQuery]);
+  }, [typedQuery, debouncedSearch]);
 
   const query = useTafsiliLevelItems(accountCodeId, level.levelId, debouncedSearch, pageNumber);
 

@@ -1,4 +1,4 @@
-import { voucherDetailsApi } from './api';
+import { toSaveLine, type SaveVoucherLinePayload } from './api';
 import type { CreateVoucherDetailPayload } from './api';
 import { lineExtrasPayload } from './lineExtras';
 import { createEmptyVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
@@ -174,58 +174,26 @@ function buildPayload(
   };
 }
 
-export interface ReconcileResult {
-  failed: { key: string; message: string }[];
-}
-
 /**
- * Brings the stored lines in line with the lines on screen.
- *
- * Deletes run first. A voucher's lines are effectively identified by what they say, and doing the
- * removals before the inserts keeps the document from momentarily holding both an old line and its
- * replacement — which matters because this runs as several requests, not one transaction (open
- * risk #21), so "momentarily" is a state someone can actually observe if a later call fails.
+ * ردیف‌های روی صفحه را با ردیف‌های ذخیره‌شده تطبیق می‌دهد: کدام ویرایش، کدام تازه، کدام حذف.
+ * خودِ ذخیره دیگر چند درخواست جدا نیست — همه با هم به `saveVoucher` می‌رود و سرور در یک تراکنش
+ * اجرا می‌کند (ریسک #۲۱ بسته شد، فاز ۵۲).
  */
-export async function reconcileLines(
-  headId: string,
+export function buildSaveLines(
   lines: VoucherLineFormValue[],
   detailIds: DetailIdByRowKey,
   originals: OriginalDetailByRowKey,
-  year: string,
-): Promise<ReconcileResult> {
-  const failed: ReconcileResult['failed'] = [];
-
+): { lines: SaveVoucherLinePayload[]; deletedLineIds: string[] } {
   const survivingKeys = new Set(lines.map((line) => line.key));
-  const removedIds = Object.entries(detailIds)
+  const deletedLineIds = Object.entries(detailIds)
     .filter(([key]) => !survivingKeys.has(key))
     .map(([, id]) => id);
 
-  for (const id of removedIds) {
-    try {
-      await voucherDetailsApi.remove(id);
-    } catch (error) {
-      failed.push({
-        key: id,
-        message: error instanceof Error ? error.message : 'حذف ردیف با خطا مواجه شد.',
-      });
-    }
-  }
-
-  for (const line of lines) {
-    const existingId = detailIds[line.key];
-    try {
-      if (existingId) {
-        await voucherDetailsApi.update(existingId, buildPayload(headId, line, year, originals[line.key]));
-      } else {
-        await voucherDetailsApi.create(buildPayload(headId, line, year));
-      }
-    } catch (error) {
-      failed.push({
-        key: line.key,
-        message: error instanceof Error ? error.message : 'ثبت ردیف با خطا مواجه شد.',
-      });
-    }
-  }
-
-  return { failed };
+  return {
+    deletedLineIds,
+    lines: lines.map((line) => {
+      const existingId = detailIds[line.key] ?? null;
+      return toSaveLine(existingId, buildPayload('', line, '', existingId ? originals[line.key] : undefined));
+    }),
+  };
 }

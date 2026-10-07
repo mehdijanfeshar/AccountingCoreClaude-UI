@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
@@ -17,6 +17,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
 import { AccountCodePickerDialog } from '../../components/AccountCodePickerDialog';
 import { AmountField } from '../../components/AmountField';
 import { ErrorBanner } from '../../components/ErrorBanner';
@@ -37,6 +38,8 @@ interface VoucherLineRowProps {
   canRemove: boolean;
   /** Briefly highlighted when jumped to from the "ویرایش" action in the summary table below. */
   highlighted?: boolean;
+  /** «ثبت ردیف» — validates this row and moves to the next (Enter in the amount fields too). */
+  onConfirm?: () => void;
 }
 
 /**
@@ -60,6 +63,7 @@ export function VoucherLineRow({
   onActiveLevelsChange,
   canRemove,
   highlighted = false,
+  onConfirm,
 }: VoucherLineRowProps) {
   const { control, setValue, formState } = form;
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
@@ -115,6 +119,14 @@ export function VoucherLineRow({
     const tafsiliId = tafsili[level.levelId];
     if (!tafsiliId) return null;
     return { levelId: level.levelId, tafsiliId, label: tafsiliLabels[level.levelId] ?? '' };
+  }
+
+  // Enter در بدهکار/بستانکار = «ثبت ردیف».
+  function confirmOnEnter(e: KeyboardEvent) {
+    if (e.key === 'Enter' && onConfirm) {
+      e.preventDefault();
+      onConfirm();
+    }
   }
 
   return (
@@ -243,10 +255,10 @@ export function VoucherLineRow({
             )}
           />
         </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
+        <Grid size={{ xs: 6, sm: 3 }} onKeyDown={confirmOnEnter}>
           <AmountField control={control} name={`lines.${index}.debtor`} label="بدهکار" />
         </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
+        <Grid size={{ xs: 6, sm: 3 }} onKeyDown={confirmOnEnter}>
           <AmountField control={control} name={`lines.${index}.creditor`} label="بستانکار" />
         </Grid>
 
@@ -254,6 +266,14 @@ export function VoucherLineRow({
 
         <VoucherLineExtras form={form} index={index} />
       </Grid>
+
+      {onConfirm && (
+        <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
+          <Button variant="contained" color="secondary" startIcon={<CheckCircleOutlineIcon />} onClick={onConfirm}>
+            ثبت ردیف
+          </Button>
+        </Stack>
+      )}
 
       <AccountCodePickerDialog
         open={accountPickerOpen}

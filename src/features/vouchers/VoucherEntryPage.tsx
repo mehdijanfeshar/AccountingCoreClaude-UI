@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import Box from '@mui/material/Box';
@@ -12,12 +12,8 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
-import Stepper from '@mui/material/Stepper';
-import Step from '@mui/material/Step';
-import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
 import Avatar from '@mui/material/Avatar';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
@@ -41,19 +37,19 @@ import { useSession } from '../../lib/session/SessionContext';
 import { formatThousands, toLatinDigits } from '../../lib/format/numbers';
 import { VoucherLineRow } from './VoucherLineRow';
 import { buildVoucherEntrySchema, type ActiveLevelsByRowKey, type VoucherEntryFormSchema } from './voucherEntrySchema';
-import { createEmptyVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
+import { createEmptyVoucherLine, isBlankVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
 import {
-  reconcileLines,
+  buildSaveLines,
   toFormValues,
   type DetailIdByRowKey,
   type OriginalDetailByRowKey,
 } from './voucherEdit';
 import { useAllAccountCodes } from '../chart-of-accounts/useAllAccountCodes';
-import { voucherDetailsApi, voucherHeadsApi, type CreateVoucherDetailPayload, type CreateVoucherHeadPayload } from './api';
+import { getNextDocNum, saveVoucher, toSaveLine, voucherDetailsApi, voucherHeadsApi, type CreateVoucherDetailPayload, type CreateVoucherHeadPayload } from './api';
+import { defaultVoucherDate } from '../assistant/draftMapping';
 import { lineExtrasPayload } from './lineExtras';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 
-type LineSubmissionState = 'idle' | 'pending' | 'success' | 'error';
 
 /**
  * Voucher entry form with dynamic تفصیلی fields (phase 22-b). Layout adapted from the old
@@ -61,19 +57,8 @@ type LineSubmissionState = 'idle' | 'pending' | 'success' | 'error';
  * totals footer) — see the completion report for exactly which patterns were kept vs.
  * dropped.
  *
- * ⚠️ Save flow is deliberately TWO STEPS, NOT atomic (see `onSubmit`): the real
- * `CreateVoucherHeadCommand.InitialDetails` shape has no `tafsiliLinks` field, so this form
- * never uses it — it always creates the head first, then each line individually via
- * `POST /api/voucher-details` (the only endpoint that accepts `tafsiliLinks`). If the head
- * succeeds but a line fails, the head is NOT rolled back (the backend has no endpoint for
- * that) — this is flagged as an open decision for the project owner in the completion
- * report, and handled here by keeping the created head id around so retrying only re-submits
- * the lines that actually failed, never a duplicate head.
- *
- * ⚠️ Debit/credit balance is shown for information only and never blocks submission — the
- * "Legacy fully replaces the rich model" architecture decision (CLAUDE.md) deliberately
- * discarded the debit==credit invariant; inventing a client-side block here would be exactly
- * the "Business Rule حسابداری فقط در UI" this role is forbidden from doing.
+ * ذخیره اتمیک است (فاز ۵۲، ریسک #۲۱): سرسند + ردیف‌ها + حذف‌ها با یک POST /api/voucher-heads/save
+ * در یک تراکنش سمت سرور — یا همه یا هیچ. تراز فقط نمایشی است؛ قاعدهٔ «خروج از یادداشت = تراز» را سرور اعمال می‌کند.
  */
 export function VoucherEntryPage() {
   const navigate = useNavigate();
@@ -87,7 +72,8 @@ export function VoucherEntryPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       docNum: '',
-      dateDoc: '',
+      // پیش‌فرض: امروز (اگر امروز در سال مالی جاری نیست، آخرین روز همان سال). در ویرایش با سند بارشده جایگزین می‌شود.
+      dateDoc: defaultVoucherDate(financialYear).value,
       year: financialYear || '',
       headDesc: '',
       apendix: '',
@@ -98,6 +84,44 @@ export function VoucherEntryPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' });
   const watchedLines = useWatch({ control, name: 'lines' });
+  const watchedYear = useWatch({ control, name: 'year' });
+
+  // یک ردیف در حال ویرایش است؛ بقیه فقط در «خلاصه ردیف‌ها» دیده می‌شوند (همه mount می‌مانند تا
+  // سطوح تفصیلی و انتخاب‌هایشان حفظ شود). کلید ناموجود ⇒ آخرین ردیف.
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const currentRowKey =
+    fields.find((f) => f.key === editingRowKey)?.key ?? fields[fields.length - 1]?.key ?? null;
+
+  // «ثبت ردیف»: ردیف کنترل می‌شود، به جدول خلاصه می‌رود و کادر ورود خالی می‌شود — یعنی کادر روی
+  // یک ردیف خالی (موجود یا تازه) می‌رود. ردیف خالی نه در جدول می‌آید نه جلوی «ذخیره سند» را می‌گیرد.
+  async function confirmRow(index: number) {
+    const ok = await form.trigger(`lines.${index}` as const);
+    if (!ok) return;
+    const lines = form.getValues('lines');
+    const blankIndex = lines.findIndex((l, i) => i !== index && isBlankVoucherLine(l));
+    if (blankIndex >= 0 && fields[blankIndex]) {
+      setEditingRowKey(fields[blankIndex].key);
+      return;
+    }
+    const line = createEmptyVoucherLine();
+    append(line);
+    setEditingRowKey(line.key);
+  }
+
+  function onInvalid(errors: Parameters<Parameters<typeof handleSubmit>[1] & object>[0]) {
+    // خطا در ردیفی که بسته است ⇒ همان ردیف را باز کن.
+    const bad = Array.isArray(errors.lines) ? errors.lines.findIndex((e) => e) : -1;
+    if (bad >= 0 && fields[bad]) handleEditRow(fields[bad].key);
+  }
+
+  function submitVoucher(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // کادر ورودِ خالی ذخیره نمی‌شود (مگر سند هیچ ردیف پری نداشته باشد — آن‌وقت خطای «ردیف الزامی» بماند).
+    const lines = form.getValues('lines');
+    const blank = lines.map((l, i) => (isBlankVoucherLine(l) ? i : -1)).filter((i) => i >= 0);
+    if (blank.length > 0 && blank.length < lines.length) remove(blank);
+    void handleSubmit(onSubmit, onInvalid)();
+  }
 
   // Edit mode is this same form with a voucher already in it. A second page would mean a second
   // copy of the تفصیلی row logic, which is the most intricate part of this feature and the last
@@ -153,23 +177,34 @@ export function VoucherEntryPage() {
     }
   }, [existingVoucher.data, accountCodes, form]);
 
-  const [createdHeadId, setCreatedHeadId] = useState<string | null>(null);
-  const [lineStatus, setLineStatus] = useState<Record<string, LineSubmissionState>>({});
-  const [lineErrorMessages, setLineErrorMessages] = useState<Record<string, string>>({});
+
+  // سند جدید: شمارهٔ پیشنهادی = آخرین شمارهٔ سند واحد در سال + ۱. فقط اگر کاربر خودش شماره‌ای ننوشته.
+  const nextDocNumQuery = useQuery({
+    queryKey: ['voucher-next-doc-num', watchedYear],
+    queryFn: () => getNextDocNum(watchedYear),
+    enabled: !isEditing && /^\d{4}$/.test(watchedYear ?? ''),
+  });
+  useEffect(() => {
+    const next = nextDocNumQuery.data;
+    if (!next || isEditing || form.getFieldState('docNum').isDirty) return;
+    form.setValue('docNum', next, { shouldValidate: true });
+  }, [nextDocNumQuery.data, isEditing, form]);
   const [globalError, setGlobalError] = useState<unknown>(null);
   const [highlightedRowKey, setHighlightedRowKey] = useState<string | null>(null);
 
-  const createHeadMutation = useMutation({
-    mutationFn: (payload: CreateVoucherHeadPayload) => voucherHeadsApi.create(payload),
-  });
 
   function handleActiveLevelsChange(rowKey: string, levels: TafsiliLevelDto[]) {
     activeLevelsRef.current = { ...activeLevelsRef.current, [rowKey]: levels };
   }
 
   function handleEditRow(rowKey: string) {
+    setEditingRowKey(rowKey);
     setHighlightedRowKey(rowKey);
-    document.getElementById(`voucher-line-${rowKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // The row was hidden until now; scroll after it is shown.
+    window.setTimeout(
+      () => document.getElementById(`voucher-line-${rowKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      0,
+    );
     window.setTimeout(() => setHighlightedRowKey((current) => (current === rowKey ? null : current)), 1600);
   }
 
@@ -177,16 +212,6 @@ export function VoucherEntryPage() {
     const index = fields.findIndex((f) => f.key === rowKey);
     if (index === -1) return;
     remove(index);
-    setLineStatus((prev) => {
-      const next = { ...prev };
-      delete next[rowKey];
-      return next;
-    });
-    setLineErrorMessages((prev) => {
-      const next = { ...prev };
-      delete next[rowKey];
-      return next;
-    });
   }
 
   function buildDetailPayload(headId: string, line: VoucherLineFormValue, year: string): CreateVoucherDetailPayload {
@@ -217,145 +242,62 @@ export function VoucherEntryPage() {
     };
   }
 
-  async function submitLine(headId: string, line: VoucherLineFormValue, year: string) {
-    setLineStatus((prev) => ({ ...prev, [line.key]: 'pending' }));
-    try {
-      await voucherDetailsApi.create(buildDetailPayload(headId, line, year));
-      setLineStatus((prev) => ({ ...prev, [line.key]: 'success' }));
-      setLineErrorMessages((prev) => {
-        const next = { ...prev };
-        delete next[line.key];
-        return next;
-      });
-      return true;
-    } catch (error) {
-      setLineStatus((prev) => ({ ...prev, [line.key]: 'error' }));
-      const message = error instanceof Error ? error.message : 'ثبت ردیف با خطا مواجه شد.';
-      setLineErrorMessages((prev) => ({ ...prev, [line.key]: message }));
-      return false;
-    }
+  function buildHeadPayload(values: VoucherEntryFormSchema): CreateVoucherHeadPayload {
+    // ⚠️ در ویرایش همهٔ فیلدهای سرسند فرستاده می‌شوند، حتی آن‌هایی که فرم ویرایش نمی‌کند: مسیر
+    // ویرایش جایگزین می‌کند نه وصله — فیلدِ نفرستاده null می‌شود (DOCLIFE، SYSTEM_TYPE، ATF_NUM و…).
+    // DOCLIFE دست‌نخورده برمی‌گردد؛ تغییر وضعیت عملیات جدای خودش است.
+    const loadedHead = isEditing ? existingVoucher.data?.head : undefined;
+    return {
+      docNum: values.docNum.trim(),
+      dateDoc: values.dateDoc.trim(),
+      headDesc: values.headDesc?.trim() ? values.headDesc.trim() : null,
+      apendix: values.apendix?.trim() ? values.apendix.trim() : null,
+      year: values.year.trim(),
+      docLife: loadedHead?.docLife ?? null,
+      systemTypeId: loadedHead?.systemTypeId ?? null,
+      flagState: loadedHead?.flagState ?? null,
+      isAutomatic: loadedHead?.isAutomatic ?? null,
+      sndVahedCode: loadedHead?.sndVahedCode ?? null,
+      parentHeadId: loadedHead?.parentHeadId ?? null,
+      attachFileName: loadedHead?.attachFileName ?? null,
+      atfNum: loadedHead?.atfNum ?? null,
+    };
   }
 
   /**
-   * Saving an edit is a different shape from saving a new voucher: the head is updated rather
-   * than created, and the lines have to be reconciled — some updated, some added, and the ones
-   * the user removed deleted. See `voucherEdit.ts` for why the reconcile is the delicate part.
+   * ذخیرهٔ اتمیک (ریسک #۲۱، فاز ۵۲): سرسند، ردیف‌ها و در ویرایش ردیف‌های حذف‌شده، همه در یک
+   * درخواست و یک تراکنش سمت سرور. خطای هر ردیف کل سند را برمی‌گرداند — دیگر سرسند بی‌ردیف یا سند
+   * نیمه‌ذخیره نمی‌ماند و «تلاش دوباره» همان ذخیرهٔ کامل است.
    */
-  async function submitEdit(values: VoucherEntryFormSchema) {
+  async function onSubmit(values: VoucherEntryFormSchema) {
     setGlobalError(null);
 
-    const loadedHead = existingVoucher.data?.head;
-    if (!loadedHead) {
+    if (isEditing && !existingVoucher.data?.head) {
       setGlobalError(new Error('سرسند بارگذاری نشده است؛ صفحه را دوباره باز کنید.'));
       return;
     }
 
+    const { lines, deletedLineIds } = isEditing
+      ? buildSaveLines(values.lines, detailIds, originalDetails)
+      : { lines: values.lines.map((line) => toSaveLine(null, buildDetailPayload('', line, ''))), deletedLineIds: [] };
+
     try {
-      // ⚠️ Every field the command accepts has to be sent, including the ones this form does not
-      // edit. The update path replaces rather than patches — the handler assigns all fourteen
-      // columns unconditionally — so a field left out of the payload is not "unchanged", it is
-      // set to null. Sending only the five fields the form owns would have silently wiped
-      // DOCLIFE, SYSTEM_TYPE, FLAG_STATE, ATF_NUM and the rest on every save.
-      //
-      // DOCLIFE in particular is round-tripped untouched rather than omitted: a voucher's state
-      // moves through change-state, which is its own auditable operation (phase 30). Editing must
-      // neither change it nor erase it.
-      await voucherHeadsApi.update(editingId as string, {
-        docNum: values.docNum.trim(),
-        dateDoc: values.dateDoc.trim(),
-        headDesc: values.headDesc?.trim() ? values.headDesc.trim() : null,
-        apendix: values.apendix?.trim() ? values.apendix.trim() : null,
-        year: values.year.trim(),
-        docLife: loadedHead.docLife,
-        systemTypeId: loadedHead.systemTypeId,
-        flagState: loadedHead.flagState,
-        isAutomatic: loadedHead.isAutomatic,
-        sndVahedCode: loadedHead.sndVahedCode,
-        parentHeadId: loadedHead.parentHeadId,
-        attachFileName: loadedHead.attachFileName,
-        atfNum: loadedHead.atfNum,
+      await saveVoucher({
+        headId: isEditing ? (editingId as string) : null,
+        head: buildHeadPayload(values),
+        lines,
+        deletedLineIds,
+        concurrency: isEditing ? { updatedDate: existingVoucher.data?.head.updatedDate ?? null } : null,
       });
     } catch (error) {
       setGlobalError(error);
       return;
     }
 
-    const { failed } = await reconcileLines(
-      editingId as string,
-      values.lines,
-      detailIds,
-      originalDetails,
-      values.year,
-    );
-
-    if (failed.length > 0) {
-      setLineErrorMessages((prev) => {
-        const next = { ...prev };
-        failed.forEach((f) => {
-          next[f.key] = f.message;
-        });
-        return next;
-      });
-      setLineStatus((prev) => {
-        const next = { ...prev };
-        failed.forEach((f) => {
-          next[f.key] = 'error';
-        });
-        return next;
-      });
-      return;
-    }
-
     await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
     await queryClient.invalidateQueries({ queryKey: ['voucher-details'] });
+    await queryClient.invalidateQueries({ queryKey: ['voucher-next-doc-num'] });
     navigate('/operation/voucher-heads');
-  }
-
-  async function onSubmit(values: VoucherEntryFormSchema) {
-    if (isEditing) {
-      await submitEdit(values);
-      return;
-    }
-
-    setGlobalError(null);
-    let headId = createdHeadId;
-
-    if (!headId) {
-      try {
-        const headPayload: CreateVoucherHeadPayload = {
-          docNum: values.docNum.trim(),
-          dateDoc: values.dateDoc.trim(),
-          docLife: null,
-          headDesc: values.headDesc?.trim() ? values.headDesc.trim() : null,
-          apendix: values.apendix?.trim() ? values.apendix.trim() : null,
-          systemTypeId: null,
-          flagState: null,
-          year: values.year.trim(),
-          isAutomatic: null,
-          sndVahedCode: null,
-          parentHeadId: null,
-          attachFileName: null,
-          atfNum: null,
-        };
-        const response = await createHeadMutation.mutateAsync(headPayload);
-        headId = response.id;
-        setCreatedHeadId(headId);
-        await queryClient.invalidateQueries({ queryKey: ['voucher-heads'] });
-      } catch (error) {
-        setGlobalError(error);
-        return;
-      }
-    }
-
-    // Only (re)submit lines that have not already succeeded — this is what makes "retry"
-    // safe: it never re-creates the head and never re-submits an already-accepted line.
-    const pendingLines = values.lines.filter((line) => lineStatus[line.key] !== 'success');
-    const results = await Promise.all(pendingLines.map((line) => submitLine(headId as string, line, values.year)));
-
-    if (results.every(Boolean)) {
-      await queryClient.invalidateQueries({ queryKey: ['voucher-details'] });
-      navigate('/operation/voucher-heads');
-    }
   }
 
   const totals = useMemo(() => {
@@ -389,17 +331,6 @@ export function VoucherEntryPage() {
     { key: 'debtor', header: 'بدهکار', render: (row) => (row.debtor ? formatThousands(row.debtor) : '—') },
     { key: 'creditor', header: 'بستانکار', render: (row) => (row.creditor ? formatThousands(row.creditor) : '—') },
     {
-      key: 'status',
-      header: 'وضعیت ثبت',
-      render: (row) => {
-        const status = lineStatus[row.key] ?? 'idle';
-        if (status === 'success') return <Chip size="small" color="success" label="ثبت شد" />;
-        if (status === 'pending') return <Chip size="small" color="info" label="در حال ثبت..." />;
-        if (status === 'error') return <Chip size="small" color="error" label={lineErrorMessages[row.key] ?? 'خطا'} />;
-        return <Chip size="small" variant="outlined" label="ثبت‌نشده" />;
-      },
-    },
-    {
       key: 'action',
       header: 'عملیات',
       render: (row) => (
@@ -425,8 +356,6 @@ export function VoucherEntryPage() {
       ),
     },
   ];
-
-  const anyLineFailed = Object.values(lineStatus).some((status) => status === 'error');
 
   return (
     <section>
@@ -458,38 +387,9 @@ export function VoucherEntryPage() {
         </Box>
       )}
 
-      {/* The stepper narrates the two-request create flow (head, then lines). Editing has no such
-          sequence — the head already exists — so showing it would describe something that is not
-          happening. */}
-      {!isEditing && (
-        <Stepper activeStep={createdHeadId ? 1 : 0} sx={{ mb: 3 }}>
-          <Step completed={!!createdHeadId}>
-            <StepLabel>سرسند سند</StepLabel>
-          </Step>
-          <Step>
-            <StepLabel>ردیف‌ها و ثبت نهایی</StepLabel>
-          </Step>
-        </Stepper>
-      )}
-
       {globalError !== null && <ErrorBanner error={globalError} />}
 
-      {createdHeadId && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <AlertTitle>سرسند سند با موفقیت ثبت شد</AlertTitle>
-          شناسه سرسند: {createdHeadId}. ذخیره ردیف‌های سند به‌صورت مستقل انجام می‌شود؛ در صورت خطا در یک ردیف،
-          می‌توانید فقط همان ردیف را دوباره ثبت کنید بدون این‌که سرسند تکراری ساخته شود.
-        </Alert>
-      )}
-
-      {anyLineFailed && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          یک یا چند ردیف ثبت نشدند. پس از اصلاح، دوباره روی «ذخیره سند» بزنید — فقط ردیف‌های ثبت‌نشده دوباره ارسال
-          می‌شوند.
-        </Alert>
-      )}
-
-      <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <Box component="form" onSubmit={submitVoucher} noValidate>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
           <DescriptionOutlinedIcon fontSize="small" color="secondary" />
           <Typography variant="h2" component="h2">
@@ -513,7 +413,7 @@ export function VoucherEntryPage() {
                 label="شماره سند"
                 fullWidth
                 required
-                disabled={!!createdHeadId}
+               
                 slotProps={{
                   htmlInput: { maxLength: 6 },
                   input: { startAdornment: <InputAdornment position="start"><TagOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
@@ -531,7 +431,7 @@ export function VoucherEntryPage() {
                     label="تاریخ سند"
                     value={field.value}
                     onChange={field.onChange}
-                    disabled={!!createdHeadId}
+                   
                     required
                     error={!!fieldState.error}
                     helperText={fieldState.error?.message}
@@ -545,7 +445,7 @@ export function VoucherEntryPage() {
                 label="سال مالی"
                 fullWidth
                 required
-                disabled={!!createdHeadId}
+               
                 slotProps={{
                   htmlInput: { maxLength: 4 },
                   input: { startAdornment: <InputAdornment position="start"><CalendarMonthOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
@@ -559,7 +459,7 @@ export function VoucherEntryPage() {
                 {...register('headDesc')}
                 label="شرح سند"
                 fullWidth
-                disabled={!!createdHeadId}
+               
                 slotProps={{
                   htmlInput: { maxLength: 250 },
                   input: { startAdornment: <InputAdornment position="start"><NotesOutlinedIcon fontSize="small" color="action" /></InputAdornment> },
@@ -575,7 +475,7 @@ export function VoucherEntryPage() {
                 fullWidth
                 multiline
                 minRows={2}
-                disabled={!!createdHeadId}
+               
                 slotProps={{ htmlInput: { maxLength: 800 } }}
                 error={!!formState.errors.apendix}
                 helperText={formState.errors.apendix?.message}
@@ -595,7 +495,17 @@ export function VoucherEntryPage() {
             variant="outlined"
             color="secondary"
             startIcon={<AddCircleOutlineIcon />}
-            onClick={() => append(createEmptyVoucherLine())}
+            onClick={() => {
+              // کادر خالیِ موجود را باز کن؛ فقط اگر نیست ردیف تازه بساز.
+              const blankIndex = form.getValues('lines').findIndex((l) => isBlankVoucherLine(l));
+              if (blankIndex >= 0 && fields[blankIndex]) {
+                setEditingRowKey(fields[blankIndex].key);
+                return;
+              }
+              const line = createEmptyVoucherLine();
+              append(line);
+              setEditingRowKey(line.key);
+            }}
           >
             افزودن ردیف
           </Button>
@@ -604,16 +514,18 @@ export function VoucherEntryPage() {
         {formState.errors.lines?.message && <ErrorBanner error={new Error(formState.errors.lines.message)} />}
 
         {fields.map((field, index) => (
-          <VoucherLineRow
-            key={field.id}
-            form={form}
-            index={index}
-            rowKey={field.key}
-            canRemove={fields.length > 1}
-            onRemove={() => remove(index)}
-            onActiveLevelsChange={handleActiveLevelsChange}
-            highlighted={highlightedRowKey === field.key}
-          />
+          <Box key={field.id} sx={{ display: field.key === currentRowKey ? 'block' : 'none' }}>
+            <VoucherLineRow
+              form={form}
+              index={index}
+              rowKey={field.key}
+              canRemove={fields.length > 1}
+              onRemove={() => remove(index)}
+              onActiveLevelsChange={handleActiveLevelsChange}
+              highlighted={highlightedRowKey === field.key}
+              onConfirm={() => void confirmRow(index)}
+            />
+          </Box>
         ))}
 
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
@@ -625,7 +537,7 @@ export function VoucherEntryPage() {
         <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
           <DataTable
             columns={summaryColumns}
-            rows={watchedLines ?? []}
+            rows={(watchedLines ?? []).filter((l) => !isBlankVoucherLine(l))}
             getRowKey={(row) => row.key}
             emptyMessage="هنوز ردیفی اضافه نشده است."
           />
@@ -686,7 +598,8 @@ export function VoucherEntryPage() {
         </Paper>
         {totals.difference !== 0 && (
           <Alert severity="info" sx={{ mb: 3 }}>
-            سند تراز نیست (بدهکار ≠ بستانکار)، اما طبق تصمیم معماری پروژه این تراز اجباری نیست و ثبت مسدود نمی‌شود.
+            سند تراز نیست (بدهکار ≠ بستانکار). می‌توانید آن را به‌صورت «یادداشت» ذخیره کنید، ولی برای بردن به «موقت» و
+            مراحل بعد باید تراز باشد.
           </Alert>
         )}
 

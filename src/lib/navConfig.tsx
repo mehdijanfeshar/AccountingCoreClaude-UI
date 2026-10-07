@@ -43,6 +43,9 @@ import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import BookmarkBorderOutlinedIcon from '@mui/icons-material/BookmarkBorderOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
+import KeyOutlinedIcon from '@mui/icons-material/KeyOutlined';
+import MoveToInboxOutlinedIcon from '@mui/icons-material/MoveToInboxOutlined';
 
 /**
  * Single source of truth for the app's navigation tree — used both by the sidebar (`Layout.tsx`)
@@ -200,6 +203,30 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'چک‌های اسناد — دستور پرداخت، تأیید رئیس حسابداری و مدیر واحد (تاییدیه) و چاپ چک',
         to: '/operation/cheque-book',
         icon: <MenuBookOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'دریافت اسناد از سایر سیستم‌ها',
+        description: 'اسنادی که سیستم‌هایی مثل حقوق فرستاده‌اند؛ بررسی و تبدیل به سند یادداشت',
+        to: '/operation/system-voucher-inbox',
+        icon: <MoveToInboxOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'صورتحساب ماه',
+        description: 'ستاد: تأیید دائم اسناد بررسی‌شدهٔ یک ماه به تفکیک نوع واحد یا تکی؛ واحد: دلیل صورتحساب‌نشدن',
+        to: '/operation/month-close',
+        icon: <FactCheckOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'برگشت صورتحساب ماه',
+        description: 'برگرداندن اسناد تأیید دائم یک ماه به «بررسی‌شده» با رمز ستاد',
+        to: '/operation/month-reopen',
+        icon: <LockOpenOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'صدور رمز برگشت صورتحساب',
+        description: 'فقط ستاد مرکزی — رمز یک‌بار مصرف برای برگشت صورتحساب ماه یک واحد',
+        to: '/operation/month-reopen/issue',
+        icon: <KeyOutlinedIcon fontSize="small" />,
       },
     ],
   },
