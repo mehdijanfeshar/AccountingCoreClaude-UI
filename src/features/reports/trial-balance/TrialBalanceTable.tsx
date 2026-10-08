@@ -199,9 +199,11 @@ export function TrialBalanceTable({ rows, variant, totals, isLoading, emptyMessa
               >
                 <TableCell
                   sx={{
-                    fontFamily: 'monospace',
+                    // Tabular figures in the app font, not `monospace`: monospace fonts carry no
+                    // Persian digits, so the code fell back to a mismatched system face.
+                    fontVariantNumeric: 'tabular-nums lining-nums',
                     fontWeight: 600,
-                    letterSpacing: '0.04em',
+                    letterSpacing: '0.02em',
                     whiteSpace: 'nowrap',
                     borderInlineEnd: `${GROUP_EDGE}`,
                     borderInlineEndColor: 'divider',

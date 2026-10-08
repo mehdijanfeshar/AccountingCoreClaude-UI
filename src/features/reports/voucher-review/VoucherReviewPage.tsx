@@ -33,7 +33,6 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
-import { BalanceBar } from '../_shared/BalanceBar';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { sysTypesApi } from '../../../lib/api/sysTypesApi';
@@ -126,6 +125,7 @@ export function VoucherReviewPage() {
         description: applied.description || undefined,
       }),
     enabled: isConfigured,
+    placeholderData: (previous) => previous,
   });
 
   const rows = useMemo(() => report.data?.items ?? [], [report.data]);
@@ -189,10 +189,9 @@ export function VoucherReviewPage() {
 
       <Box className="voucher-review-no-print">
         <PageHeader
-          eyebrow="گزارش‌ها"
           icon={<ManageSearchOutlinedIcon />}
           title="مرور اسناد"
-          description="فهرست اسناد با جمع بدهکار و بستانکار هر سند — برای یافتن سند نامتوازن."
+          description="فهرست اسناد با جمع بدهکار و بستانکار هر سند، برای یافتن سند نامتوازن."
           actions={
             <Stack direction="row" spacing={1}>
               <Button
@@ -240,7 +239,17 @@ export function VoucherReviewPage() {
           </Stack>
 
           <Collapse in={filtersOpen}>
-            <Stack spacing={2} sx={{ pt: 2 }}>
+            {/* A form, so Enter in any filter field runs the report. */}
+            <Stack
+              component="form"
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                applyFilters();
+              }}
+              spacing={2}
+              sx={{ pt: 2 }}
+            >
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <JalaliDateField
                   label="از تاریخ"
@@ -350,7 +359,7 @@ export function VoucherReviewPage() {
                 >
                   پاک کردن
                 </Button>
-                <Button size="small" variant="contained" onClick={applyFilters}>
+                <Button type="submit" size="small" variant="contained">
                   اعمال فیلتر
                 </Button>
               </Stack>
@@ -363,7 +372,6 @@ export function VoucherReviewPage() {
         {/* Whether the set balances is the whole point of this screen, so it gets a shape and not
             only two numbers sitting in separate tiles. Screen-only: the print root below carries
             the table, which is where a printed report's totals belong. */}
-        <BalanceBar debtor={totalDebtor} creditor={totalCreditor} hasRows={rows.length > 0} />
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>
@@ -410,7 +418,10 @@ export function VoucherReviewPage() {
 
           {/* Bounded height with its own scrollbar — otherwise a large page scrolls the whole
               document and carries the sticky header and the totals row out of view. */}
-          <TableContainer sx={{ overflowX: "auto", maxHeight: "60vh" }}>
+          <TableContainer
+            aria-busy={report.isFetching}
+            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+          >
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>

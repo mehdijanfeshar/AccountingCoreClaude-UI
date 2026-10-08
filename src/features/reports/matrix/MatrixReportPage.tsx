@@ -35,8 +35,7 @@ import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
 import { CREDITOR_COLOR, DEBTOR_COLOR } from '../_shared/chartTokens';
-import { BalanceBar } from '../_shared/BalanceBar';
-import { MagnitudeBarList } from '../_shared/MagnitudeBarList';
+import { CollapsibleMagnitudeChart } from '../_shared/CollapsibleMagnitudeChart';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
@@ -318,6 +317,7 @@ export function MatrixReportPage() {
         columnCodeFilter: applied.columnCodeFilter || undefined,
       }),
     enabled: isConfigured,
+    placeholderData: (previous) => previous,
   });
 
   const result = report.data;
@@ -487,10 +487,9 @@ export function MatrixReportPage() {
 
       <Box className="matrix-report-no-print">
         <PageHeader
-          eyebrow="گزارش‌ها"
           icon={<PivotTableChartOutlinedIcon />}
           title="گزارش ماتریسی"
-          description="گردش اسناد در تقاطع دو بُعد — یکی روی سطر، یکی روی ستون، با بدهکار و بستانکار در هر خانه."
+          description="گردش اسناد در تقاطع دو بُعد: یکی روی سطر، یکی روی ستون، با بدهکار و بستانکار در هر خانه."
           actions={
             <Stack direction="row" spacing={1}>
               <Button
@@ -562,7 +561,17 @@ export function MatrixReportPage() {
         </Paper>
 
         <Collapse in={filtersOpen}>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          {/* A form, so Enter in any filter field runs the report. */}
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, mb: 2 }}
+            component="form"
+            noValidate
+            onSubmit={(e: React.FormEvent) => {
+              e.preventDefault();
+              setApplied(draft);
+            }}
+          >
             <Stack spacing={2}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <JalaliDateField
@@ -600,7 +609,7 @@ export function MatrixReportPage() {
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <TextField
                   size="small"
-                  label={`فیلتر سطر — کد ${rowLabel} شروع با`}
+                  label={`فیلتر سطر: کد ${rowLabel} شروع با`}
                   value={draft.rowCodeFilter}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, rowCodeFilter: toLatinDigits(e.target.value) }))
@@ -610,7 +619,7 @@ export function MatrixReportPage() {
                 />
                 <TextField
                   size="small"
-                  label={`فیلتر ستون — کد ${columnLabel} شروع با`}
+                  label={`فیلتر ستون: کد ${columnLabel} شروع با`}
                   value={draft.columnCodeFilter}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, columnCodeFilter: toLatinDigits(e.target.value) }))
@@ -633,7 +642,7 @@ export function MatrixReportPage() {
                 >
                   پاک کردن
                 </Button>
-                <Button size="small" variant="contained" onClick={() => setApplied(draft)}>
+                <Button type="submit" size="small" variant="contained">
                   اعمال فیلتر
                 </Button>
               </Stack>
@@ -655,37 +664,26 @@ export function MatrixReportPage() {
           <AlertTitle>گزارش بریده شده است</AlertTitle>
           از {toPersianDigits(result?.totalColumnCount ?? 0)} مقدارِ «{columnLabel}» در این بازه، تنها{' '}
           {toPersianDigits(columns.length)} ستونِ پرگردش‌تر نمایش داده شده است. <b>جمع کل، کل دادهٔ
-          فیلترشده را پوشش می‌دهد؛ ستون‌های دیده‌شده نه</b> — پس جمع سطرها و ستون‌های این جدول با جمع کل
+          فیلترشده را پوشش می‌دهد؛ ستون‌های دیده‌شده نه</b>. پس جمع سطرها و ستون‌های این جدول با جمع کل
           برابر نخواهد بود. برای گزارشی که جمع‌هایش با هم بخوانند، با «فیلتر ستون» دامنه را باریک‌تر
           کنید.
         </Alert>
       )}
 
       <Box className="matrix-report-no-print">
-        {/* Screen-only: the printed report is the grid. These two answer what the grid makes you
-            compute — does the whole thing balance, and which rows dominate the axis. */}
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1.2fr)' },
-            alignItems: 'start',
-          }}
-        >
-          <BalanceBar debtor={grandDebtor} creditor={grandCreditor} hasRows={rows.length > 0} />
-          <MagnitudeBarList
-            title={`بزرگ‌ترین مقادیر ${rowLabel}`}
-            caption="مجموع گردش بدهکار و بستانکار در همهٔ ستون‌ها، بر اساس همین فیلترها"
-            items={topRows}
-          />
-        </Box>
+        <CollapsibleMagnitudeChart
+          label="نمودار ردیف‌های پرگردش"
+          title={`بزرگ‌ترین مقادیر ${rowLabel}`}
+          caption="مجموع گردش بدهکار و بستانکار در همهٔ ستون‌ها، بر اساس همین فیلترها"
+          items={topRows}
+        />
       </Box>
 
       <Box id="matrix-report-print-root">
         {/* Printed-only heading: on screen the PageHeader and the axis chip already say all of this. */}
         <Box sx={{ display: 'none', '@media print': { display: 'block', mb: 2 } }}>
           <Typography variant="h2">
-            گزارش ماتریسی — سطر: {rowLabel} × ستون: {columnLabel}
+            گزارش ماتریسی، سطر: {rowLabel} × ستون: {columnLabel}
           </Typography>
           <Typography variant="body2">
             واحد: {unitLabel || '—'} | سال مالی: {toPersianDigits(financialYear || '—')}

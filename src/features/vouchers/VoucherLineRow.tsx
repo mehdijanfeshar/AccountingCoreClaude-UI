@@ -7,9 +7,9 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
-import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
+import InputAdornment from '@mui/material/InputAdornment';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -28,6 +28,7 @@ import type { TafsiliLevelDto } from '../../types/tafsili';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
 import { VoucherLineCheque } from './VoucherLineCheque';
 import { VoucherLineExtras } from './VoucherLineExtras';
+import { needsCheque } from './lineExtras';
 
 interface VoucherLineRowProps {
   form: UseFormReturn<VoucherEntryFormSchema>;
@@ -73,6 +74,18 @@ export function VoucherLineRow({
   const accountLabel = useWatch({ control, name: `lines.${index}.accountLabel` });
   const tafsili = useWatch({ control, name: `lines.${index}.tafsili` }) ?? {};
   const tafsiliLabels = useWatch({ control, name: `lines.${index}.tafsiliLabels` }) ?? {};
+  const extrasReq = useWatch({ control, name: `lines.${index}.extrasReq` });
+  const creditor = useWatch({ control, name: `lines.${index}.creditor` });
+  const checkId = useWatch({ control, name: `lines.${index}.checkId` });
+  const soriCheckBookId = useWatch({ control, name: `lines.${index}.soriCheckBookId` });
+  const [chequeOpenRequest, setChequeOpenRequest] = useState(0);
+
+  /** برداشت از حساب بانکی که هنوز چک ندارد: فرم انتخاب چک باز می‌شود (چک اجباری است). */
+  function askForChequeIfMissing(): boolean {
+    if (!needsCheque({ extrasReq, creditor }) || checkId || soriCheckBookId) return false;
+    setChequeOpenRequest((n) => n + 1);
+    return true;
+  }
 
   const { inlineLevels, modalLevels, allLevels, isLoading, error: levelsError } = useTafsiliLevels(accountId || null);
 
@@ -90,7 +103,8 @@ export function VoucherLineRow({
   }
 
   function onSelectAccount(account: AccountCodeDto) {
-    setValue(`lines.${index}.accountId`, account.id, { shouldDirty: true });
+    // shouldValidate: clears «انتخاب حساب معین الزامی است» left over from an earlier submit attempt.
+    setValue(`lines.${index}.accountId`, account.id, { shouldDirty: true, shouldValidate: true });
     setValue(`lines.${index}.accountLabel`, `${account.accCode ?? ''} - ${account.accCodeName ?? ''}`, {
       shouldDirty: true,
     });
@@ -125,6 +139,7 @@ export function VoucherLineRow({
   function confirmOnEnter(e: KeyboardEvent) {
     if (e.key === 'Enter' && onConfirm) {
       e.preventDefault();
+      if (askForChequeIfMissing()) return;
       onConfirm();
     }
   }
@@ -134,21 +149,21 @@ export function VoucherLineRow({
       id={`voucher-line-${rowKey}`}
       variant="outlined"
       sx={{
-        p: 2,
-        mb: 2,
+        p: { xs: 2, sm: 3 },
+        pt: { xs: 1.5, sm: 2 },
+        mb: 4,
         scrollMarginTop: 96,
-        borderInlineStart: (theme) => `4px solid ${theme.palette.secondary.main}`,
+        // The row being entered is the form's one accented surface: everything else on the page
+        // stays neutral so the eye lands here.
+        borderInlineStart: (theme) => `3px solid ${theme.palette.secondary.main}`,
         transition: 'box-shadow 0.3s ease',
-        boxShadow: highlighted ? (theme) => `0 0 0 3px ${theme.palette.secondary.main}` : 'none',
+        boxShadow: highlighted ? (theme) => `0 0 0 3px ${theme.palette.secondary.light}` : undefined,
       }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-          <Avatar sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: 'secondary.main' }}>{index + 1}</Avatar>
-          <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-            ردیف {index + 1}
-          </Typography>
-        </Stack>
+        <Typography variant="subtitle1" component="h3">
+          ردیف {(index + 1).toLocaleString('fa-IR')}
+        </Typography>
         <Tooltip title="حذف ردیف">
           <span>
             <IconButton aria-label="حذف ردیف" size="small" color="error" onClick={onRemove} disabled={!canRemove}>
@@ -157,39 +172,50 @@ export function VoucherLineRow({
           </span>
         </Tooltip>
       </Stack>
-      <Divider sx={{ mb: 2 }} />
 
       <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 5 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          {/* The whole field opens the picker: a read-only box next to a separate «انتخاب» button
+              read as two controls for one value, and clicking the box itself did nothing. */}
           <TextField
             label="حساب معین"
             fullWidth
             required
             value={accountLabel ?? ''}
-            placeholder="حسابی انتخاب نشده"
+            placeholder="برای انتخاب کلیک کنید"
             error={!!lineErrors?.accountId}
             helperText={lineErrors?.accountId?.message}
-            slotProps={{ input: { readOnly: true } }}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 3 }} sx={{ display: 'flex', alignItems: 'center' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            color="secondary"
-            startIcon={<SearchOutlinedIcon />}
             onClick={() => setAccountPickerOpen(true)}
-          >
-            انتخاب معین
-          </Button>
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setAccountPickerOpen(true);
+              }
+            }}
+            slotProps={{
+              input: {
+                readOnly: true,
+                sx: { cursor: 'pointer', '& input': { cursor: 'pointer' } },
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton aria-label="انتخاب حساب معین" edge="end" size="small" tabIndex={-1}>
+                      <SearchOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
         </Grid>
 
         {accountId && isLoading && (
-          <Grid size={12}>
-            <Typography variant="caption" color="text.secondary">
-              در حال دریافت سطوح تفصیلی این حساب...
-            </Typography>
-          </Grid>
+          <>
+            {[0, 1].map((i) => (
+              <Grid key={i} size={{ xs: 12, sm: 4 }}>
+                <Skeleton variant="rounded" height={56} aria-label="در حال دریافت سطوح تفصیلی" />
+              </Grid>
+            ))}
+          </>
         )}
 
         {accountId && !isLoading && !!levelsError && (
@@ -199,9 +225,9 @@ export function VoucherLineRow({
         )}
 
         {accountId && !isLoading && !levelsError && allLevels.length === 0 && (
-          <Grid size={12}>
-            <Typography variant="caption" color="text.secondary">
-              برای این حساب معین هیچ سطح تفصیلی‌ای تعریف نشده است.
+          <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              این حساب تفصیلی ندارد.
             </Typography>
           </Grid>
         )}
@@ -258,18 +284,22 @@ export function VoucherLineRow({
         <Grid size={{ xs: 6, sm: 3 }} onKeyDown={confirmOnEnter}>
           <AmountField control={control} name={`lines.${index}.debtor`} label="بدهکار" />
         </Grid>
-        <Grid size={{ xs: 6, sm: 3 }} onKeyDown={confirmOnEnter}>
+        {/* Leaving the amount (not each keystroke) opens the cheque picker, so typing is never interrupted. */}
+        <Grid size={{ xs: 6, sm: 3 }} onKeyDown={confirmOnEnter} onBlur={() => askForChequeIfMissing()}>
           <AmountField control={control} name={`lines.${index}.creditor`} label="بستانکار" />
         </Grid>
 
-        <VoucherLineCheque form={form} index={index} />
+        <VoucherLineCheque form={form} index={index} openRequest={chequeOpenRequest} />
 
         <VoucherLineExtras form={form} index={index} />
       </Grid>
 
       {onConfirm && (
-        <Stack direction="row" sx={{ justifyContent: 'flex-end', mt: 2 }}>
-          <Button variant="contained" color="secondary" startIcon={<CheckCircleOutlineIcon />} onClick={onConfirm}>
+        <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'flex-end', alignItems: 'center', mt: 2.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            Enter در بدهکار یا بستانکار هم ردیف را ثبت می‌کند.
+          </Typography>
+          <Button variant="contained" color="secondary" startIcon={<CheckCircleOutlineIcon />} onClick={() => { if (!askForChequeIfMissing()) onConfirm(); }}>
             ثبت ردیف
           </Button>
         </Stack>

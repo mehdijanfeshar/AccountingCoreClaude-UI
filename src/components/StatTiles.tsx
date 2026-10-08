@@ -6,7 +6,6 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import { toPersianDigits } from '../lib/format/numbers';
-import { NumberTicker } from './NumberTicker';
 
 export type StatTileTone = 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error';
 
@@ -129,14 +128,10 @@ export function StatTiles({ tiles, isLoading }: { tiles: StatTile[]; isLoading?:
                 {isLoading ? (
                   <Skeleton variant="text" width={64} sx={{ fontSize: '1.4rem' }} />
                 ) : (
-                  <Typography variant="h6" sx={{ lineHeight: 1.2, fontWeight: 700 }}>
-                    {/* A numeric tile counts up; a string one (or a missing value) does not —
-                        animating a label would be motion with nothing to say. */}
-                    {typeof tile.value === 'number' ? (
-                      <NumberTicker value={tile.value} />
-                    ) : (
-                      formatTileValue(tile.value)
-                    )}
+                  <Typography variant="h6" sx={{ lineHeight: 1.2, fontWeight: 700, fontVariantNumeric: 'tabular-nums lining-nums' }}>
+                    {/* No count-up: these tiles open dozens of times a day, and a number that rolls
+                        for 700ms is a number the user waits to read. */}
+                    {formatTileValue(tile.value)}
                   </Typography>
                 )}
 

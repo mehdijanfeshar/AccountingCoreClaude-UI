@@ -152,25 +152,19 @@ export function VoucherLineExtras({ form, index }: Props) {
           <Grid container spacing={1.5}>
             <Grid size={12}>
               <Typography variant="caption" color="text.secondary">
-                واریز به حساب بانکی — اطلاعات فیش/حواله (اختیاری؛ هنگام ثبت ردیف ساخته می‌شود و شماره‌اش نباید تکراری باشد).
+                واریز به حساب بانکی: شماره و تاریخ الزامی است و شماره نباید تکراری باشد.
               </Typography>
             </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <TextField select label="نوع" size="small" fullWidth disabled={!loaded} value={receiptKind}
-                onChange={(e) => setValue(`${p}.receiptKind`, e.target.value, dirty)}>
-                <MenuItem value="1">فیش</MenuItem>
-                <MenuItem value="2">حواله</MenuItem>
-              </TextField>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField label="شمارهٔ فیش/حواله" size="small" fullWidth disabled={!loaded} value={receiptNo}
+            {/* فیش یا حواله با دکمه‌های رادیویی «مدرک بانکی» همین ردیف انتخاب می‌شود (VoucherLineCheque). */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField label={receiptKind === '2' ? 'شمارهٔ حواله' : 'شمارهٔ فیش'} required size="small" fullWidth disabled={!loaded} value={receiptNo}
                 onChange={(e) => setValue(`${p}.receiptNo`, e.target.value, dirty)}
                 error={!!lineErrors?.receiptNo} helperText={lineErrors?.receiptNo?.message}
                 slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 8, dir: 'ltr' } }} />
             </Grid>
-            <Grid size={{ xs: 12, sm: 5 }}>
-              <JalaliDateField label="تاریخ فیش/حواله" size="small" fullWidth disabled={!loaded}
-                required={!!receiptNo.trim()} value={receiptDate}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <JalaliDateField label={receiptKind === '2' ? 'تاریخ حواله' : 'تاریخ فیش'} size="small" fullWidth disabled={!loaded}
+                required value={receiptDate}
                 onChange={(v) => setValue(`${p}.receiptDate`, v, dirty)} />
             </Grid>
           </Grid>
@@ -178,7 +172,7 @@ export function VoucherLineExtras({ form, index }: Props) {
 
         {bankCredit && !checkId && !soriCheckBookId && (
           <Typography variant="caption" color="text.secondary">
-            برداشت از حساب بانکی — برگ چک یا چک صوری (اعلامیه) را با «انتخاب برگ چک» همین ردیف مشخص کنید.
+            برداشت از حساب بانکی: «چک» یا «اعلامیه صوری» را انتخاب کنید (الزامی).
           </Typography>
         )}
 

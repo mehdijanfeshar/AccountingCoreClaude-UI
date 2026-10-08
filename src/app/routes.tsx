@@ -29,6 +29,8 @@ import { MonthReopenIssuePage } from '../features/month-reopen/MonthReopenIssueP
 import { MonthClosePage } from '../features/month-reopen/MonthClosePage';
 import { SystemVoucherInboxPage } from '../features/system-inbox/SystemVoucherInboxPage';
 import { VoucherEntryPage } from '../features/vouchers/VoucherEntryPage';
+import { YearEndVouchersPage } from '../features/year-end/YearEndVouchersPage';
+import { YearEndSettingsPage } from '../features/year-end-settings/YearEndSettingsPage';
 import { VoucherViewPage } from '../features/vouchers/VoucherViewPage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { TemplatesListPage } from '../features/assistant/templates/TemplatesListPage';
@@ -162,6 +164,8 @@ export const routes: RouteObject[] = [
   { path: '/operation/month-close', element: <MonthClosePage /> },
   { path: '/operation/system-voucher-inbox', element: <SystemVoucherInboxPage /> },
   { path: '/operation/vouchers/new', element: <VoucherEntryPage /> },
+  { path: '/operation/year-end', element: <YearEndVouchersPage /> },
+  { path: '/base/year-end-settings', element: <YearEndSettingsPage /> },
   { path: '/operation/vouchers/:id/edit', element: <VoucherEntryPage /> },
   // Read-only. The only way into a reviewed/accepted voucher, which the edit route refuses.
   { path: '/operation/vouchers/:id/view', element: <VoucherViewPage /> },

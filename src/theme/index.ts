@@ -71,6 +71,10 @@ export const theme = createTheme(
     components: {
       MuiCssBaseline: {
         styleOverrides: {
+          // Browser surfaces nobody draws but everybody sees: selected text, the caret, native
+          // checkboxes. Left on browser defaults they are the one part of the page in no palette.
+          '::selection': { backgroundColor: alpha('#1E3A8A', 0.16), color: '#0F172A' },
+          body: { caretColor: '#1E3A8A', accentColor: '#1E3A8A' },
           '*::-webkit-scrollbar': { width: 10, height: 10 },
           '*::-webkit-scrollbar-thumb': {
             backgroundColor: '#CBD5E1',
@@ -84,7 +88,16 @@ export const theme = createTheme(
       MuiButton: {
         defaultProps: { disableElevation: true },
         styleOverrides: {
-          root: { borderRadius: 8, paddingInline: 16, transition: 'background-color 180ms, border-color 180ms, color 180ms' },
+          root: {
+            borderRadius: 8,
+            paddingInline: 16,
+            transition: 'background-color 180ms, border-color 180ms, color 180ms, transform 160ms cubic-bezier(0.23, 1, 0.32, 1)',
+            // A slight press-in on click: the button visibly "heard" the user before the request
+            // returns. Movement only, so it is dropped under reduced motion.
+            '@media (prefers-reduced-motion: no-preference)': {
+              '&:active:not(.Mui-disabled)': { transform: 'scale(0.97)' },
+            },
+          },
           contained: {
             boxShadow: `0 1px 2px ${alpha('#0F172A', 0.18)}`,
             '&:hover': { boxShadow: `0 2px 6px ${alpha('#0F172A', 0.22)}` },

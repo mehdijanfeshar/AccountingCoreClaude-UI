@@ -31,4 +31,8 @@ export interface VoucherHeadDto {
   sndVahedCode: string | null;
   parentHeadId: string | null;
   globalNumber: string | null;
+  /** جمع بدهکار ردیف‌های زندهٔ سند (کارتابل). نبودِ فیلد = بک‌اند قدیمی ⇒ 0. */
+  totalDebtor?: number;
+  /** جمع بستانکار ردیف‌های زندهٔ سند (کارتابل). */
+  totalCreditor?: number;
 }

@@ -143,6 +143,8 @@ export function VoucherViewPage() {
           </Grid>
 
           <ReadOnlyField label="شماره سند" value={head.docNum ? toPersianDigits(head.docNum) : '—'} mono />
+          {/* Fixed at creation; «مرتب‌سازی» changes the voucher number, never this one. */}
+          <ReadOnlyField label="شماره عطف" value={head.atfNum?.trim() ? toPersianDigits(head.atfNum.trim()) : '—'} mono />
           <ReadOnlyField label="تاریخ سند" value={head.dateDoc ? toPersianDigits(head.dateDoc) : '—'} mono />
           <ReadOnlyField label="سال مالی" value={head.year ? toPersianDigits(head.year) : '—'} />
           <Grid size={{ xs: 12, sm: 3 }}>

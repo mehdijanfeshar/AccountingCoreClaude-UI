@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -11,6 +11,7 @@ import { DataTable, type DataTableColumn } from './DataTable';
 import { Pagination } from './Pagination';
 import { ErrorBanner } from './ErrorBanner';
 import { accountCodesApi } from '../features/chart-of-accounts/api';
+import { toLatinDigits } from '../lib/format/numbers';
 import type { AccountCodeDto } from '../types/accountCode';
 
 const PAGE_SIZE = 10;
@@ -25,7 +26,7 @@ interface AccountCodePickerDialogProps {
   /**
    * Optional extra restriction on which fetched rows are selectable (e.g. by `accCode.length` to
    * scope the picker to one کدینگ level — see `AccountCodeLevelTab.tsx`). Applied client-side on
-   * top of whatever page is currently loaded, same honesty caveat as the free-text filter below:
+   * top of whatever page is currently loaded (the text search below, unlike this, is server-side):
    * it narrows the CURRENT page's rows, it does not ask the server for a different page.
    */
   filterRows?: (account: AccountCodeDto) => boolean;
@@ -36,11 +37,9 @@ interface AccountCodePickerDialogProps {
  * chart-of-accounts form and for "حساب معین" on a voucher line. Never accepts a raw guid
  * text input per task spec.
  *
- * ⚠️ `GET /api/account-codes` (`GetAccountCodesQuery`) has NO `search` query parameter in
- * the real backend contract — only `pageNumber`/`pageSize`. The text field below therefore
- * filters ONLY the rows already loaded on the current page; it is not a server-side search
- * and is explicitly labelled as such so it doesn't look broken. Do not "fix" this by
- * guessing a `search` param the backend doesn't accept.
+ * The search box queries the server (`GET /api/account-codes?search=`) across the whole chart:
+ * a code that starts with the text, or a title that contains it. It used to filter only the
+ * loaded page, so «3030» on page 1 of 15 found nothing even when the account existed.
  */
 export function AccountCodePickerDialog({
   open,
@@ -52,11 +51,21 @@ export function AccountCodePickerDialog({
 }: AccountCodePickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
-  const [pageFilter, setPageFilter] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [search, setSearch] = useState('');
+
+  // A short pause before asking the server, so typing «3030» is one request, not four.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(toLatinDigits(searchText.trim()));
+      setPageNumber(1);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   const query = useQuery({
-    queryKey: ['account-codes-picker', pageNumber, pageSize],
-    queryFn: () => accountCodesApi.list({ pageNumber, pageSize: pageSize }),
+    queryKey: ['account-codes-picker', pageNumber, pageSize, search],
+    queryFn: () => accountCodesApi.list({ pageNumber, pageSize, search: search || undefined }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -67,14 +76,8 @@ export function AccountCodePickerDialog({
     if (filterRows) {
       filtered = filtered.filter(filterRows);
     }
-    if (!pageFilter.trim()) return filtered;
-    const needle = pageFilter.trim().toLowerCase();
-    return filtered.filter(
-      (row) =>
-        (row.accCode ?? '').toLowerCase().includes(needle) ||
-        (row.accCodeName ?? '').toLowerCase().includes(needle),
-    );
-  }, [query.data, excludeId, filterRows, pageFilter]);
+    return filtered;
+  }, [query.data, excludeId, filterRows]);
 
   const columns: DataTableColumn<AccountCodeDto>[] = [
     { key: 'accCode', header: 'کد حساب', render: (row) => row.accCode ?? '—' },
@@ -105,10 +108,11 @@ export function AccountCodePickerDialog({
           <TextField
             fullWidth
             size="small"
-            label="فیلتر در صفحه جاری"
-            helperText="این فیلتر فقط روی موارد همین صفحه اعمال می‌شود (بک‌اند جستجوی سمت سرور ندارد)."
-            value={pageFilter}
-            onChange={(e) => setPageFilter(e.target.value)}
+            autoFocus
+            label="جستجوی کد یا عنوان حساب"
+            helperText="در همهٔ حساب‌ها جستجو می‌شود: کدی که با این عدد شروع شود، یا عنوانی که این متن را داشته باشد."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
           />
         </Box>
 
@@ -122,7 +126,7 @@ export function AccountCodePickerDialog({
               rows={rows}
               getRowKey={(row) => row.id}
               isLoading={query.isLoading}
-              emptyMessage="هیچ حسابی یافت نشد."
+              emptyMessage={search ? `حسابی با «${searchText.trim()}» پیدا نشد.` : 'هیچ حسابی یافت نشد.'}
             />
             {query.data && (
               <Pagination

@@ -94,6 +94,9 @@ function normalizeRequirements(data: unknown): VoucherLineRequirements {
 /** فیلدهای فرم ردیف که این بخش لازم دارد (زیرمجموعهٔ VoucherLineFormValue). */
 export interface LineExtrasFormFields {
   debtor?: string;
+  creditor?: string;
+  checkId?: string;
+  soriCheckBookId?: string;
   extrasLoaded: boolean;
   extrasReq: VoucherLineRequirements | null;
   attributes: Record<string, string>;
@@ -130,9 +133,14 @@ export function attributeHint(a: AttributeRequirement): string {
 
 export const IDENTITY_TYPE_LABEL: Record<number, string> = { 1: 'تاریخ', 2: 'حروف فارسی', 3: 'عدد', 4: 'حروف لاتین' };
 
-/** آیا ردیف بانک بدهکار (واریز) است و می‌تواند فیش داشته باشد. */
+/** آیا ردیف بانک بدهکار (واریز) است؛ فیش/حواله‌اش الزامی است. */
 export function canHaveReceipt(line: LineExtrasFormFields): boolean {
   return !!line.extrasReq?.isBankAccount && Number(line.debtor || 0) > 0;
+}
+
+/** آیا ردیف بانک بستانکار (برداشت) است؛ برگ چک یا چک صوری‌اش الزامی است. */
+export function needsCheque(line: Pick<LineExtrasFormFields, 'extrasReq' | 'creditor'>): boolean {
+  return !!line.extrasReq?.isBankAccount && Number(line.creditor || 0) > 0;
 }
 
 /** پیام‌های «ناقص است» برای یک ردیف — خالی یعنی کامل. */
@@ -153,7 +161,12 @@ export function missingExtras(line: LineExtrasFormFields): string[] {
       if (!given.values[f.subGroupId]?.trim()) out.push(`«${f.title}» (ویژگی ${g.title})`);
     }
   }
-  if (canHaveReceipt(line) && line.receiptNo.trim() && !line.receiptDate) out.push('تاریخ فیش/حواله');
+  // ردیف حساب بانکی بدون مدرک ثبت نمی‌شود (تصمیم صاحب پروژه ۲۰۲۶-۱۰-۰۸؛ سرور هم کنترل می‌کند).
+  if (canHaveReceipt(line)) {
+    if (!line.receiptNo.trim()) out.push('شمارهٔ فیش/حواله');
+    if (!line.receiptDate) out.push('تاریخ فیش/حواله');
+  }
+  if (needsCheque(line) && !line.checkId && !line.soriCheckBookId) out.push('برگ چک یا چک صوری');
   return out;
 }
 

@@ -11,8 +11,27 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import { alpha } from '@mui/material/styles';
+import { alpha, type Theme } from '@mui/material/styles';
 import { ALL_ROWS, Pagination, PAGE_SIZE_OPTIONS } from './Pagination';
+
+/**
+ * Spacing and grouping for one column, given the column before it.
+ *
+ * An end-aligned (numeric) column's figures sit flush against its end edge, and the next text
+ * column starts flush against that same line from the other side; with default padding
+ * «۵۸,۰۰۰,۰۰۰» and «حسابداری» ran into each other. The gap goes on the text column's start, not
+ * on the number column's end: padding the numbers pushed a debit/credit pair apart instead.
+ */
+function columnGutter<TRow>(col: DataTableColumn<TRow>, prev: DataTableColumn<TRow> | undefined) {
+  return {
+    ...(prev?.align === 'end' && col.align !== 'end' ? { paddingInlineStart: 4 } : {}),
+    // An image layer, not backgroundColor: the sticky header needs its opaque paper fill and rows
+    // their hover colour underneath, and the tint has to sit on top of both.
+    ...(col.tinted
+      ? { backgroundImage: (theme: Theme) => `linear-gradient(${alpha(theme.palette.primary.main, 0.04)}, ${alpha(theme.palette.primary.main, 0.04)})` }
+      : {}),
+  };
+}
 
 export interface DataTableColumn<TRow> {
   key: string;
@@ -22,6 +41,8 @@ export interface DataTableColumn<TRow> {
   align?: 'start' | 'center' | 'end';
   /** Keeps a column from collapsing when a neighbour holds long free text. */
   width?: number | string;
+  /** Faint background on header and cells, to read adjacent columns as one group (e.g. a debit/credit pair). */
+  tinted?: boolean;
 }
 
 interface DataTableProps<TRow> {
@@ -34,6 +55,8 @@ interface DataTableProps<TRow> {
   emptyAction?: ReactNode;
   /** Secondary line under the empty message, for explaining *why* it is empty. */
   emptyHint?: string;
+  /** Below this width the table scrolls sideways instead of squeezing percentage-width columns. */
+  minWidth?: number;
   /** Rows drawn while loading. Match the page size so the table does not resize on arrival. */
   skeletonRows?: number;
   /** Highlights a row — used for a selected/active record. */
@@ -73,6 +96,7 @@ export function DataTable<TRow>({
   skeletonRows = 6,
   isRowHighlighted,
   pageable = true,
+  minWidth,
 }: DataTableProps<TRow>) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
@@ -95,16 +119,17 @@ export function DataTable<TRow>({
         variant="outlined"
         sx={{ maxHeight: { xs: 'none', md: '68vh' }, overflowX: 'auto' }}
       >
-        <Table stickyHeader size="small">
+        <Table stickyHeader size="small" sx={minWidth ? { minWidth } : undefined}>
           <TableHead>
             <TableRow>
-              {columns.map((col) => (
+              {columns.map((col, index) => (
                 <TableCell
                   key={col.key}
                   scope="col"
                   align={cellAlign(col)}
                   sx={{
                     width: col.width,
+                    ...columnGutter(col, columns[index - 1]),
                     whiteSpace: 'nowrap',
                     fontWeight: 700,
                     // A sticky header sits above scrolling rows, so it needs its own opaque
@@ -184,8 +209,8 @@ export function DataTable<TRow>({
                       '&:last-of-type td': { borderBottom: 'none' },
                     }}
                   >
-                    {columns.map((col) => (
-                      <TableCell key={col.key} align={cellAlign(col)} sx={{ width: col.width }}>
+                    {columns.map((col, index) => (
+                      <TableCell key={col.key} align={cellAlign(col)} sx={{ width: col.width, ...columnGutter(col, columns[index - 1]) }}>
                         {col.render(row)}
                       </TableCell>
                     ))}

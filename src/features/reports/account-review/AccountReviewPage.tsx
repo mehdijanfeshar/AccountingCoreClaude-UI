@@ -40,8 +40,7 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
-import { BalanceBar } from '../_shared/BalanceBar';
-import { MagnitudeBarList } from '../_shared/MagnitudeBarList';
+import { CollapsibleMagnitudeChart } from '../_shared/CollapsibleMagnitudeChart';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
@@ -130,6 +129,7 @@ export function AccountReviewPage() {
         docLife: applied.docLife === '' ? undefined : Number(applied.docLife),
       }),
     enabled: isConfigured,
+    placeholderData: (previous) => previous,
   });
 
   const allRows = useMemo(() => report.data?.rows ?? [], [report.data]);
@@ -249,10 +249,9 @@ export function AccountReviewPage() {
 
       <Box className="account-review-no-print">
         <PageHeader
-          eyebrow="گزارش‌ها"
           icon={<ManageSearchOutlinedIcon />}
           title="مرور حساب‌ها"
-          description="گردش اسناد در هر سطح — با پیمایش از کل به جزء و بازگشت از جزء به کل."
+          description="گردش اسناد در هر سطح، با پیمایش از کل به جزء و بازگشت از جزء به کل."
           actions={
             <Stack direction="row" spacing={1}>
               <Button
@@ -311,7 +310,7 @@ export function AccountReviewPage() {
                 <ChevronLeftOutlinedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
                 <Button size="small" variant="text" onClick={() => jumpTo(index + 1)}>
                   {crumb.levelLabel} {toPersianDigits(crumb.code)}
-                  {crumb.name ? ` — ${crumb.name}` : ''}
+                  {crumb.name ? ` ${crumb.name}` : ''}
                 </Button>
               </Stack>
             ))}
@@ -408,7 +407,17 @@ export function AccountReviewPage() {
         </Paper>
 
         <Collapse in={filtersOpen}>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          {/* A form, so Enter in any filter field runs the report. */}
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, mb: 2 }}
+            component="form"
+            noValidate
+            onSubmit={(e: React.FormEvent) => {
+              e.preventDefault();
+              setApplied(draft);
+            }}
+          >
             <Stack spacing={2}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <JalaliDateField
@@ -473,7 +482,7 @@ export function AccountReviewPage() {
                 >
                   پاک کردن
                 </Button>
-                <Button size="small" variant="contained" onClick={() => setApplied(draft)}>
+                <Button type="submit" size="small" variant="contained">
                   اعمال فیلتر
                 </Button>
               </Stack>
@@ -482,24 +491,12 @@ export function AccountReviewPage() {
         </Collapse>
 
         <StatTiles tiles={tiles} isLoading={report.isLoading} />
-
-        {/* Screen-only: the printed report is the table. The two charts answer the questions the
-            table makes you compute — does it balance, and which rows dominate. */}
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1.2fr)' },
-            alignItems: 'start',
-          }}
-        >
-          <BalanceBar debtor={totals.debtor} creditor={totals.creditor} hasRows={rows.length > 0} />
-          <MagnitudeBarList
-            title={`بزرگ‌ترین ردیف‌ها در سطح ${accountReviewLevelLabel(level)}`}
-            caption="مجموع گردش بدهکار و بستانکار، بر اساس همین فیلترها"
-            items={topRows}
-          />
-        </Box>
+        <CollapsibleMagnitudeChart
+          label="نمودار ردیف‌های پرگردش"
+          title={`بزرگ‌ترین ردیف‌ها در سطح ${accountReviewLevelLabel(level)}`}
+          caption="مجموع گردش بدهکار و بستانکار، بر اساس همین فیلترها"
+          items={topRows}
+        />
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>
@@ -507,7 +504,7 @@ export function AccountReviewPage() {
       <Box id="account-review-print-root">
         {/* Printed-only heading: on screen the PageHeader and breadcrumb already say all of this. */}
         <Box sx={{ display: 'none', '@media print': { display: 'block', mb: 2 } }}>
-          <Typography variant="h2">مرور حساب‌ها — سطح {accountReviewLevelLabel(level)}</Typography>
+          <Typography variant="h2">مرور حساب‌ها، سطح {accountReviewLevelLabel(level)}</Typography>
           <Typography variant="body2">
             واحد: {unitLabel || '—'} | سال مالی: {toPersianDigits(financialYear || '—')}
             {scopeLabel ? ` | مسیر: ${scopeLabel}` : ''}
@@ -561,7 +558,10 @@ export function AccountReviewPage() {
 
           {/* A bounded height with its own scrollbar at every width — otherwise a long report
               scrolls the whole page and both the sticky header and the totals row leave view. */}
-          <TableContainer sx={{ overflowX: 'auto', maxHeight: '60vh' }}>
+          <TableContainer
+            aria-busy={report.isFetching}
+            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+          >
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,14 +15,10 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Typography from '@mui/material/Typography';
-import Avatar from '@mui/material/Avatar';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutlineOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import FormatListNumberedOutlinedIcon from '@mui/icons-material/FormatListNumberedOutlined';
-import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
-import BalanceOutlinedIcon from '@mui/icons-material/BalanceOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import TagOutlinedIcon from '@mui/icons-material/TagOutlined';
@@ -34,7 +30,8 @@ import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { useSession } from '../../lib/session/SessionContext';
-import { formatThousands, toLatinDigits } from '../../lib/format/numbers';
+import { formatThousands, toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
+import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { VoucherLineRow } from './VoucherLineRow';
 import { buildVoucherEntrySchema, type ActiveLevelsByRowKey, type VoucherEntryFormSchema } from './voucherEntrySchema';
 import { createEmptyVoucherLine, isBlankVoucherLine, type VoucherLineFormValue } from './voucherFormTypes';
@@ -49,6 +46,101 @@ import { getNextDocNum, saveVoucher, toSaveLine, voucherDetailsApi, voucherHeads
 import { defaultVoucherDate } from '../assistant/draftMapping';
 import { lineExtrasPayload } from './lineExtras';
 import type { TafsiliLevelDto } from '../../types/tafsili';
+
+/**
+ * Section heading for the three parts of the voucher form. Plain text, no icon or coloured rule:
+ * the form already has one accent (the row being entered), and an icon on every heading made the
+ * headings compete with it.
+ */
+function SectionTitle({ title, meta, action }: { title: string; meta?: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.25, minHeight: 36 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+        <Typography variant="h3" component="h2">
+          {title}
+        </Typography>
+        {meta && (
+          <Typography variant="body2" color="text.secondary">
+            {meta}
+          </Typography>
+        )}
+      </Stack>
+      {action}
+    </Stack>
+  );
+}
+
+/**
+ * What a recorded row carries besides its amount: the cheque (or fictitious cheque) with its due
+ * date, the deposit slip/transfer with its date, and the identifier values. Without it the summary
+ * table showed two bank rows as bare amounts, and the only way to check a cheque number was to
+ * reopen the row.
+ */
+function LineDocuments({ line }: { line: VoucherLineFormValue }) {
+  const items: string[] = [];
+  const date = (v: string) => (v ? formatLegacyJalaliDate(toLatinDigits(v).replace(/\D/g, '')) : '');
+
+  if (line.checkId || line.soriCheckBookId) {
+    // checkLabel is «چک ۵۰۰۱۰۰۱، بانک … حساب …»; the part before the comma is the cheque itself.
+    const cheque = (line.checkLabel || (line.soriCheckBookId ? 'اعلامیه صوری' : 'چک')).split('،')[0].trim();
+    items.push(line.chequeDate ? `${cheque}، سررسید ${date(line.chequeDate)}` : cheque);
+  }
+  if (line.receiptNo?.trim()) {
+    const kind = line.receiptKind === '2' ? 'حواله' : 'فیش';
+    items.push(`${kind} ${line.receiptNo.trim()}${line.receiptDate ? `، ${date(line.receiptDate)}` : ''}`);
+  }
+  const attributeDefs = line.extrasReq?.attributes ?? [];
+  Object.entries(line.attributes ?? {}).forEach(([id, value]) => {
+    if (!value?.trim()) return;
+    const def = attributeDefs.find((a) => a.definitionId === id);
+    const shown = def && (def.flag === 2 || def.control === 2) ? date(value) : value.trim();
+    items.push(`شناسه ${shown}`);
+  });
+
+  if (items.length === 0) return <>—</>;
+  return (
+    <Stack spacing={0.25}>
+      {items.map((text) => (
+        <Typography key={text} variant="body2" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+          {toPersianDigits(text)}
+        </Typography>
+      ))}
+    </Stack>
+  );
+}
+
+/**
+ * Debit / credit / difference, pinned in the save bar. A voucher's balance is the one figure the
+ * user checks before every save, and on a long voucher the old totals card sat below the fold,
+ * right where it was least visible. Debit is not coloured red: it is not an error.
+ */
+function BalanceSummary({ debtor, creditor }: { debtor: number; creditor: number }) {
+  const difference = debtor - creditor;
+  const figure = (label: string, value: number) => (
+    <Box>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums lining-nums', lineHeight: 1.4 }}>
+        {formatThousands(value)}
+      </Typography>
+    </Box>
+  );
+  return (
+    <Stack
+      direction="row"
+      spacing={2}
+      divider={<Divider orientation="vertical" flexItem />}
+      sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}
+      aria-live="polite"
+    >
+      {figure('جمع بدهکار', debtor)}
+      {figure('جمع بستانکار', creditor)}
+      {figure('اختلاف', difference)}
+      <Chip size="small" color={difference === 0 ? 'success' : 'warning'} label={difference === 0 ? 'تراز' : 'تراز نیست'} />
+    </Stack>
+  );
+}
 
 
 /**
@@ -112,6 +204,34 @@ export function VoucherEntryPage() {
     // خطا در ردیفی که بسته است ⇒ همان ردیف را باز کن.
     const bad = Array.isArray(errors.lines) ? errors.lines.findIndex((e) => e) : -1;
     if (bad >= 0 && fields[bad]) handleEditRow(fields[bad].key);
+  }
+
+  /**
+   * Enter moves to the next field instead of submitting the form: data-entry clerks key a voucher
+   * with Enter the way the old system worked, and a browser-default Enter in «شماره سند» used to
+   * save a half-typed voucher. Fields that own Enter run first and mark the event handled: the
+   * تفصیلی autocomplete picking an option, the معین field opening its picker, and بدهکار/بستانکار
+   * running «ثبت ردیف». Saving stays on the button (or Ctrl+Enter from anywhere).
+   */
+  function moveFocusOnEnter(e: KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== 'Enter' || e.defaultPrevented || e.nativeEvent.isComposing) return;
+    const target = e.target as HTMLElement;
+    // React bubbles events out of portals: Enter in the معین picker's search box arrives here too,
+    // though that dialog is not inside the form in the DOM. It is not ours to handle.
+    if (!e.currentTarget.contains(target)) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.currentTarget.requestSubmit();
+      return;
+    }
+    // Multi-line fields keep Enter for a new line; buttons keep Enter for their click.
+    if (target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    const fields = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>('input:not([type=hidden]):not([disabled]), textarea:not([disabled])'),
+    ).filter((el) => el.tabIndex >= 0 && el.offsetParent !== null && !el.getAttribute('aria-hidden'));
+    const next = fields[fields.indexOf(target) + 1];
+    next?.focus();
   }
 
   function submitVoucher(e: FormEvent<HTMLFormElement>) {
@@ -260,6 +380,7 @@ export function VoucherEntryPage() {
       sndVahedCode: loadedHead?.sndVahedCode ?? null,
       parentHeadId: loadedHead?.parentHeadId ?? null,
       attachFileName: loadedHead?.attachFileName ?? null,
+      // سرور نادیده می‌گیرد: عطف هنگام ایجاد تخصیص می‌یابد و هرگز عوض نمی‌شود.
       atfNum: loadedHead?.atfNum ?? null,
     };
   }
@@ -320,7 +441,15 @@ export function VoucherEntryPage() {
       .sort((a, b) => a.code - b.code);
   }, [watchedLines]);
 
+  const summaryRows = (watchedLines ?? []).filter((l) => !isBlankVoucherLine(l));
+
   const summaryColumns: DataTableColumn<VoucherLineFormValue>[] = [
+    {
+      key: 'radif',
+      header: 'ردیف',
+      width: 56,
+      render: (row) => summaryRows.findIndex((l) => l.key === row.key) + 1,
+    },
     { key: 'accountLabel', header: 'معین', render: (row) => row.accountLabel || '—' },
     ...visibleTafsiliColumns.map((level) => ({
       key: `tafsili-${level.levelId}`,
@@ -328,8 +457,9 @@ export function VoucherEntryPage() {
       render: (row: VoucherLineFormValue) => row.tafsiliLabels?.[level.levelId] ?? '—',
     })),
     { key: 'description', header: 'شرح', render: (row) => row.description || '—' },
-    { key: 'debtor', header: 'بدهکار', render: (row) => (row.debtor ? formatThousands(row.debtor) : '—') },
-    { key: 'creditor', header: 'بستانکار', render: (row) => (row.creditor ? formatThousands(row.creditor) : '—') },
+    { key: 'documents', header: 'چک / فیش / شناسه', render: (row) => <LineDocuments line={row} /> },
+    { key: 'debtor', header: 'بدهکار', align: 'end', render: (row) => (row.debtor ? formatThousands(row.debtor) : '—') },
+    { key: 'creditor', header: 'بستانکار', align: 'end', render: (row) => (row.creditor ? formatThousands(row.creditor) : '—') },
     {
       key: 'action',
       header: 'عملیات',
@@ -363,11 +493,11 @@ export function VoucherEntryPage() {
         eyebrow="عملیات"
         icon={<PostAddOutlinedIcon />}
         accentColor="secondary"
-        title={isEditing ? 'ویرایش سند' : 'صدور سند (تفصیلی داینامیک)'}
+        title={isEditing ? 'ویرایش سند' : 'صدور سند'}
         description={
           isEditing
             ? 'ردیف‌های حذف‌شده، تغییریافته و جدید هنگام ذخیره با سند موجود تطبیق داده می‌شوند.'
-            : 'سرسند و ردیف‌های سند را وارد کنید؛ فیلدهای تفصیلی بر اساس حساب معین انتخاب‌شدهٔ هر ردیف به‌صورت داینامیک نمایش داده می‌شوند.'
+            : 'سرسند را پر کنید و ردیف‌ها را یکی‌یکی ثبت کنید. فیلدهای تفصیلی هر ردیف با انتخاب حساب معین ظاهر می‌شوند.'
         }
       />
 
@@ -389,14 +519,9 @@ export function VoucherEntryPage() {
 
       {globalError !== null && <ErrorBanner error={globalError} />}
 
-      <Box component="form" onSubmit={submitVoucher} noValidate>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-          <DescriptionOutlinedIcon fontSize="small" color="secondary" />
-          <Typography variant="h2" component="h2">
-            اطلاعات سرسند
-          </Typography>
-        </Stack>
-        <Paper variant="outlined" sx={{ p: 3, mb: 3, borderTop: 4, borderTopColor: 'secondary.main' }}>
+      <Box component="form" onSubmit={submitVoucher} onKeyDown={moveFocusOnEnter} noValidate>
+        <SectionTitle title="سرسند" />
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
           <Grid container spacing={2}>
             {/*
               `docNum`/`year` are legacy numeric codes, not narrative text — a Persian-keyboard
@@ -474,7 +599,8 @@ export function VoucherEntryPage() {
                 label="پیوست"
                 fullWidth
                 multiline
-                minRows={2}
+                minRows={1}
+                maxRows={4}
                
                 slotProps={{ htmlInput: { maxLength: 800 } }}
                 error={!!formState.errors.apendix}
@@ -484,32 +610,29 @@ export function VoucherEntryPage() {
           </Grid>
         </Paper>
 
-        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <FormatListNumberedOutlinedIcon fontSize="small" color="secondary" />
-            <Typography variant="h2" component="h2">
-              ردیف‌های سند
-            </Typography>
-          </Stack>
-          <Button
-            variant="outlined"
-            color="secondary"
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={() => {
-              // کادر خالیِ موجود را باز کن؛ فقط اگر نیست ردیف تازه بساز.
-              const blankIndex = form.getValues('lines').findIndex((l) => isBlankVoucherLine(l));
-              if (blankIndex >= 0 && fields[blankIndex]) {
-                setEditingRowKey(fields[blankIndex].key);
-                return;
-              }
-              const line = createEmptyVoucherLine();
-              append(line);
-              setEditingRowKey(line.key);
-            }}
-          >
-            افزودن ردیف
-          </Button>
-        </Stack>
+        <SectionTitle
+          title="ورود ردیف"
+          action={
+            <Button
+              variant="text"
+              color="secondary"
+              startIcon={<AddCircleOutlineIcon />}
+              onClick={() => {
+                // کادر خالیِ موجود را باز کن؛ فقط اگر نیست ردیف تازه بساز.
+                const blankIndex = form.getValues('lines').findIndex((l) => isBlankVoucherLine(l));
+                if (blankIndex >= 0 && fields[blankIndex]) {
+                  setEditingRowKey(fields[blankIndex].key);
+                  return;
+                }
+                const line = createEmptyVoucherLine();
+                append(line);
+                setEditingRowKey(line.key);
+              }}
+            >
+              ردیف جدید
+            </Button>
+          }
+        />
 
         {formState.errors.lines?.message && <ErrorBanner error={new Error(formState.errors.lines.message)} />}
 
@@ -528,78 +651,23 @@ export function VoucherEntryPage() {
           </Box>
         ))}
 
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
-          <FormatListNumberedOutlinedIcon fontSize="small" color="secondary" />
-          <Typography variant="h2" component="h2">
-            خلاصه ردیف‌ها
-          </Typography>
-        </Stack>
-        <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <SectionTitle
+          title="ردیف‌های ثبت‌شده"
+          meta={summaryRows.length > 0 ? `${summaryRows.length.toLocaleString('fa-IR')} ردیف` : undefined}
+        />
+        <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, mb: 3 }}>
           <DataTable
             columns={summaryColumns}
-            rows={(watchedLines ?? []).filter((l) => !isBlankVoucherLine(l))}
+            rows={summaryRows}
             getRowKey={(row) => row.key}
-            emptyMessage="هنوز ردیفی اضافه نشده است."
+            emptyMessage="هنوز ردیفی ثبت نشده است. ردیف بالا را پر کنید و «ثبت ردیف» را بزنید."
           />
         </Paper>
 
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 2,
-            mb: 3,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 2,
-            justifyContent: 'space-between',
-          }}
-        >
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Avatar variant="rounded" sx={{ bgcolor: 'error.main', opacity: 0.85, width: 40, height: 40 }}>
-              <TrendingDownOutlinedIcon fontSize="small" />
-            </Avatar>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                جمع بدهکار
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.debtor)}</Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Avatar variant="rounded" sx={{ bgcolor: 'success.main', opacity: 0.85, width: 40, height: 40 }}>
-              <TrendingUpOutlinedIcon fontSize="small" />
-            </Avatar>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                جمع بستانکار
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.creditor)}</Typography>
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                bgcolor: totals.difference === 0 ? 'success.main' : 'warning.main',
-                opacity: 0.85,
-                width: 40,
-                height: 40,
-              }}
-            >
-              <BalanceOutlinedIcon fontSize="small" />
-            </Avatar>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                اختلاف (تراز)
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>{formatThousands(totals.difference)}</Typography>
-            </Box>
-          </Stack>
-        </Paper>
-        {totals.difference !== 0 && (
+        {totals.difference !== 0 && summaryRows.length > 0 && (
           <Alert severity="info" sx={{ mb: 3 }}>
-            سند تراز نیست (بدهکار ≠ بستانکار). می‌توانید آن را به‌صورت «یادداشت» ذخیره کنید، ولی برای بردن به «موقت» و
-            مراحل بعد باید تراز باشد.
+            سند تراز نیست. می‌توانید آن را به‌صورت «یادداشت» ذخیره کنید، ولی برای بردن به «موقت» و مراحل بعد باید تراز
+            باشد.
           </Alert>
         )}
 
@@ -610,6 +678,7 @@ export function VoucherEntryPage() {
           pending={formState.isSubmitting}
           submitLabel={isEditing ? 'ذخیره تغییرات' : 'ذخیره سند'}
           errorCount={Object.keys(formState.errors).length}
+          summary={<BalanceSummary debtor={totals.debtor} creditor={totals.creditor} />}
         />
       </Box>
     </section>

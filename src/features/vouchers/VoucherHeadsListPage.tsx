@@ -37,7 +37,7 @@ import { Pagination } from '../../components/Pagination';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
-import { toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
+import { formatThousands, toLatinDigits, toPersianDigits } from '../../lib/format/numbers';
 import { sysTypesApi } from '../../lib/api/sysTypesApi';
 import { useSession } from '../../lib/session/SessionContext';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
@@ -271,13 +271,40 @@ export function VoucherHeadsListPage() {
 
   const sysTypeNameById = new Map(sysTypes.map((t) => [t.id, t.sysName ?? t.sysCode]));
 
+  // Widths are shares of the row, not pixels: on a wide screen the spare space is spread across
+  // every column instead of all landing in «شرح سند», where it opened a gap between the
+  // description and the amounts while the other columns stayed cramped. The debit/credit pair is
+  // tinted so the money reads as one group at a glance; the two amounts are fixed-width (just past
+  // «۹۸۰,۰۰۰,۰۰۰») so debit and credit sit close as a pair. Below `minWidth` the table scrolls.
   const columns: DataTableColumn<VoucherHeadDto>[] = [
-    { key: 'docNum', header: 'شماره سند', render: (row) => <MonoCode value={row.docNum} /> },
-    { key: 'dateDoc', header: 'تاریخ سند', render: (row) => formatLegacyJalaliDate(row.dateDoc) },
-    { key: 'headDesc', header: 'شرح سند', render: (row) => row.headDesc ?? '—' },
+    { key: 'docNum', header: 'شماره سند', width: '7%', render: (row) => <MonoCode value={row.docNum} /> },
+    { key: 'atfNum', header: 'شماره عطف', width: '12%', render: (row) => <MonoCode value={row.atfNum?.trim() || null} muted /> },
+    { key: 'dateDoc', header: 'تاریخ سند', width: '8%', render: (row) => formatLegacyJalaliDate(row.dateDoc) },
+    {
+      key: 'headDesc',
+      header: 'شرح سند',
+      width: '30%',
+      // One line per voucher keeps every row the same height, so the eye can run along a row
+      // to its amounts; the full text is one hover away.
+      render: (row) =>
+        row.headDesc ? (
+          <Box
+            component="span"
+            title={row.headDesc}
+            sx={{ display: 'block', width: 0, minWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {row.headDesc}
+          </Box>
+        ) : (
+          '—'
+        ),
+    },
+    { key: 'totalDebtor', header: 'جمع بدهکار', align: 'end', width: 124, tinted: true, render: (row) => <VoucherTotal value={row.totalDebtor} other={row.totalCreditor} /> },
+    { key: 'totalCreditor', header: 'جمع بستانکار', align: 'end', width: 124, tinted: true, render: (row) => <VoucherTotal value={row.totalCreditor} other={row.totalDebtor} /> },
     {
       key: 'systemType',
       header: 'نوع سند',
+      width: '10%',
       render: (row) =>
         row.systemTypeId ? (
           (sysTypeNameById.get(row.systemTypeId) ?? '—')
@@ -287,10 +314,11 @@ export function VoucherHeadsListPage() {
           </Typography>
         ),
     },
-    { key: 'year', header: 'سال مالی', render: (row) => (row.year ? toPersianDigits(row.year) : '—') },
+    { key: 'year', header: 'سال مالی', width: '5%', render: (row) => (row.year ? toPersianDigits(row.year) : '—') },
     {
       key: 'docLife',
       header: 'وضعیت',
+      width: '7%',
       render: (row) =>
         isKnownDocLife(row.docLife) ? (
           <Chip size="small" color={getDocLifeTone(row.docLife)} label={getDocLifeLabel(row.docLife)} />
@@ -692,6 +720,7 @@ export function VoucherHeadsListPage() {
 
           <DataTable
             pageable={false}
+            minWidth={1100}
             columns={tableColumns}
             rows={query.data?.items ?? []}
             getRowKey={(row) => row.id}
@@ -788,5 +817,19 @@ export function VoucherHeadsListPage() {
         ))}
       </Menu>
     </section>
+  );
+}
+
+/**
+ * A voucher's debit or credit total in the cartable. When the two sides differ the figure turns
+ * the warning colour, so an unbalanced voucher stands out in the list without opening it.
+ */
+function VoucherTotal({ value, other }: { value?: number; other?: number }) {
+  const amount = value ?? 0;
+  const unbalanced = amount !== (other ?? 0);
+  return (
+    <Box component="span" sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: unbalanced ? 'warning.dark' : undefined, fontWeight: unbalanced ? 600 : undefined }}>
+      {amount ? toPersianDigits(formatThousands(amount)) : '—'}
+    </Box>
   );
 }

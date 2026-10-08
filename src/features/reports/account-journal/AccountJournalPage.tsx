@@ -28,7 +28,6 @@ import { JalaliDateField } from '../../../components/JalaliDateField';
 import { MonoCode } from '../../../components/MonoCode';
 import { Pagination } from '../../../components/Pagination';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
-import { BalanceBar } from '../_shared/BalanceBar';
 import { useSession } from '../../../lib/session/SessionContext';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
@@ -101,6 +100,7 @@ export function AccountJournalPage() {
         description: applied.description || undefined,
       }),
     enabled: isConfigured,
+    placeholderData: (previous) => previous,
   });
 
   const rows = useMemo(() => report.data?.items ?? [], [report.data]);
@@ -172,7 +172,6 @@ export function AccountJournalPage() {
 
       <Box className="account-journal-no-print">
         <PageHeader
-          eyebrow="گزارش‌ها"
           icon={<ArticleOutlinedIcon />}
           title="دفتر روزنامه"
           description="همهٔ ردیف‌های اسناد، به ترتیب تاریخ و شماره سند."
@@ -223,7 +222,17 @@ export function AccountJournalPage() {
           </Stack>
 
           <Collapse in={filtersOpen}>
-            <Stack spacing={2} sx={{ pt: 2 }}>
+            {/* A form, so Enter in any filter field runs the report. */}
+            <Stack
+              component="form"
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                applyFilters();
+              }}
+              spacing={2}
+              sx={{ pt: 2 }}
+            >
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <JalaliDateField
                   label="از تاریخ"
@@ -263,7 +272,7 @@ export function AccountJournalPage() {
                 <TextField
                   size="small"
                   label="از کد معین"
-                  helperText="کد ناقص هم پذیرفته می‌شود — مثلاً ۱۱ همهٔ حساب‌های زیر ۱۱ را شامل است."
+                  helperText="کد ناقص هم پذیرفته می‌شود؛ مثلاً ۱۱ همهٔ حساب‌های زیر ۱۱ را شامل است."
                   value={draft.fromAccountCode}
                   onChange={(e) =>
                     setDraft((d) => ({ ...d, fromAccountCode: toLatinDigits(e.target.value) }))
@@ -323,7 +332,7 @@ export function AccountJournalPage() {
                 >
                   پاک کردن
                 </Button>
-                <Button size="small" variant="contained" onClick={applyFilters}>
+                <Button type="submit" size="small" variant="contained">
                   اعمال فیلتر
                 </Button>
               </Stack>
@@ -332,10 +341,6 @@ export function AccountJournalPage() {
         </Paper>
 
         <StatTiles tiles={tiles} isLoading={report.isLoading} />
-
-        {/* Screen-only. On paper the totals row under the table already carries these figures, and a
-            bar would spend a third of the first sheet repeating them. */}
-        <BalanceBar debtor={totalDebtor} creditor={totalCreditor} hasRows={rows.length > 0} />
 
         {report.isError && <ErrorBanner error={report.error} />}
       </Box>
@@ -382,7 +387,10 @@ export function AccountJournalPage() {
 
           {/* Bounded height with its own scrollbar — a 500-row page would otherwise scroll the
               whole document and carry the sticky header and totals row out of view. */}
-          <TableContainer sx={{ overflowX: 'auto', maxHeight: '60vh' }}>
+          <TableContainer
+            aria-busy={report.isFetching}
+            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+          >
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>

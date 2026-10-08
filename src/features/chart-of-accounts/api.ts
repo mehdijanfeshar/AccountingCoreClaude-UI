@@ -29,7 +29,13 @@ export interface AccountCodeWritePayload {
   typeAction: number | null;
 }
 
-export const accountCodesApi = createResourceApi<AccountCodeDto, AccountCodeWritePayload, AccountCodeWritePayload>(
+/** `search`: server-side, over the whole chart (code prefix or title contains). */
+export const accountCodesApi = createResourceApi<
+  AccountCodeDto,
+  AccountCodeWritePayload,
+  AccountCodeWritePayload,
+  { pageNumber?: number; pageSize?: number; search?: string }
+>(
   'account-codes',
 );
 

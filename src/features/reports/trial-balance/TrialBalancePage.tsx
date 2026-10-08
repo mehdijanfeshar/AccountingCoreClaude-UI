@@ -23,8 +23,7 @@ import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
 import { StatTiles, type StatTile } from '../../../components/StatTiles';
-import { BalanceBar } from '../_shared/BalanceBar';
-import { MagnitudeBarList } from '../_shared/MagnitudeBarList';
+import { CollapsibleMagnitudeChart } from '../_shared/CollapsibleMagnitudeChart';
 import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { useSession } from '../../../lib/session/SessionContext';
 import { formatThousands, toPersianDigits, normalizeNumericInput } from '../../../lib/format/numbers';
@@ -226,7 +225,6 @@ export function TrialBalancePage() {
       <Stack spacing={2.5}>
         <Box className="tb-no-print">
           <PageHeader
-            eyebrow="گزارش‌ها"
             icon={<BarChartOutlinedIcon fontSize="small" />}
             accentColor="warning"
             title="تراز آزمایشی"
@@ -367,8 +365,8 @@ export function TrialBalancePage() {
             </Stack>
 
             {hasPendingChanges && (
-              <Typography variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 1 }}>
-                فیلترها تغییر کرده‌اند — برای اعمال روی گزارش، «اعمال فیلتر» را بزنید.
+              <Typography variant="caption" sx={{ color: 'warning.dark', display: 'block', mt: 1, fontWeight: 600 }}>
+                فیلترها تغییر کرده‌اند. برای دیدن نتیجه «اعمال فیلتر» را بزنید.
               </Typography>
             )}
           </Box>
@@ -378,19 +376,12 @@ export function TrialBalancePage() {
           <Box className="tb-no-print">
             <StatTiles tiles={tiles} isLoading={query.isLoading} />
 
-            {/* On screen only. The printed report is the table — a bar is a reading aid for a
-                scrollable page, and on paper it would cost a third of the first sheet to repeat
-                two numbers the totals row already carries. */}
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 2,
-                gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(0, 1.2fr)' },
-                alignItems: 'start',
-              }}
-            >
-              <BalanceBar debtor={totals.debtor} creditor={totals.creditor} hasRows={hasRows} />
-              <MagnitudeBarList
+            {/* The table is the report; the chart is a reading aid. Open, it pushed the table below
+                the fold on a laptop, so it now waits to be asked for. The debit/credit bar that sat
+                beside it is gone: the tiles above and the totals row already state the balance. */}
+            <Box sx={{ mt: 1.5 }}>
+              <CollapsibleMagnitudeChart
+                label="نمودار حساب‌های پرگردش"
                 title="بزرگ‌ترین حساب‌ها بر اساس گردش"
                 caption="مجموع گردش بدهکار و بستانکار در همین بازه و همین فیلترها"
                 items={topAccounts}
@@ -459,26 +450,20 @@ export function TrialBalancePage() {
             </Box>
           )}
 
+          {/* Paper only: on screen the tiles already say this, and the account count is in the
+              totals row. A printed sheet has no tiles, so it keeps the verdict. */}
           {hasRows && (
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{ mt: 1.5, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
-            >
+            <Box className="tb-print-only" sx={{ display: 'none', mt: 1.5 }}>
               <Chip
                 size="small"
                 color={isBalanced ? 'success' : 'error'}
-                variant={isBalanced ? 'filled' : 'outlined'}
                 label={
                   isBalanced
-                    ? 'تراز است — جمع بدهکار و بستانکار برابرند'
-                    : `ناتراز — اختلاف ${formatThousands(Math.abs(difference))}`
+                    ? 'تراز است: جمع بدهکار و بستانکار برابرند'
+                    : `ناتراز: اختلاف ${formatThousands(Math.abs(difference))}`
                 }
               />
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {toPersianDigits(rows.length)} حساب در سطح {TRIAL_BALANCE_LEVEL_LABELS[level]}
-              </Typography>
-            </Stack>
+            </Box>
           )}
         </Box>
       </Stack>

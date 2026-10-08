@@ -16,6 +16,8 @@ interface FormActionsProps {
   errorCount?: number;
   /** Extra controls (e.g. «ذخیره و جدید») placed before the cancel button. */
   extra?: React.ReactNode;
+  /** Live figures pinned with the buttons (e.g. a voucher's balance), placed at the start. */
+  summary?: React.ReactNode;
 }
 
 /**
@@ -35,7 +37,7 @@ interface FormActionsProps {
  * The submit button disables itself while pending and shows a spinner in place of its icon —
  * the skill's `loading-buttons` rule, which exists to stop double submission.
  */
-export function FormActions({ onCancel, pending, submitLabel, errorCount, extra }: FormActionsProps) {
+export function FormActions({ onCancel, pending, submitLabel, errorCount, extra, summary }: FormActionsProps) {
   const hasErrors = (errorCount ?? 0) > 0;
 
   return (
@@ -61,6 +63,8 @@ export function FormActions({ onCancel, pending, submitLabel, errorCount, extra 
         flexWrap: 'wrap',
       }}
     >
+      {summary}
+
       {hasErrors && (
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', color: 'error.main' }}>
           <ErrorOutlineOutlinedIcon fontSize="small" />

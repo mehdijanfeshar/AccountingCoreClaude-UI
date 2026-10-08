@@ -87,6 +87,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <AccountTreeOutlinedIcon fontSize="small" />,
       },
       {
+        label: 'تعریف رابط‌ها',
+        description: 'رابط اعلامیه، افتتاحیه و اختتامیه، و حساب‌های مستثنا',
+        to: '/base/year-end-settings',
+        icon: <TuneOutlinedIcon fontSize="small" />,
+      },
+      {
         label: 'گروه تفصیلی',
         description: 'گروه‌بندی حساب‌های تفصیلی',
         to: '/base/tafsil-groups',
@@ -194,6 +200,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'ثبت سند جدید با ردیف‌های تفصیلی',
         to: '/operation/vouchers/new',
         icon: <PostAddOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'سند افتتاحیه و اختتامیه',
+        description: 'بستن حساب‌های موقت پایان سال و انتقال مانده‌ها به سال جدید',
+        to: '/operation/year-end',
+        icon: <EventRepeatOutlinedIcon fontSize="small" />,
       },
       {
         label: 'اسناد اعلامیه',

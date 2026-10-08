@@ -236,13 +236,21 @@ export function AttributeAccountReconciliationPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="گزارش‌ها"
         icon={<RuleOutlinedIcon />}
         title="مغایرت‌گیری حساب‌های شناسه‌دار"
-        description={`معین‌هایی که شناسه دارند، شناسه‌های تسویه‌نشده و ردیف‌های سند هرکدام — ${unitLabel ?? ''} سال ${toPersianDigits(financialYear || '—')}.`}
+        description={`معین‌هایی که شناسه دارند، شناسه‌های تسویه‌نشده و ردیف‌های سند هرکدام. ${unitLabel ?? ''} سال ${toPersianDigits(financialYear || '-')}.`}
       />
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Paper
+        variant="outlined"
+        sx={{ p: 2, mb: 2 }}
+        component="form"
+        noValidate
+        onSubmit={(e: React.FormEvent) => {
+          e.preventDefault();
+          apply();
+        }}
+      >
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' } }}>
           <JalaliDateField
             label="از تاریخ"
@@ -271,7 +279,7 @@ export function AttributeAccountReconciliationPage() {
               </MenuItem>
             ))}
           </TextField>
-          <Button variant="contained" onClick={apply}>
+          <Button type="submit" variant="contained">
             نمایش
           </Button>
           <FormControlLabel
@@ -296,7 +304,7 @@ export function AttributeAccountReconciliationPage() {
       {moein && (
         <Paper variant="outlined" sx={{ p: 2, mt: 3 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-            شناسه‌های معین <MonoCode value={moein.accCode} /> — {moein.accName ?? ''} ({ATTRIB_SUM_LABEL[moein.attribSum]})
+            شناسه‌های معین <MonoCode value={moein.accCode} /> {moein.accName ?? ''} ({ATTRIB_SUM_LABEL[moein.attribSum]})
           </Typography>
           {valuesQuery.isError && <ErrorBanner error={valuesQuery.error} />}
           <DataTable
@@ -313,7 +321,7 @@ export function AttributeAccountReconciliationPage() {
       {moein && value !== undefined && (
         <Paper variant="outlined" sx={{ p: 2, mt: 3 }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-            ریز سند — {value === null ? 'ردیف‌های بدون شناسه' : <>شناسهٔ <MonoCode value={value} /></>}
+            ریز سند: {value === null ? 'ردیف‌های بدون شناسه' : <>شناسهٔ <MonoCode value={value} /></>}
           </Typography>
           {linesQuery.isError && <ErrorBanner error={linesQuery.error} />}
           <DataTable
