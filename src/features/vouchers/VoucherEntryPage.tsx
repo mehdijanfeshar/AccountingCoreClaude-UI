@@ -448,6 +448,7 @@ export function VoucherEntryPage() {
       key: 'radif',
       header: 'ردیف',
       width: 56,
+      frozen: true,
       render: (row) => summaryRows.findIndex((l) => l.key === row.key) + 1,
     },
     { key: 'accountLabel', header: 'معین', render: (row) => row.accountLabel || '—' },
@@ -458,8 +459,8 @@ export function VoucherEntryPage() {
     })),
     { key: 'description', header: 'شرح', render: (row) => row.description || '—' },
     { key: 'documents', header: 'چک / فیش / شناسه', render: (row) => <LineDocuments line={row} /> },
-    { key: 'debtor', header: 'بدهکار', align: 'end', render: (row) => (row.debtor ? formatThousands(row.debtor) : '—') },
-    { key: 'creditor', header: 'بستانکار', align: 'end', render: (row) => (row.creditor ? formatThousands(row.creditor) : '—') },
+    { key: 'debtor', header: 'بدهکار', align: 'end', side: 'debtor', render: (row) => (row.debtor ? formatThousands(row.debtor) : '—') },
+    { key: 'creditor', header: 'بستانکار', align: 'end', side: 'creditor', render: (row) => (row.creditor ? formatThousands(row.creditor) : '—') },
     {
       key: 'action',
       header: 'عملیات',
@@ -657,6 +658,7 @@ export function VoucherEntryPage() {
         />
         <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 }, mb: 3 }}>
           <DataTable
+            variant="report"
             columns={summaryColumns}
             rows={summaryRows}
             getRowKey={(row) => row.key}

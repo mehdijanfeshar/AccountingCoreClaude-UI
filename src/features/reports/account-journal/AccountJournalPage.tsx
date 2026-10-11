@@ -16,7 +16,6 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
@@ -35,8 +34,27 @@ import { DOC_LIFE_OPTIONS, getDocLifeLabel, getDocLifeTone } from '../../voucher
 import { accountJournalApi } from './api';
 import { exportAccountJournalToExcel, exportAccountJournalToPdf } from './export';
 import { ACCOUNT_JOURNAL_PRINT_STYLES } from './printStyles';
+import { SortLabel, normalizeSortValue, sortRows, useGridSort } from '../../../components/gridTools';
+import {
+  GRID_SIDES,
+  GRID_TOTAL_ROW,
+  amountCellSx,
+  frozenCell,
+  frozenHeadCell,
+  groupSeparator,
+  reportGridTableSx,
+  sectionSeparator,
+  sideHeadSx,
+  totalsCellSx,
+  totalsSurfaceSx,
+  useColumnHighlight,
+} from '../_shared/reportGrid';
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200, 500];
+
+/** عرض ستون‌های ثابت — طراحی گرید ماتریسی. */
+const NUMBER_WIDTH = 104;
+const DATE_WIDTH = 110;
 
 /** Formats an amount with thousands separators in Persian digits. */
 function amount(value: number): string {
@@ -64,6 +82,7 @@ function jalali(value: string): string {
  */
 export function AccountJournalPage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
+  const columnHighlight = useColumnHighlight();
   const notify = useNotify();
 
   const [filtersOpen, setFiltersOpen] = useState(true);
@@ -114,13 +133,25 @@ export function AccountJournalPage() {
    * the server's order rather than by grouping — re-grouping would let the display disagree with
    * the sequence the journal was returned in, which is the one thing a journal must preserve.
    */
+  // مرتب‌سازی با سرستون روی صفحهٔ جاری (صفحه‌بندی سمت سرور است). بدون مرتب‌سازی همان ترتیب دفتر روزنامه؛ با آن،
+  // مرز سند هرجا شمارهٔ سند عوض شود کشیده می‌شود.
+  const { sort, toggle: toggleSort } = useGridSort();
+  const sortedRows = useMemo(
+    () => sortRows(rows, sort, (r, key) => normalizeSortValue((r as unknown as Record<string, unknown>)[key])),
+    [rows, sort],
+  );
+  const sl = (key: string, label: string) => (
+    <SortLabel sortKey={key} sort={sort} onSort={toggleSort}>
+      {label}
+    </SortLabel>
+  );
   const rowsWithBreaks = useMemo(
     () =>
-      rows.map((row, index) => ({
+      sortedRows.map((row, index) => ({
         row,
-        startsVoucher: index === 0 || rows[index - 1].voucherNumber !== row.voucherNumber,
+        startsVoucher: index === 0 || sortedRows[index - 1].voucherNumber !== row.voucherNumber,
       })),
-    [rows],
+    [sortedRows],
   );
 
   const tiles: StatTile[] = [
@@ -388,20 +419,26 @@ export function AccountJournalPage() {
           {/* Bounded height with its own scrollbar — a 500-row page would otherwise scroll the
               whole document and carry the sticky header and totals row out of view. */}
           <TableContainer
+            ref={columnHighlight.ref}
+            onMouseOver={columnHighlight.onMouseOver}
+            onMouseLeave={columnHighlight.onMouseLeave}
             aria-busy={report.isFetching}
-            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+            sx={{ overflow: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
           >
-            <Table size="small" stickyHeader>
+            <Table size="small" stickyHeader sx={reportGridTableSx()}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 110 }}>شماره سند</TableCell>
-                  <TableCell sx={{ width: 120 }}>تاریخ</TableCell>
-                  <TableCell sx={{ width: 110 }}>کد معین</TableCell>
-                  <TableCell sx={{ width: 200 }}>نام حساب</TableCell>
-                  <TableCell>شرح</TableCell>
-                  <TableCell sx={{ width: 110 }}>وضعیت</TableCell>
-                  <TableCell align="left">بدهکار</TableCell>
-                  <TableCell align="left">بستانکار</TableCell>
+                  <TableCell sx={frozenHeadCell(0, NUMBER_WIDTH)}>{sl('voucherNumber', 'شماره سند')}</TableCell>
+                  <TableCell sx={frozenHeadCell(NUMBER_WIDTH, DATE_WIDTH, { borderInlineEnd: sectionSeparator })}>{sl('voucherDate', 'تاریخ')}</TableCell>
+                  <TableCell data-ci={0} sx={{ width: 110 }}>{sl('accountCode', 'کد معین')}</TableCell>
+                  <TableCell data-ci={0} sx={{ width: 200 }}>{sl('accountName', 'نام حساب')}</TableCell>
+                  <TableCell>{sl('description', 'شرح')}</TableCell>
+                  <TableCell sx={{ width: 110 }}>{sl('docLife', 'وضعیت')}</TableCell>
+                  {GRID_SIDES.map((side, sideIndex) => (
+                    <TableCell key={side.key} data-ci={1} align="left" sx={sideHeadSx(side.color, { first: sideIndex === 0 })}>
+                      {sl(side.key, side.label)}
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
 
@@ -431,27 +468,28 @@ export function AccountJournalPage() {
                   rowsWithBreaks.map(({ row, startsVoucher }, index) => (
                     <Fragment key={`${row.voucherNumber}-${index}`}>
                       <TableRow
-                        hover
                         sx={
                           startsVoucher && index > 0
                             ? {
-                                '& td': {
-                                  borderTop: (theme) =>
-                                    `2px solid ${alpha(theme.palette.primary.main, 0.25)}`,
-                                },
+                                // مرز سند: خط پررنگ‌تر بالای اولین ردیف هر سند.
+                                '& > td': { borderTop: sectionSeparator },
                               }
                             : undefined
                         }
                       >
-                        <TableCell>
+                        <TableCell sx={frozenCell(0)}>
                           {startsVoucher ? <MonoCode value={row.voucherNumber} /> : ''}
                         </TableCell>
-                        <TableCell>{startsVoucher ? jalali(row.voucherDate) : ''}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...frozenCell(NUMBER_WIDTH), borderInlineEnd: sectionSeparator }}>
+                          {startsVoucher ? jalali(row.voucherDate) : ''}
+                        </TableCell>
+                        <TableCell data-ci={0}>
                           <MonoCode value={row.accountCode} />
                         </TableCell>
-                        <TableCell>{row.accountName || '—'}</TableCell>
-                        <TableCell>{row.description || '—'}</TableCell>
+                        <TableCell data-ci={0} title={row.accountName || undefined} sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {row.accountName || '—'}
+                        </TableCell>
+                        <TableCell sx={{ whiteSpace: 'normal', minWidth: 200 }}>{row.description || '—'}</TableCell>
                         <TableCell>
                           {startsVoucher ? (
                             <Chip
@@ -463,11 +501,11 @@ export function AccountJournalPage() {
                             ''
                           )}
                         </TableCell>
-                        <TableCell align="left">
-                          {row.debtor === 0 ? '—' : amount(row.debtor)}
+                        <TableCell align="left" data-ci={1} sx={amountCellSx(row.debtor, { first: true })}>
+                          {amount(row.debtor)}
                         </TableCell>
-                        <TableCell align="left">
-                          {row.creditor === 0 ? '—' : amount(row.creditor)}
+                        <TableCell align="left" data-ci={1} sx={amountCellSx(row.creditor)}>
+                          {amount(row.creditor)}
                         </TableCell>
                       </TableRow>
                     </Fragment>
@@ -476,20 +514,15 @@ export function AccountJournalPage() {
 
               {rows.length > 0 && (
                 <TableBody>
-                  <TableRow
-                    sx={{
-                      '& td': {
-                        fontWeight: 700,
-                        borderTop: (theme) => `2px solid ${alpha(theme.palette.text.primary, 0.35)}`,
-                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                      },
-                    }}
-                  >
-                    <TableCell colSpan={6}>
+                  <TableRow className={GRID_TOTAL_ROW}>
+                    <TableCell
+                      colSpan={6}
+                      sx={{ ...totalsCellSx, ...frozenCell(0, 6), ...totalsSurfaceSx }}
+                    >
                       جمع کل ({toPersianDigits(totalCount)} ردیف)
                     </TableCell>
-                    <TableCell align="left">{amount(totalDebtor)}</TableCell>
-                    <TableCell align="left">{amount(totalCreditor)}</TableCell>
+                    <TableCell align="left" sx={{ ...totalsCellSx, borderInlineStart: groupSeparator }}>{amount(totalDebtor)}</TableCell>
+                    <TableCell align="left" sx={totalsCellSx}>{amount(totalCreditor)}</TableCell>
                   </TableRow>
                 </TableBody>
               )}

@@ -28,10 +28,12 @@ import { useNotify } from '../../../lib/notifications/NotificationProvider';
 import { useSession } from '../../../lib/session/SessionContext';
 import { formatThousands, toPersianDigits, normalizeNumericInput } from '../../../lib/format/numbers';
 import { trialBalanceApi } from './api';
-import { emptyTotals, sumTotals } from './columns';
+import { buildColumnGroups, emptyTotals, sumTotals } from './columns';
 import { describePeriod, exportToExcel, exportToPdf, type ReportContext } from './export';
 import { TRIAL_BALANCE_PRINT_STYLES } from './printStyles';
 import { TrialBalanceTable } from './TrialBalanceTable';
+import { accountBreakdownUrl } from '../_shared/accountBreakdownLink';
+import { ColumnChooser, normalizeSortValue, sortRows, useColumnVisibility, useGridSort } from '../../../components/gridTools';
 import { ALL_ROWS, Pagination } from '../../../components/Pagination';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import {
@@ -216,7 +218,15 @@ export function TrialBalancePage() {
   const showAll = printing || pageSize === ALL_ROWS;
   const lastPage = showAll ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(pageNumber, lastPage);
-  const pageRows = showAll ? rows : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // مرتب‌سازی با سرستون روی همهٔ ردیف‌ها (پیش از صفحه‌بندی) و ستون‌های قابل نمایش (شرح و گروه‌های مبلغ).
+  const { sort, toggle: toggleSort } = useGridSort();
+  const sortedRows = useMemo(
+    () => sortRows(rows, sort, (r, key) => normalizeSortValue((r as unknown as Record<string, unknown>)[key])),
+    [rows, sort],
+  );
+  const columnGroups = buildColumnGroups(variant);
+  const visibility = useColumnVisibility(['description', 'opening', 'period', 'cumulative', 'balance'], 'grid-cols:trial-balance');
+  const pageRows = showAll ? sortedRows : sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <>
@@ -419,9 +429,25 @@ export function TrialBalancePage() {
             <Divider sx={{ mt: 1 }} />
           </Box>
 
+          <Box className="tb-no-print" sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5 }}>
+            <ColumnChooser
+              columns={[
+                { key: 'description', label: 'شرح حساب' },
+                ...columnGroups.map((g) => ({ key: g.key, label: g.label })),
+              ]}
+              visibility={visibility}
+            />
+          </Box>
           <Box className="tb-scroll">
             <TrialBalanceTable
               rows={pageRows}
+              sort={sort}
+              onSort={(key) => {
+                toggleSort(key);
+                setPageNumber(1);
+              }}
+              isColumnVisible={visibility.isVisible}
+              breakdownHref={(row) => accountBreakdownUrl(level, row.code, { from: applied.fromDate, to: applied.toDate })}
               variant={variant}
               totals={totals}
               isLoading={query.isLoading}

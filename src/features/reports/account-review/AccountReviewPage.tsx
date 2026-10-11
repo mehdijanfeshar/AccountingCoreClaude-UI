@@ -23,7 +23,6 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
@@ -53,13 +52,55 @@ import {
   ACCOUNT_REVIEW_CODING_LEVELS,
   ACCOUNT_REVIEW_LEVEL,
   ACCOUNT_REVIEW_TAFSILI_LEVELS,
+  ACCOUNT_REVIEW_UNIT_LEVELS,
   accountReviewLevelLabel,
+  isUnitDimensionLevel,
   nextAccountReviewLevel,
   type AccountReviewLevelValue,
+  type AccountReviewRow,
   type AccountReviewScopeStep,
 } from '../../../types/accountReview';
+import { getReportUnitScope } from '../_shared/reportUnitScope';
+import { parseBreakdownPath } from '../_shared/accountBreakdownLink';
+import { ColumnChooser, SortLabel, normalizeSortValue, sortRows, useColumnVisibility, useGridSort } from '../../../components/gridTools';
+import {
+  GRID_SIDES,
+  GRID_TOTAL_ROW,
+  amountCellSx,
+  frozenCell,
+  frozenHeadCell,
+  groupHeadSx,
+  groupSeparator,
+  reportGridTableSx,
+  sectionSeparator,
+  sideHeadSx,
+  totalsCellSx,
+  totalsSurfaceSx,
+  useColumnHighlight,
+  useHeaderRowHeight,
+} from '../_shared/reportGrid';
+import { useNavigate } from 'react-router-dom';
+import Menu from '@mui/material/Menu';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 
 const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 200];
+
+/** عرض ستون‌های ثابت (کد/عنوان) — مثل گزارش ماتریسی. */
+const CODE_WIDTH = 140;
+const NAME_WIDTH = 260;
+
+/** دو گروه مبلغ گرید: گردش و مانده، هر کدام بدهکار/بستانکار. */
+type AmountField = 'debtor' | 'creditor' | 'debtorBalance' | 'creditorBalance';
+const AMOUNT_GROUPS: { key: 'turnover' | 'balance'; label: string }[] = [
+  { key: 'turnover', label: 'گردش' },
+  { key: 'balance', label: 'مانده' },
+];
+/** ستون‌های بدهکار/بستانکار هر گروه. */
+const GROUP_FIELDS: Record<'turnover' | 'balance', [AmountField, AmountField]> = {
+  turnover: ['debtor', 'creditor'],
+  balance: ['debtorBalance', 'creditorBalance'],
+};
 
 /** Formats an amount with thousands separators in Persian digits. */
 function amount(value: number): string {
@@ -86,12 +127,20 @@ function amount(value: number): string {
 export function AccountReviewPage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
   const notify = useNotify();
+  const navigate = useNavigate();
+  const columnHighlight = useColumnHighlight();
+  const headerTop = useHeaderRowHeight();
+  // منوی «نمایش این ردیف به تفکیک…»
+  const [breakdownMenu, setBreakdownMenu] = useState<{ anchor: HTMLElement; row: AccountReviewRow } | null>(null);
 
   // مقدار اولیه از آدرس (گزارش با حسابیار / گزارش ذخیره‌شده)؛ بدون پارامتر همان پیش‌فرض‌های قبلی.
   const url = useReportUrlParams();
   const [level, setLevel] = useState<AccountReviewLevelValue>(() =>
     url.oneOf('level', Object.values(ACCOUNT_REVIEW_LEVEL), ACCOUNT_REVIEW_LEVEL.moin));
-  const [scope, setScope] = useState<AccountReviewScopeStep[]>([]);
+  // مسیر اولیه از آدرس (پیوند «به تفکیک استان/واحد» از تراز آزمایشی و دفتر کل): path=3:110101
+  const [scope, setScope] = useState<AccountReviewScopeStep[]>(
+    () => parseBreakdownPath(url.text('path')) as AccountReviewScopeStep[],
+  );
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [pageNumber, setPageNumber] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(ROWS_PER_PAGE_OPTIONS[0]);
@@ -153,9 +202,27 @@ export function AccountReviewPage() {
     setPageNumber(1);
   }, [level, scope, applied, codeSearch, rowsPerPage]);
 
+  // مرتب‌سازی با سرستون (روی همهٔ سطرها، پیش از صفحه‌بندی) و ستون‌های قابل نمایش.
+  const { sort, toggle: toggleSort } = useGridSort();
+  function sortBy(key: string) {
+    toggleSort(key);
+    setPageNumber(1);
+  }
+  const sortedRows = useMemo(
+    () =>
+      sortRows(rows, sort, (r, key) =>
+        key === 'code' || key === 'name' ? normalizeSortValue(r[key]) : (r[key as AmountField] ?? null),
+      ),
+    [rows, sort],
+  );
+  const visibility = useColumnVisibility(['name', ...AMOUNT_GROUPS.map((g) => g.key)], 'grid-cols:account-review');
+  const showName = visibility.isVisible('name');
+  const shownGroups = AMOUNT_GROUPS.filter((g) => visibility.isVisible(g.key));
+  const columnCount = 2 + (showName ? 1 : 0) + shownGroups.length * 2;
+
   const pagedRows = useMemo(
-    () => rows.slice((pageNumber - 1) * rowsPerPage, pageNumber * rowsPerPage),
-    [rows, pageNumber, rowsPerPage],
+    () => sortedRows.slice((pageNumber - 1) * rowsPerPage, pageNumber * rowsPerPage),
+    [sortedRows, pageNumber, rowsPerPage],
   );
 
   const totals = useMemo(() => sumAccountReviewRows(rows), [rows]);
@@ -171,8 +238,13 @@ export function AccountReviewPage() {
     [rows],
   );
   const isBalanced = totals.debtor === totals.creditor;
-  const childLevel = nextAccountReviewLevel(level);
-  const canDrill = childLevel !== null && availableLevels.includes(childLevel);
+  // تفکیک واحد: استان ⇒ (بیمه‌ای/درمانی اگر بیش از یکی هست) ⇒ واحد ⇒ سند. واحدِ کلیک‌شده همیشه به اسنادش می‌رود،
+  // حتی وقتی دامنهٔ کل چندواحدی است و «سند» در سطوح موجود نیست.
+  const childLevel =
+    level === ACCOUNT_REVIEW_LEVEL.province && !availableLevels.includes(ACCOUNT_REVIEW_LEVEL.unitCategory)
+      ? ACCOUNT_REVIEW_LEVEL.unit
+      : nextAccountReviewLevel(level);
+  const canDrill = childLevel !== null && (isUnitDimensionLevel(level) || availableLevels.includes(childLevel));
 
   const scopeLabel = crumbs.map((c) => `${c.levelLabel} ${c.code}`).join(' ← ');
 
@@ -205,23 +277,61 @@ export function AccountReviewPage() {
     setLevel(childLevel);
   }
 
+  /** ردیف سند ⇒ صفحهٔ نمایش سند؛ در دامنهٔ چندواحدی با هدر همان واحد (فقط مشاهده، مثل دفتر کل). */
+  function openVoucher(row: AccountReviewRow) {
+    if (!row.voucherId) return;
+    const otherUnit = getReportUnitScope().unitScope !== 0 && row.vahedCode;
+    navigate(`/operation/vouchers/${row.voucherId}/view${otherUnit ? `?unit=${encodeURIComponent(row.vahedCode!)}` : ''}`);
+  }
+
+  /**
+   * «این ردیف به تفکیک …» — هر ردیف (حساب، تفصیلی، استان، گروه یا واحد) را می‌توان با خانوادهٔ دیگر شکست:
+   * معین ⇒ استان‌ها ⇒ بیمه‌ای/درمانی ⇒ واحدها ⇒ اسناد، یا واحد ⇒ معین‌های همان واحد.
+   */
+  function breakdownTargets(row: AccountReviewRow): AccountReviewLevelValue[] {
+    const pinned = [...scope.map((s) => s.level), level];
+    const deepestCoding = Math.max(0, ...pinned.filter((l) => !isUnitDimensionLevel(l)));
+    const coding = [...ACCOUNT_REVIEW_CODING_LEVELS, ...ACCOUNT_REVIEW_TAFSILI_LEVELS]
+      .map((o) => o.value)
+      .filter((l) => l > deepestCoding && availableLevels.includes(l));
+    const unitPinned = pinned.includes(ACCOUNT_REVIEW_LEVEL.unit);
+    const units = [ACCOUNT_REVIEW_LEVEL.province, ACCOUNT_REVIEW_LEVEL.unitCategory, ACCOUNT_REVIEW_LEVEL.unit]
+      .filter((l) => !unitPinned && !pinned.includes(l) && availableLevels.includes(l)) as AccountReviewLevelValue[];
+    const voucher: AccountReviewLevelValue[] =
+      (unitPinned || availableLevels.includes(ACCOUNT_REVIEW_LEVEL.voucher)) && row.code ? [ACCOUNT_REVIEW_LEVEL.voucher] : [];
+    return [...units, ...voucher, ...coding];
+  }
+
+  function breakdown(row: AccountReviewRow, target: AccountReviewLevelValue) {
+    setScope((current) => [...current, { level, code: row.code }]);
+    setLevel(target);
+  }
+
   /**
    * از جزء به کل — jump to a crumb, dropping every step after it. `depth` is how many steps to
-   * keep, so 0 is the top of the report.
+   * keep, so 0 is the top of the report. سطح بعد از پرش همان سطحی است که کاربر از آن مرحله وارد شد
+   * (مسیر می‌تواند دو خانواده را در هم داشته باشد، پس «سطح + ۱» دیگر کافی نیست).
    */
   function jumpTo(depth: number) {
+    if (depth === crumbs.length && depth > 0) return;
     const kept = crumbs.slice(0, depth);
     setScope(kept.map((c) => ({ level: c.level, code: c.code })));
-    setLevel(depth === 0 ? ACCOUNT_REVIEW_LEVEL.group : ((kept[depth - 1].level + 1) as AccountReviewLevelValue));
+    setLevel(depth < crumbs.length ? crumbs[depth].level : ACCOUNT_REVIEW_LEVEL.group);
   }
 
   /**
    * Changing the level by hand keeps only the steps still shallower than it. Keeping a deeper step
    * would send a contradictory path the server rejects; clearing the whole path would silently
-   * throw away where the user is.
+   * throw away where the user is. تفکیک واحد: مراحل کدینگ می‌مانند؛ واحدِ ثابت‌شده فقط برای «سند».
    */
   function changeLevel(value: AccountReviewLevelValue) {
-    setScope((current) => current.filter((s) => s.level < value));
+    setScope((current) =>
+      current.filter((s) => {
+        if (s.level === value) return false;
+        if (isUnitDimensionLevel(value)) return value === ACCOUNT_REVIEW_LEVEL.voucher || s.level !== ACCOUNT_REVIEW_LEVEL.unit;
+        return isUnitDimensionLevel(s.level) || s.level < value;
+      }),
+    );
     setLevel(value);
   }
 
@@ -273,7 +383,7 @@ export function AccountReviewPage() {
             </Stack>
           }
         />
-        <ReportUnitScopeBar />
+        <ReportUnitScopeBar hint="مبالغ جمع همهٔ واحدهای دامنه است؛ با تفکیک استان / بیمه‌ای-درمانی / واحد تا سند پیش بروید." />
 
         {!isConfigured && (
           <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -297,7 +407,7 @@ export function AccountReviewPage() {
               startIcon={<HomeOutlinedIcon />}
               onClick={() => jumpTo(0)}
             >
-              کل واحد
+              {getReportUnitScope().unitScope !== 0 ? 'کل دامنه' : 'کل واحد'}
             </Button>
 
             {crumbs.map((crumb, index) => (
@@ -392,6 +502,27 @@ export function AccountReviewPage() {
                 </MenuItem>
               ))}
             </TextField>
+
+            <Divider flexItem orientation="vertical" sx={{ display: { xs: 'none', md: 'block' } }} />
+
+            {/* تفکیک واحد: استان ⇒ بیمه‌ای/درمانی ⇒ واحد ⇒ سند. در دامنهٔ یک واحد فقط «سند» فعال است. */}
+            <ToggleButtonGroup
+              value={isUnitDimensionLevel(level) ? level : null}
+              exclusive
+              size="small"
+              onChange={(_, value) => value && changeLevel(value)}
+            >
+              {ACCOUNT_REVIEW_UNIT_LEVELS.map((option) => (
+                <ToggleButton
+                  key={option.value}
+                  value={option.value}
+                  sx={{ px: 1.5 }}
+                  disabled={isLevelDisabled(option.value)}
+                >
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
 
             <Box sx={{ flexGrow: 1 }} />
 
@@ -554,24 +685,71 @@ export function AccountReviewPage() {
                 برای رفتن به سطح {accountReviewLevelLabel(childLevel!)} روی ردیف کلیک کنید
               </Typography>
             )}
+            <Box sx={{ flexGrow: 1 }} />
+            <ColumnChooser
+              columns={[{ key: 'name', label: 'عنوان' }, ...AMOUNT_GROUPS.map((g) => ({ key: g.key, label: g.label }))]}
+              visibility={visibility}
+            />
           </Box>
 
           {/* A bounded height with its own scrollbar at every width — otherwise a long report
               scrolls the whole page and both the sticky header and the totals row leave view. */}
           <TableContainer
+            ref={columnHighlight.ref}
+            onMouseOver={columnHighlight.onMouseOver}
+            onMouseLeave={columnHighlight.onMouseLeave}
             aria-busy={report.isFetching}
-            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+            sx={{ overflow: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
           >
-            <Table size="small" stickyHeader>
+            <Table size="small" stickyHeader sx={reportGridTableSx()}>
               <TableHead>
+                <TableRow ref={headerTop.ref}>
+                  <TableCell
+                    rowSpan={2}
+                    sx={frozenHeadCell(0, CODE_WIDTH, showName ? undefined : { borderInlineEnd: sectionSeparator })}
+                    sortDirection={sort?.key === 'code' ? sort.direction : false}
+                  >
+                    <SortLabel sortKey="code" sort={sort} onSort={sortBy}>
+                      کد {accountReviewLevelLabel(level)}
+                    </SortLabel>
+                  </TableCell>
+                  {showName && (
+                    <TableCell
+                      rowSpan={2}
+                      sx={frozenHeadCell(CODE_WIDTH, NAME_WIDTH, { borderInlineEnd: sectionSeparator })}
+                      sortDirection={sort?.key === 'name' ? sort.direction : false}
+                    >
+                      <SortLabel sortKey="name" sort={sort} onSort={sortBy}>
+                        عنوان
+                      </SortLabel>
+                    </TableCell>
+                  )}
+                  {shownGroups.map((group, index) => (
+                    <TableCell key={group.key} data-ci={index} colSpan={2} align="center" sx={groupHeadSx(index)}>
+                      {group.label}
+                    </TableCell>
+                  ))}
+                  <TableCell rowSpan={2} className="account-review-no-print" sx={{ width: 84, borderInlineStart: sectionSeparator }} />
+                </TableRow>
                 <TableRow>
-                  <TableCell sx={{ width: 140 }}>کد</TableCell>
-                  <TableCell>عنوان</TableCell>
-                  <TableCell align="left">بدهکار</TableCell>
-                  <TableCell align="left">بستانکار</TableCell>
-                  <TableCell align="left">مانده بدهکار</TableCell>
-                  <TableCell align="left">مانده بستانکار</TableCell>
-                  <TableCell className="account-review-no-print" sx={{ width: 56 }} />
+                  {shownGroups.map((group, index) =>
+                    GRID_SIDES.map((side, sideIndex) => {
+                      const field = GROUP_FIELDS[group.key][sideIndex];
+                      return (
+                        <TableCell
+                          key={`${group.key}-${side.key}`}
+                          data-ci={index}
+                          align="left"
+                          sx={sideHeadSx(side.color, { top: headerTop.height, first: sideIndex === 0 })}
+                          sortDirection={sort?.key === field ? sort.direction : false}
+                        >
+                          <SortLabel sortKey={field} sort={sort} onSort={sortBy}>
+                            {side.label}
+                          </SortLabel>
+                        </TableCell>
+                      );
+                    }),
+                  )}
                 </TableRow>
               </TableHead>
 
@@ -579,7 +757,7 @@ export function AccountReviewPage() {
                 {report.isLoading &&
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      {Array.from({ length: 7 }).map((__, j) => (
+                      {Array.from({ length: columnCount }).map((__, j) => (
                         <TableCell key={j}>
                           <Skeleton />
                         </TableCell>
@@ -589,7 +767,7 @@ export function AccountReviewPage() {
 
                 {!report.isLoading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                    <TableCell colSpan={columnCount} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                       {!isConfigured
                         ? 'سال مالی انتخاب نشده است.'
                         : codeSearch.trim()
@@ -601,27 +779,69 @@ export function AccountReviewPage() {
 
                 {!report.isLoading &&
                   pagedRows.map((row) => {
-                    const openable = canDrill && row.hasChildren;
+                    const isVoucher = level === ACCOUNT_REVIEW_LEVEL.voucher;
+                    const openable = isVoucher ? Boolean(row.voucherId) : canDrill && row.hasChildren;
+                    const targets = isVoucher ? [] : breakdownTargets(row);
                     return (
                       <TableRow
                         key={`${row.code}-${row.name}`}
-                        hover
-                        onClick={openable ? () => drillInto(row.code) : undefined}
+                        onClick={openable ? () => (isVoucher ? openVoucher(row) : drillInto(row.code)) : undefined}
                         sx={openable ? { cursor: 'pointer' } : undefined}
                       >
-                        <TableCell>
+                        <TableCell sx={{ ...frozenCell(0), ...(showName ? {} : { borderInlineEnd: sectionSeparator }) }}>
                           <MonoCode value={row.code} />
                         </TableCell>
-                        <TableCell>{row.name || '—'}</TableCell>
-                        <TableCell align="left">{amount(row.debtor)}</TableCell>
-                        <TableCell align="left">{amount(row.creditor)}</TableCell>
-                        <TableCell align="left">{amount(row.debtorBalance)}</TableCell>
-                        <TableCell align="left">{amount(row.creditorBalance)}</TableCell>
-                        <TableCell className="account-review-no-print" align="center">
+                        {showName && (
+                          <TableCell
+                            title={row.name || undefined}
+                            sx={{
+                              ...frozenCell(CODE_WIDTH),
+                              maxWidth: NAME_WIDTH,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              borderInlineEnd: sectionSeparator,
+                            }}
+                          >
+                            {row.name || '—'}
+                          </TableCell>
+                        )}
+                        {shownGroups.map((group, index) =>
+                          GROUP_FIELDS[group.key].map((field, sideIndex) => {
+                            const value = row[field];
+                            return (
+                              <TableCell
+                                key={field}
+                                data-ci={index}
+                                align="left"
+                                sx={amountCellSx(value, { band: index % 2 === 1, first: sideIndex === 0, strong: group.key === 'balance' })}
+                              >
+                                {amount(value)}
+                              </TableCell>
+                            );
+                          }),
+                        )}
+                        <TableCell
+                          className="account-review-no-print"
+                          align="center"
+                          sx={{ whiteSpace: 'nowrap', borderInlineStart: sectionSeparator }}
+                        >
                           {openable && (
-                            <Tooltip title={`نمایش سطح ${accountReviewLevelLabel(childLevel!)}`}>
+                            <Tooltip title={isVoucher ? 'نمایش سند' : `نمایش سطح ${accountReviewLevelLabel(childLevel!)}`}>
                               <IconButton size="small">
-                                <UnfoldMoreOutlinedIcon fontSize="small" />
+                                {isVoucher ? <OpenInNewOutlinedIcon fontSize="small" /> : <UnfoldMoreOutlinedIcon fontSize="small" />}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {targets.length > 0 && (
+                            <Tooltip title="نمایش این ردیف به تفکیک…">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBreakdownMenu({ anchor: e.currentTarget, row });
+                                }}
+                              >
+                                <AccountTreeOutlinedIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           )}
@@ -633,25 +853,27 @@ export function AccountReviewPage() {
 
               {rows.length > 0 && (
                 <TableBody>
-                  <TableRow
-                    sx={{
-                      '& td': {
-                        fontWeight: 700,
-                        borderTop: (theme) => `2px solid ${alpha(theme.palette.text.primary, 0.35)}`,
-                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                        position: 'sticky',
-                        bottom: 0,
-                      },
-                    }}
-                  >
-                    {/* Covers every row of the current level and path, not the visible page — the
-                        rows are all in hand, so this is never a sum of a slice. */}
-                    <TableCell colSpan={2}>جمع کل ({toPersianDigits(rows.length)} ردیف)</TableCell>
-                    <TableCell align="left">{amount(totals.debtor)}</TableCell>
-                    <TableCell align="left">{amount(totals.creditor)}</TableCell>
-                    <TableCell align="left">{amount(totals.debtorBalance)}</TableCell>
-                    <TableCell align="left">{amount(totals.creditorBalance)}</TableCell>
-                    <TableCell className="account-review-no-print" />
+                  {/* Covers every row of the current level and path, not the visible page — the
+                      rows are all in hand, so this is never a sum of a slice. */}
+                  <TableRow className={GRID_TOTAL_ROW}>
+                    <TableCell
+                      colSpan={showName ? 2 : 1}
+                      sx={{ ...totalsCellSx, ...frozenCell(0, 6), ...totalsSurfaceSx, borderInlineEnd: sectionSeparator }}
+                    >
+                      جمع کل ({toPersianDigits(rows.length)} ردیف)
+                    </TableCell>
+                    {shownGroups.flatMap((group) =>
+                      GROUP_FIELDS[group.key].map((field, i) => (
+                        <TableCell
+                          key={field}
+                          align="left"
+                          sx={{ ...totalsCellSx, borderInlineStart: i === 0 ? groupSeparator : 'none' }}
+                        >
+                          {amount(totals[field])}
+                        </TableCell>
+                      )),
+                    )}
+                    <TableCell className="account-review-no-print" sx={{ ...totalsCellSx, borderInlineStart: sectionSeparator }} />
                   </TableRow>
                 </TableBody>
               )}
@@ -659,6 +881,28 @@ export function AccountReviewPage() {
           </TableContainer>
         </Paper>
       </Box>
+
+      <Menu
+        anchorEl={breakdownMenu?.anchor ?? null}
+        open={breakdownMenu !== null}
+        onClose={() => setBreakdownMenu(null)}
+      >
+        <ListSubheader>
+          {breakdownMenu ? `${breakdownMenu.row.levelLabel} ${toPersianDigits(breakdownMenu.row.code)} به تفکیک` : ''}
+        </ListSubheader>
+        {breakdownMenu &&
+          breakdownTargets(breakdownMenu.row).map((target) => (
+            <MenuItem
+              key={target}
+              onClick={() => {
+                breakdown(breakdownMenu.row, target);
+                setBreakdownMenu(null);
+              }}
+            >
+              {accountReviewLevelLabel(target)}
+            </MenuItem>
+          ))}
+      </Menu>
 
       <Box className="account-review-no-print">
         <Pagination

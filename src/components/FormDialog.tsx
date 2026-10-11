@@ -98,8 +98,8 @@ export function FormDialog({
       <Divider />
       <Box component="form" onSubmit={onSubmit} noValidate>
         <DialogContent sx={{ pt: 3 }}>{children}</DialogContent>
-        <Divider />
-        <DialogActions sx={{ px: 3, py: 2, bgcolor: 'action.hover' }}>{actions}</DialogActions>
+        {/* خط بالا و زمینهٔ نوار دکمه‌ها از تم (MuiDialogActions) می‌آید. */}
+        <DialogActions sx={{ py: 2 }}>{actions}</DialogActions>
       </Box>
     </Dialog>
   );

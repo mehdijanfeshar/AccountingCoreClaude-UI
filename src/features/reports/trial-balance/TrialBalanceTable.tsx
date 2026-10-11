@@ -1,4 +1,7 @@
-import Box from '@mui/material/Box';
+import { Link as RouterLink } from 'react-router-dom';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import Skeleton from '@mui/material/Skeleton';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -7,8 +10,28 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { formatThousands, toPersianDigits } from '../../../lib/format/numbers';
+import type { ReactNode } from 'react';
+import { MonoCode } from '../../../components/MonoCode';
+import { SortLabel, type SortState } from '../../../components/gridTools';
 import type { TrialBalanceRow, TrialBalanceVariant } from '../../../types/trialBalance';
+import {
+  CREDIT_SIDE,
+  DEBIT_SIDE,
+  GRID_TOTAL_ROW,
+  amountCellSx,
+  frozenCell,
+  frozenHeadCell,
+  gridAmount,
+  groupHeadSx,
+  groupSeparator,
+  reportGridTableSx,
+  sectionSeparator,
+  sideHeadSx,
+  totalsCellSx,
+  totalsSurfaceSx,
+  useColumnHighlight,
+  useHeaderRowHeight,
+} from '../_shared/reportGrid';
 import { buildColumnGroups, type TrialBalanceTotals } from './columns';
 
 /**
@@ -16,14 +39,13 @@ import { buildColumnGroups, type TrialBalanceTotals } from './columns';
  * read as a wall of digits: eight money columns with identical styling, no indication of which
  * belong together.
  *
- * <para>This table is built around the one thing an accountant needs to see instantly — which pair
- * of numbers is which. Columns are grouped under a spanning header (اول دوره / گردش دوره / جمع کل /
- * مانده), each group is separated by a real vertical rule, and بدهکار/بستانکار alternate a faint
- * tint so the eye can track a pair across the row.</para>
+ * <para>طراحی گرید همان گزارش ماتریسی است (`_shared/reportGrid`): گروه‌ها زیر سرستون دوطبقه
+ * (اول دوره / گردش دوره / جمع کل / مانده)، خط رنگی بدهکار/بستانکار، کد و شرح ثابت هنگام اسکرول افقی،
+ * صلیب هاور و سطر جمع چسبان. گروه «مانده» مثل «جمع سطر» ماتریس پررنگ است.</para>
  */
 
-/** Group boundaries get a rule; the pair inside a group does not. */
-const GROUP_EDGE = '2px solid';
+const CODE_WIDTH = 128;
+const NAME_WIDTH = 240;
 
 interface Props {
   rows: TrialBalanceRow[];
@@ -31,133 +53,106 @@ interface Props {
   totals: TrialBalanceTotals;
   isLoading: boolean;
   emptyMessage: string;
+  /** پیوند «این حساب به تفکیک استان / واحد / سند» (مرور حساب‌ها). */
+  breakdownHref?: (row: TrialBalanceRow) => string;
+  /** مرتب‌سازی با سرستون — وضعیت در صفحه است چون پیش از صفحه‌بندی اعمال می‌شود. */
+  sort?: SortState | null;
+  onSort?: (key: string) => void;
+  /** ستون‌های قابل نمایش: «description» و کلید گروه‌ها (opening/period/cumulative/balance). */
+  isColumnVisible?: (key: string) => boolean;
 }
 
-function Amount({ value, bold }: { value: number | undefined; bold?: boolean }) {
-  // A zero in every unused cell is noise in a table this dense — an em dash reads as "nothing
-  // here" at a glance, where "۰" has to be read as a number first.
-  if (!value) {
-    return (
-      <Box component="span" sx={{ color: 'text.disabled' }}>
-        —
-      </Box>
+export function TrialBalanceTable({
+  rows,
+  variant,
+  totals,
+  isLoading,
+  emptyMessage,
+  breakdownHref,
+  sort = null,
+  onSort,
+  isColumnVisible = () => true,
+}: Props) {
+  const groups = buildColumnGroups(variant).filter((g) => isColumnVisible(g.key));
+  const showName = isColumnVisible('description');
+  const sortable = (key: string, label: ReactNode) =>
+    onSort ? (
+      <SortLabel sortKey={key} sort={sort} onSort={onSort}>
+        {label}
+      </SortLabel>
+    ) : (
+      label
     );
-  }
-
-  return (
-    <Box
-      component="span"
-      sx={{
-        fontVariantNumeric: 'tabular-nums',
-        fontWeight: bold ? 700 : 400,
-        letterSpacing: '0.01em',
-      }}
-    >
-      {formatThousands(value)}
-    </Box>
-  );
-}
-
-export function TrialBalanceTable({ rows, variant, totals, isLoading, emptyMessage }: Props) {
-  const groups = buildColumnGroups(variant);
   const leafColumns = groups.flatMap((g) => g.columns);
-  const totalColumnCount = leafColumns.length + 2; // + code + description
+  const totalColumnCount = leafColumns.length + 1 + (showName ? 1 : 0); // + code (+ description)
+  const columnHighlight = useColumnHighlight();
+  const headerTop = useHeaderRowHeight();
+  // گروه «مانده» مثل «جمع سطر» ماتریس پررنگ است (حتی وقتی گروهی پنهان شده).
+  const isStrong = (key: string) => key === 'balance';
 
   return (
     <TableContainer
+      ref={columnHighlight.ref}
+      onMouseOver={columnHighlight.onMouseOver}
+      onMouseLeave={columnHighlight.onMouseLeave}
       sx={{
         borderRadius: 2,
         border: 1,
         borderColor: 'divider',
         bgcolor: 'background.paper',
         maxHeight: { xs: 'none', md: '62vh' },
-        // The table is wider than the viewport once 8 money columns are on: let it scroll
-        // horizontally rather than crushing the columns into each other.
-        overflowX: 'auto',
+        overflow: 'auto',
       }}
     >
       <Table
         stickyHeader
         size="small"
         sx={{
+          ...reportGridTableSx(),
           // Sized from what the columns actually need — code + description + one width per money
           // column. An earlier, more generous figure pushed the 8-column variant past 1600px and
           // clipped the last group off the right-hand edge on a normal screen.
-          minWidth: 340 + leafColumns.length * 104,
-          '& td, & th': { borderColor: 'divider' },
+          minWidth: CODE_WIDTH + (showName ? NAME_WIDTH : 0) + leafColumns.length * 104,
         }}
       >
         <TableHead>
-          {/* Row 1 — group spans. This is the whole point of the redesign. */}
-          <TableRow>
-            <TableCell
-              rowSpan={2}
-              sx={{
-                fontWeight: 700,
-                bgcolor: 'grey.100',
-                borderInlineEnd: `${GROUP_EDGE}`,
-                borderInlineEndColor: 'divider',
-                minWidth: 120,
-              }}
-            >
-              کد حساب
+          <TableRow ref={headerTop.ref}>
+            <TableCell rowSpan={2} sx={frozenHeadCell(0, CODE_WIDTH, showName ? undefined : { borderInlineEnd: sectionSeparator })}>
+              {sortable('code', 'کد حساب')}
             </TableCell>
-            <TableCell
-              rowSpan={2}
-              sx={{
-                fontWeight: 700,
-                bgcolor: 'grey.100',
-                borderInlineEnd: `${GROUP_EDGE}`,
-                borderInlineEndColor: 'divider',
-                minWidth: 220,
-              }}
-            >
-              شرح حساب
-            </TableCell>
+            {showName && (
+              <TableCell rowSpan={2} sx={frozenHeadCell(CODE_WIDTH, NAME_WIDTH, { borderInlineEnd: sectionSeparator })}>
+                {sortable('description', 'شرح حساب')}
+              </TableCell>
+            )}
 
             {groups.map((group, index) => (
               <TableCell
                 key={group.key}
+                data-ci={index}
                 colSpan={group.columns.length}
                 align="center"
-                sx={{
-                  fontWeight: 700,
-                  color: group.tone,
-                  bgcolor: 'grey.100',
-                  borderInlineEnd:
-                    index < groups.length - 1 ? `${GROUP_EDGE}` : undefined,
-                  borderInlineEndColor: 'divider',
-                  borderBottom: 1,
-                  borderBottomColor: 'divider',
-                  whiteSpace: 'nowrap',
-                }}
+                sx={groupHeadSx(index, { strong: isStrong(group.key) })}
               >
                 {group.label}
               </TableCell>
             ))}
           </TableRow>
 
-          {/* Row 2 — بدهکار / بستانکار under each group. */}
           <TableRow>
             {groups.map((group, groupIndex) =>
               group.columns.map((column, columnIndex) => (
                 <TableCell
                   key={column.key}
+                  data-ci={groupIndex}
                   align="left"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    color: 'text.secondary',
-                    bgcolor: 'grey.50',
-                    whiteSpace: 'nowrap',
-                    borderInlineEnd:
-                      columnIndex === group.columns.length - 1 && groupIndex < groups.length - 1
-                        ? `${GROUP_EDGE}`
-                        : undefined,
-                    borderInlineEndColor: 'divider',
-                  }}
+                  sx={sideHeadSx((columnIndex === 0 ? DEBIT_SIDE : CREDIT_SIDE).color, {
+                    top: headerTop.height,
+                    first: columnIndex === 0,
+                    strong: isStrong(group.key),
+                  })}
                 >
-                  {column.shortHeader}
+                  {sortable(column.key, column.shortHeader)}
                 </TableCell>
               )),
             )}
@@ -188,62 +183,60 @@ export function TrialBalanceTable({ rows, variant, totals, isLoading, emptyMessa
 
           {!isLoading &&
             rows.map((row) => (
-              <TableRow
-                key={row.code}
-                hover
-                sx={{
-                  // Zebra striping earns its keep at this width: it is what stops the eye from
-                  // sliding onto the wrong row halfway across eight numeric columns.
-                  '&:nth-of-type(odd)': { bgcolor: 'grey.50' },
-                }}
-              >
-                <TableCell
-                  sx={{
-                    // Tabular figures in the app font, not `monospace`: monospace fonts carry no
-                    // Persian digits, so the code fell back to a mismatched system face.
-                    fontVariantNumeric: 'tabular-nums lining-nums',
-                    fontWeight: 600,
-                    letterSpacing: '0.02em',
-                    whiteSpace: 'nowrap',
-                    borderInlineEnd: `${GROUP_EDGE}`,
-                    borderInlineEndColor: 'divider',
-                  }}
-                >
-                  {toPersianDigits(row.code)}
+              <TableRow key={row.code}>
+                <TableCell sx={{ ...frozenCell(0), ...(showName ? {} : { borderInlineEnd: sectionSeparator }) }}>
+                  <MonoCode value={row.code} />
                 </TableCell>
+                {showName && (
                 <TableCell
+                  title={row.description ?? undefined}
                   sx={{
-                    borderInlineEnd: `${GROUP_EDGE}`,
-                    borderInlineEndColor: 'divider',
+                    ...frozenCell(CODE_WIDTH),
+                    maxWidth: NAME_WIDTH,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    borderInlineEnd: sectionSeparator,
                   }}
                 >
+                  {breakdownHref && (
+                    <Tooltip title="این حساب به تفکیک استان / واحد / سند">
+                      <IconButton
+                        className="tb-no-print"
+                        size="small"
+                        component={RouterLink}
+                        to={breakdownHref(row)}
+                        sx={{ ml: 0.5, p: 0.25 }}
+                      >
+                        <AccountTreeOutlinedIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   {row.description ?? (
                     <Typography component="span" variant="body2" sx={{ color: 'text.disabled' }}>
                       بدون شرح
                     </Typography>
                   )}
                 </TableCell>
+                )}
 
                 {groups.map((group, groupIndex) =>
-                  group.columns.map((column, columnIndex) => (
-                    <TableCell
-                      key={column.key}
-                      align="left"
-                      sx={{
-                        whiteSpace: 'nowrap',
-                        // The faint tint on the بستانکار half of each pair is what makes a pair
-                        // readable as a pair rather than as two unrelated numbers.
-                        bgcolor: columnIndex % 2 === 1 ? 'action.hover' : undefined,
-                        borderInlineEnd:
-                          columnIndex === group.columns.length - 1 && groupIndex < groups.length - 1
-                            ? `${GROUP_EDGE}`
-                            : undefined,
-                        borderInlineEndColor: 'divider',
-                      }}
-                    >
-                      <Amount value={column.get(row)} />
-                    </TableCell>
-                  )),
+                  group.columns.map((column, columnIndex) => {
+                    const value = column.get(row);
+                    return (
+                      <TableCell
+                        key={column.key}
+                        data-ci={groupIndex}
+                        align="left"
+                        sx={amountCellSx(value, {
+                          band: groupIndex % 2 === 1,
+                          first: columnIndex === 0,
+                          strong: isStrong(group.key),
+                        })}
+                      >
+                        {gridAmount(value)}
+                      </TableCell>
+                    );
+                  }),
                 )}
               </TableRow>
             ))}
@@ -252,42 +245,23 @@ export function TrialBalanceTable({ rows, variant, totals, isLoading, emptyMessa
         {!isLoading && rows.length > 0 && (
           <TableBody>
             {/* The totals row belongs inside the table, not in a separate panel below it: an
-                accountant reads down a column to its total, and a gap breaks that. The double
-                top rule is the conventional accounting marker for a summed line. */}
-            <TableRow
-              sx={{
-                position: 'sticky',
-                bottom: 0,
-                bgcolor: 'grey.100',
-                '& td': {
-                  borderTop: '3px double',
-                  borderTopColor: 'text.secondary',
-                  fontWeight: 700,
-                },
-              }}
-            >
+                accountant reads down a column to its total, and a gap breaks that. */}
+            <TableRow className={GRID_TOTAL_ROW}>
               <TableCell
-                colSpan={2}
-                sx={{ borderInlineEnd: `${GROUP_EDGE}`, borderInlineEndColor: 'divider' }}
+                colSpan={showName ? 2 : 1}
+                sx={{ ...totalsCellSx, ...frozenCell(0, 6), ...totalsSurfaceSx, borderInlineEnd: sectionSeparator }}
               >
-                جمع کل ({toPersianDigits(rows.length)} حساب)
+                جمع کل ({gridAmount(rows.length)} حساب)
               </TableCell>
 
-              {groups.map((group, groupIndex) =>
+              {groups.map((group) =>
                 group.columns.map((column, columnIndex) => (
                   <TableCell
                     key={column.key}
                     align="left"
-                    sx={{
-                      whiteSpace: 'nowrap',
-                      borderInlineEnd:
-                        columnIndex === group.columns.length - 1 && groupIndex < groups.length - 1
-                          ? `${GROUP_EDGE}`
-                          : undefined,
-                      borderInlineEndColor: 'divider',
-                    }}
+                    sx={{ ...totalsCellSx, borderInlineStart: columnIndex === 0 ? groupSeparator : 'none' }}
                   >
-                    <Amount value={column.total(totals)} bold />
+                    {gridAmount(column.total(totals))}
                   </TableCell>
                 )),
               )}

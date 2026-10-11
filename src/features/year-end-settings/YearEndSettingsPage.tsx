@@ -97,7 +97,18 @@ export function YearEndSettingsPage() {
 }
 
 /** A read-only field that opens the shared account picker; the picker searches the whole chart. */
-function AccountPickField({ label, value, onPick }: { label: string; value: AccountCodeDto | null; onPick: (a: AccountCodeDto) => void }) {
+/** پیش‌فرض فقط معین (حساب رابط همیشه معین است)؛ با چند سطح ⇒ تب‌های گروه / کل / معین. */
+function AccountPickField({
+  label,
+  value,
+  onPick,
+  levels = [3],
+}: {
+  label: string;
+  value: AccountCodeDto | null;
+  onPick: (a: AccountCodeDto) => void;
+  levels?: (1 | 2 | 3)[];
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -110,7 +121,7 @@ function AccountPickField({ label, value, onPick }: { label: string; value: Acco
         slotProps={{ input: { readOnly: true, endAdornment: <SearchOutlinedIcon fontSize="small" color="action" /> } }}
         sx={{ minWidth: 280, '& input': { cursor: 'pointer' } }}
       />
-      <AccountCodePickerDialog open={open} title={label} onClose={() => setOpen(false)} onSelect={onPick} />
+      <AccountCodePickerDialog open={open} title={label} levels={levels} onClose={() => setOpen(false)} onSelect={onPick} />
     </>
   );
 }
@@ -198,10 +209,13 @@ function InterfacesTab({ accountById }: { accountById: Map<string, AccountCodeDt
         confirmLabel="حذف"
         confirmColor="error"
         pending={del.mutation.isPending}
+        error={del.mutation.isError ? del.mutation.error : undefined}
         onConfirm={() => del.target && del.mutation.mutate(del.target)}
-        onCancel={() => del.setTarget(null)}
+        onCancel={() => {
+          del.setTarget(null);
+          del.mutation.reset();
+        }}
       />
-      {del.mutation.isError && <ErrorBanner error={del.mutation.error} />}
     </Stack>
   );
 }
@@ -223,6 +237,7 @@ function RabetClosingTab({ vahedTypes }: { vahedTypes: { id: string; typeName: s
       render: (r) => (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <span>{accountText({ accCode: r.accCode, accCodeName: r.accName })}</span>
+          {r.level === 1 && <Chip size="small" variant="outlined" label="گروه: همهٔ معین‌های زیرش" />}
           {r.level === 2 && <Chip size="small" variant="outlined" label="کل: همهٔ معین‌های زیرش" />}
         </Stack>
       ),
@@ -268,10 +283,13 @@ function RabetClosingTab({ vahedTypes }: { vahedTypes: { id: string; typeName: s
         confirmLabel="حذف"
         confirmColor="error"
         pending={del.mutation.isPending}
+        error={del.mutation.isError ? del.mutation.error : undefined}
         onConfirm={() => del.target && del.mutation.mutate(del.target)}
-        onCancel={() => del.setTarget(null)}
+        onCancel={() => {
+          del.setTarget(null);
+          del.mutation.reset();
+        }}
       />
-      {del.mutation.isError && <ErrorBanner error={del.mutation.error} />}
     </Stack>
   );
 }
@@ -319,7 +337,7 @@ function RabetClosingDialog({
             </Box>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>حساب‌ها (کل یا معین گروه ۶، ۷، ۸)</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>حساب‌ها (گروه، کل یا معین — گروه و کل به همهٔ معین‌های زیرشان می‌رسند)</Typography>
             <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
               {accountsPicked.map((a) => (
                 <Chip key={a.id} label={accountText(a)} onDelete={() => setAccountsPicked((list) => list.filter((x) => x.id !== a.id))} />
@@ -330,7 +348,7 @@ function RabetClosingDialog({
             </Stack>
           </Box>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <AccountPickField label="حساب رابط (معین)" value={rabet} onPick={setRabet} />
+            <AccountPickField label="حساب رابط (معین)" value={rabet} onPick={setRabet} levels={[3]} />
             <TextField size="small" label="عنوان" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth slotProps={{ htmlInput: { maxLength: 200 } }} />
           </Stack>
           {create.isError && <ErrorBanner error={create.error} />}
@@ -338,6 +356,7 @@ function RabetClosingDialog({
         <AccountCodePickerDialog
           open={pickerOpen}
           title="افزودن حساب"
+          levels={[1, 2, 3]}
           onClose={() => setPickerOpen(false)}
           onSelect={(a) => setAccountsPicked((list) => (list.some((x) => x.id === a.id) ? list : [...list, a]))}
         />
@@ -390,7 +409,7 @@ function ExceptionsTab({
       </Typography>
       <Paper variant="outlined" component="form" onSubmit={submit} sx={{ p: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' } }}>
-          <AccountPickField label="حساب" value={account} onPick={setAccount} />
+          <AccountPickField label="حساب" value={account} onPick={setAccount} levels={[1, 2, 3]} />
           <TextField select size="small" label="نوع واحد" value={typeId} onChange={(e) => setTypeId(e.target.value)} sx={{ minWidth: 220 }}>
             {vahedTypes.map((t) => (
               <MenuItem key={t.id} value={t.id}>{t.typeName ?? t.typeCode ?? '—'}</MenuItem>
@@ -411,10 +430,13 @@ function ExceptionsTab({
         confirmLabel="حذف"
         confirmColor="error"
         pending={del.mutation.isPending}
+        error={del.mutation.isError ? del.mutation.error : undefined}
         onConfirm={() => del.target && del.mutation.mutate(del.target)}
-        onCancel={() => del.setTarget(null)}
+        onCancel={() => {
+          del.setTarget(null);
+          del.mutation.reset();
+        }}
       />
-      {del.mutation.isError && <ErrorBanner error={del.mutation.error} />}
     </Stack>
   );
 }

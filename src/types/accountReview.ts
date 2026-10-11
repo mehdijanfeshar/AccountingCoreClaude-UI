@@ -15,6 +15,10 @@ export interface AccountReviewRow {
    * lands on an empty table reads as a broken report.
    */
   hasChildren: boolean;
+  /** سطح «واحد» و «سند»: کد واحد ردیف. */
+  vahedCode?: string | null;
+  /** سطح «سند»: شناسهٔ سرسند برای باز کردن صفحهٔ نمایش سند. */
+  voucherId?: string | null;
 }
 
 /**
@@ -32,6 +36,11 @@ export const ACCOUNT_REVIEW_LEVEL = {
   tafsili5: 8,
   tafsili6: 9,
   tafsili7: 10,
+  // تفکیک واحد — خانوادهٔ دوم، مستقل از کدینگ؛ با مسیر کدینگ قابل ترکیب.
+  province: 11,
+  unitCategory: 12,
+  unit: 13,
+  voucher: 14,
 } as const;
 
 export type AccountReviewLevelValue = (typeof ACCOUNT_REVIEW_LEVEL)[keyof typeof ACCOUNT_REVIEW_LEVEL];
@@ -57,7 +66,23 @@ export const ACCOUNT_REVIEW_TAFSILI_LEVELS: { value: AccountReviewLevelValue; la
   { value: ACCOUNT_REVIEW_LEVEL.tafsili7, label: 'تفصیلی ۷' },
 ];
 
-export const ACCOUNT_REVIEW_ALL_LEVELS = [...ACCOUNT_REVIEW_CODING_LEVELS, ...ACCOUNT_REVIEW_TAFSILI_LEVELS];
+/** تفکیک واحد: از کل کشور به استان، گروه (بیمه‌ای/درمانی/ستادی)، واحد و در نهایت سند. */
+export const ACCOUNT_REVIEW_UNIT_LEVELS: { value: AccountReviewLevelValue; label: string }[] = [
+  { value: ACCOUNT_REVIEW_LEVEL.province, label: 'استان' },
+  { value: ACCOUNT_REVIEW_LEVEL.unitCategory, label: 'بیمه‌ای / درمانی' },
+  { value: ACCOUNT_REVIEW_LEVEL.unit, label: 'واحد' },
+  { value: ACCOUNT_REVIEW_LEVEL.voucher, label: 'سند' },
+];
+
+export function isUnitDimensionLevel(level: AccountReviewLevelValue): boolean {
+  return level >= ACCOUNT_REVIEW_LEVEL.province;
+}
+
+export const ACCOUNT_REVIEW_ALL_LEVELS = [
+  ...ACCOUNT_REVIEW_CODING_LEVELS,
+  ...ACCOUNT_REVIEW_TAFSILI_LEVELS,
+  ...ACCOUNT_REVIEW_UNIT_LEVELS,
+];
 
 export function accountReviewLevelLabel(value: AccountReviewLevelValue): string {
   return ACCOUNT_REVIEW_ALL_LEVELS.find((o) => o.value === value)?.label ?? '—';
@@ -109,5 +134,8 @@ export interface AccountReviewParams {
  * by construction.
  */
 export function nextAccountReviewLevel(level: AccountReviewLevelValue): AccountReviewLevelValue | null {
+  if (isUnitDimensionLevel(level)) {
+    return level < ACCOUNT_REVIEW_LEVEL.voucher ? ((level + 1) as AccountReviewLevelValue) : null;
+  }
   return level < ACCOUNT_REVIEW_LEVEL.tafsili7 ? ((level + 1) as AccountReviewLevelValue) : null;
 }

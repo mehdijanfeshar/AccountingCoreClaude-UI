@@ -176,7 +176,6 @@ export function FsCheckRulesPage() {
         }
       />
       {listQuery.isError && <ErrorBanner error={listQuery.error} />}
-      {deleteMutation.isError && <ErrorBanner error={deleteMutation.error} />}
       <Tabs value={framework} onChange={(_, v: FsFrameworkValue) => setFramework(v)} sx={{ mb: 2 }}>
         {FS_FRAMEWORK_OPTIONS.map((o) => (
           <Tab key={o.value} value={o.value} label={o.label} />
@@ -283,7 +282,11 @@ export function FsCheckRulesPage() {
         title="حذف قاعدهٔ کنترل"
         description={pendingDelete ? `قاعدهٔ «${pendingDelete.code} — ${pendingDelete.titleFa}» حذف می‌شود.` : undefined}
         pending={deleteMutation.isPending}
-        onCancel={() => setPendingDelete(null)}
+        error={deleteMutation.isError ? deleteMutation.error : undefined}
+        onCancel={() => {
+          setPendingDelete(null);
+          deleteMutation.reset();
+        }}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete)}
       />
     </section>

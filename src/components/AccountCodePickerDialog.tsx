@@ -7,6 +7,8 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import { DataTable, type DataTableColumn } from './DataTable';
 import { Pagination } from './Pagination';
 import { ErrorBanner } from './ErrorBanner';
@@ -36,7 +38,16 @@ interface AccountCodePickerDialogProps {
    * `undefined` = همهٔ حساب‌ها (مثلاً انتخاب حساب والد در کدینگ).
    */
   voucherEntry?: { dateDoc: string };
+  /**
+   * سطح‌های کدینگ قابل انتخاب (۱ گروه، ۲ کل، ۳ معین) — فیلتر سمت سرور. بیش از یکی ⇒ تب‌ها، پیش‌فرض آخرین.
+   * `undefined` = همهٔ سطح‌ها با هم (رفتار قبلی).
+   */
+  levels?: AccountLevel[];
 }
+
+type AccountLevel = 1 | 2 | 3;
+
+const ACCOUNT_LEVEL_LABELS: Record<AccountLevel, string> = { 1: 'گروه', 2: 'کل', 3: 'معین' };
 
 /**
  * Shared paginated picker for `TB_ACCOUNTCODE` rows — used both for "کد حساب والد" on the
@@ -55,7 +66,10 @@ export function AccountCodePickerDialog({
   excludeId,
   filterRows,
   voucherEntry,
+  levels,
 }: AccountCodePickerDialogProps) {
+  // سطح کدینگ: با چند سطح ⇒ تب (پیش‌فرض آخرین، معمولاً معین)؛ با یک سطح ⇒ فقط همان، بی‌تب.
+  const [level, setLevel] = useState<AccountLevel | undefined>(() => levels?.[levels.length - 1]);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [searchText, setSearchText] = useState('');
@@ -71,11 +85,11 @@ export function AccountCodePickerDialog({
   }, [searchText]);
 
   const query = useQuery({
-    queryKey: ['account-codes-picker', pageNumber, pageSize, search, voucherEntry?.dateDoc ?? null],
+    queryKey: ['account-codes-picker', pageNumber, pageSize, search, voucherEntry?.dateDoc ?? null, level ?? null],
     queryFn: () =>
       voucherEntry
         ? accountCodesApi.entryMoins({ pageNumber, pageSize, search: search || undefined, dateDoc: voucherEntry.dateDoc })
-        : accountCodesApi.list({ pageNumber, pageSize, search: search || undefined }),
+        : accountCodesApi.list({ pageNumber, pageSize, search: search || undefined, typeCode: level }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -113,6 +127,20 @@ export function AccountCodePickerDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{title}</DialogTitle>
+      {levels && levels.length > 1 && (
+        <Tabs
+          value={level}
+          onChange={(_, value: AccountLevel) => {
+            setLevel(value);
+            setPageNumber(1);
+          }}
+          sx={{ px: 2, borderBottom: 1, borderColor: 'divider' }}
+        >
+          {levels.map((l) => (
+            <Tab key={l} value={l} label={ACCOUNT_LEVEL_LABELS[l]} />
+          ))}
+        </Tabs>
+      )}
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <TextField

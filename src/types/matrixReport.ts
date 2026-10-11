@@ -23,6 +23,10 @@ export const MATRIX_DIMENSION = {
   tafsili5: 8,
   tafsili6: 9,
   tafsili7: 10,
+  // تفکیک واحد — سرور از VAHEDCODE و جدول واحد/شهر/استان می‌سازد.
+  province: 11,
+  unitCategory: 12,
+  unit: 13,
 } as const;
 
 export type MatrixDimensionValue =
@@ -49,7 +53,15 @@ export const MATRIX_TAFSILI_DIMENSIONS: { value: MatrixDimensionValue; label: st
   { value: MATRIX_DIMENSION.tafsili7, label: 'تفصیلی ۷' },
 ];
 
+/** مثلاً «معین × استان» یا «استان × بیمه‌ای/درمانی». */
+export const MATRIX_UNIT_DIMENSIONS: { value: MatrixDimensionValue; label: string }[] = [
+  { value: MATRIX_DIMENSION.province, label: 'استان' },
+  { value: MATRIX_DIMENSION.unitCategory, label: 'بیمه‌ای / درمانی' },
+  { value: MATRIX_DIMENSION.unit, label: 'واحد' },
+];
+
 export const MATRIX_ALL_DIMENSIONS = [
+  ...MATRIX_UNIT_DIMENSIONS,
   ...MATRIX_CODING_DIMENSIONS,
   ...MATRIX_TAFSILI_DIMENSIONS,
 ];

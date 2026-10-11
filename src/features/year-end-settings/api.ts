@@ -24,7 +24,7 @@ export interface RabetClosingDto {
   year: string | null;
   vahedTypeId: string;
   vahedTypeName: string | null;
-  level: 2 | 3 | null;
+  level: 1 | 2 | 3 | null;
   accountId: string | null;
   accCode: string | null;
   accName: string | null;

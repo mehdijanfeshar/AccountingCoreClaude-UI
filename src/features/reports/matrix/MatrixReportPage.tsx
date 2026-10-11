@@ -44,11 +44,13 @@ import { matrixReportApi } from './api';
 import { exportMatrixToExcel, exportMatrixToPdf } from './export';
 import { MATRIX_REPORT_PRINT_STYLES } from './printStyles';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
+import { SortLabel, normalizeSortValue, sortRows, useGridSort } from '../../../components/gridTools';
 import {
   MATRIX_ALL_DIMENSIONS,
   MATRIX_CODING_DIMENSIONS,
   MATRIX_DIMENSION,
   MATRIX_TAFSILI_DIMENSIONS,
+  MATRIX_UNIT_DIMENSIONS,
   cellsByColumn,
   matrixDimensionLabel,
   type MatrixDimensionValue,
@@ -330,9 +332,27 @@ export function MatrixReportPage() {
     setPageNumber(1);
   }, [rowDimension, columnDimension, applied, rowsPerPage]);
 
+  // مرتب‌سازی سطرها با سرستون: کد، عنوان، جمع سطر، یا بدهکار/بستانکار هر ستون (کلید «کدستون|side»).
+  const { sort, toggle: toggleSortRaw } = useGridSort();
+  function toggleSort(key: string) {
+    toggleSortRaw(key);
+    setPageNumber(1);
+  }
+  const sortedRows = useMemo(
+    () =>
+      sortRows(rows, sort, (r, key) => {
+        if (key === 'code' || key === 'name') return normalizeSortValue(r[key]);
+        if (key === 'debtor' || key === 'creditor') return r[key];
+        const [columnCode, side] = key.split('|');
+        const cell = r.cells.find((c) => c.columnCode === columnCode);
+        return cell ? cell[side as 'debtor' | 'creditor'] : 0;
+      }),
+    [rows, sort],
+  );
+
   const pagedRows = useMemo(
-    () => rows.slice((pageNumber - 1) * rowsPerPage, pageNumber * rowsPerPage),
-    [rows, pageNumber, rowsPerPage],
+    () => sortedRows.slice((pageNumber - 1) * rowsPerPage, pageNumber * rowsPerPage),
+    [sortedRows, pageNumber, rowsPerPage],
   );
 
   // Layout effect, not a plain one: the offset is read and applied before paint, so the header
@@ -473,6 +493,12 @@ export function MatrixReportPage() {
         ))}
         <ListSubheader>سطوح تفصیلی</ListSubheader>
         {MATRIX_TAFSILI_DIMENSIONS.map((option) => (
+          <MenuItem key={option.value} value={option.value}>
+            {option.label}
+          </MenuItem>
+        ))}
+        <ListSubheader>تفکیک واحد</ListSubheader>
+        {MATRIX_UNIT_DIMENSIONS.map((option) => (
           <MenuItem key={option.value} value={option.value}>
             {option.label}
           </MenuItem>
@@ -776,7 +802,9 @@ export function MatrixReportPage() {
                       minWidth: CODE_COLUMN_WIDTH,
                     }}
                   >
-                    کد {rowLabel}
+                    <SortLabel sortKey="code" sort={sort} onSort={toggleSort}>
+                      کد {rowLabel}
+                    </SortLabel>
                   </TableCell>
                   <TableCell
                     rowSpan={2}
@@ -788,7 +816,9 @@ export function MatrixReportPage() {
                       borderInlineEnd: sectionSeparator,
                     }}
                   >
-                    عنوان {rowLabel}
+                    <SortLabel sortKey="name" sort={sort} onSort={toggleSort}>
+                      عنوان {rowLabel}
+                    </SortLabel>
                   </TableCell>
 
                   {columns.map((column, index) => (
@@ -862,7 +892,9 @@ export function MatrixReportPage() {
                           color: 'text.secondary',
                         }}
                       >
-                        {side.label}
+                        <SortLabel sortKey={`${column.code}|${side.key}`} sort={sort} onSort={toggleSort}>
+                          {side.label}
+                        </SortLabel>
                       </TableCell>
                     )),
                   )}
@@ -882,7 +914,9 @@ export function MatrixReportPage() {
                         fontWeight: 700,
                       }}
                     >
-                      {side.label}
+                      <SortLabel sortKey={side.key} sort={sort} onSort={toggleSort}>
+                        {side.label}
+                      </SortLabel>
                     </TableCell>
                   ))}
                 </TableRow>

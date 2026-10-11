@@ -15,7 +15,6 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
-import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import PivotTableChartOutlinedIcon from '@mui/icons-material/PivotTableChartOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
@@ -141,7 +140,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <AdminPanelSettingsOutlinedIcon fontSize="small" />,
         setadOnly: true,
       },
-      { label: 'سال مالی', icon: <EventOutlinedIcon fontSize="small" /> },
+      {
+        label: 'سال مالی',
+        description: 'ایجاد سال مالی تازه در فروردین — فقط ستاد مرکزی',
+        to: '/base/financial-years',
+        icon: <EventOutlinedIcon fontSize="small" />,
+        setadOnly: true,
+      },
     ],
   },
   {
@@ -292,7 +297,6 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/reports/attribute-accounts',
         icon: <RuleOutlinedIcon fontSize="small" />,
       },
-      { label: 'ترازنامه', icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
       {
         label: 'گزارش ماتریسی',
         description: 'تقاطع دو بُعد — یکی روی سطر، یکی روی ستون، با بدهکار/بستانکار در هر خانه',

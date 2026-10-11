@@ -129,10 +129,13 @@ export function ElamRabetsTab({ accountById, accountText, AccountPickField, Dele
         confirmLabel="حذف"
         confirmColor="error"
         pending={remove.isPending}
+        error={remove.isError ? remove.error : undefined}
         onConfirm={() => deleteId && remove.mutate(deleteId)}
-        onCancel={() => setDeleteId(null)}
+        onCancel={() => {
+          setDeleteId(null);
+          remove.reset();
+        }}
       />
-      {remove.isError && <ErrorBanner error={remove.error} />}
     </Stack>
   );
 }

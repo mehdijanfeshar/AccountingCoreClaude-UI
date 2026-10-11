@@ -10,8 +10,21 @@ import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import TableSortLabel from '@mui/material/TableSortLabel';
+import { ColumnChooser, sortRows, sortValueFromNode, useColumnVisibility, useGridSort, type SortValue } from './gridTools';
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, lighten, type Theme } from '@mui/material/styles';
+import {
+  CREDIT_SIDE,
+  DEBIT_SIDE,
+  frozenCell,
+  frozenHeadCell,
+  groupSeparator,
+  reportGridTableSx,
+  sectionSeparator,
+  sideHeadSx,
+  useColumnHighlight,
+} from '../features/reports/_shared/reportGrid';
 import { ALL_ROWS, Pagination, PAGE_SIZE_OPTIONS } from './Pagination';
 
 /**
@@ -43,6 +56,17 @@ export interface DataTableColumn<TRow> {
   width?: number | string;
   /** Faint background on header and cells, to read adjacent columns as one group (e.g. a debit/credit pair). */
   tinted?: boolean;
+  /** گرید گزارشی (`variant="report"`): خط رنگی سری زیر سرستون بدهکار/بستانکار. */
+  side?: 'debtor' | 'creditor';
+  /** گرید گزارشی: ستون ثابت ابتدای سطر هنگام اسکرول افقی (فقط با `width` عددی، از ابتدا و پشت سر هم). */
+  frozen?: boolean;
+  /**
+   * مقدار مرتب‌سازی ستون. بدون آن از خروجی `render` گرفته می‌شود (متن، عدد، یا `value`/`label`/متنِ عنصر —
+   * `gridTools.sortValueFromNode`)؛ فقط وقتی render چیز قابل مقایسه‌ای نمی‌دهد لازم است.
+   */
+  sortValue?: (row: TRow) => SortValue;
+  /** `false` = سرستون قابل کلیک برای مرتب‌سازی نیست. */
+  sortable?: boolean;
 }
 
 interface DataTableProps<TRow> {
@@ -68,6 +92,15 @@ interface DataTableProps<TRow> {
    * smallest page size, so a three-row lookup table does not grow a «صفحه ۱ از ۱» footer.
    */
   pageable?: boolean;
+  /**
+   * `report` = طراحی گرید گزارش ماتریسی (`features/reports/_shared/reportGrid`): راه‌راه و نوار کم‌رنگ،
+   * صلیب هاور سطر و ستون، خط رنگی بدهکار/بستانکار، ستون‌های ثابت. پیش‌فرض همان فهرست ساده.
+   */
+  variant?: 'list' | 'report';
+  /** دکمهٔ «ستون‌ها» بالای گرید (پیش‌فرض: وقتی بیش از دو ستون عنوان‌دار هست). */
+  columnChooser?: boolean;
+  /** کلید ذخیرهٔ ستون‌های پنهان؛ پیش‌فرض مسیر صفحه + کلید ستون‌ها. */
+  storageKey?: string;
 }
 
 /**
@@ -86,8 +119,8 @@ interface DataTableProps<TRow> {
  * which need real sorting and column virtualization. This is a flat-list renderer.
  */
 export function DataTable<TRow>({
-  columns,
-  rows,
+  columns: allColumns,
+  rows: unsortedRows,
   getRowKey,
   isLoading,
   emptyMessage = 'داده‌ای برای نمایش وجود ندارد.',
@@ -97,7 +130,68 @@ export function DataTable<TRow>({
   isRowHighlighted,
   pageable = true,
   minWidth,
+  variant = 'list',
+  columnChooser,
+  storageKey,
 }: DataTableProps<TRow>) {
+  const report = variant === 'report';
+  const columnHighlight = useColumnHighlight();
+
+  // انتخاب ستون: ستون‌های بی‌عنوان (عملیات) همیشه می‌مانند و در فهرست نیستند.
+  const choosable = allColumns.filter((c) => c.header.trim() !== '').map((c) => ({ key: c.key, label: c.header }));
+  const visibility = useColumnVisibility(
+    allColumns.map((c) => c.key),
+    storageKey,
+  );
+  const showChooser = columnChooser ?? choosable.length > 2;
+  const columns = allColumns.filter((c) => c.header.trim() === '' || visibility.isVisible(c.key));
+
+  // مرتب‌سازی با کلیک سرستون: صعودی ← نزولی ← ترتیب اصلی.
+  const { sort, toggle: toggleSort } = useGridSort();
+  const valueOf = (row: TRow, key: string): SortValue => {
+    const col = allColumns.find((c) => c.key === key);
+    if (!col) return null;
+    return col.sortValue ? col.sortValue(row) : sortValueFromNode(col.render(row));
+  };
+  const isSortable = (col: DataTableColumn<TRow>) =>
+    col.sortable !== false &&
+    col.header.trim() !== '' &&
+    (!!col.sortValue || unsortedRows.slice(0, 20).some((r) => sortValueFromNode(col.render(r)) !== null));
+  // بدون memo: ستون‌ها در هر رندر تازه ساخته می‌شوند و render آن‌ها ممکن است به state صفحه وابسته باشد.
+  const rows = sortRows(unsortedRows, sort, valueOf);
+
+  // ستون‌های ثابت گرید گزارشی: offset هر کدام = جمع عرض ستون‌های ثابت قبلی.
+  const frozenOffsets = new Map<string, number>();
+  if (report) {
+    let offset = 0;
+    for (const col of columns) {
+      if (!col.frozen || typeof col.width !== 'number') break;
+      frozenOffsets.set(col.key, offset);
+      offset += col.width;
+    }
+  }
+  const lastFrozenKey = [...frozenOffsets.keys()].at(-1);
+
+  function reportHeadSx(col: DataTableColumn<TRow>) {
+    if (!report) return {};
+    const offset = frozenOffsets.get(col.key);
+    return {
+      ...(offset !== undefined ? frozenHeadCell(offset, col.width as number) : {}),
+      ...(col.key === lastFrozenKey ? { borderInlineEnd: sectionSeparator } : {}),
+      ...(col.side ? sideHeadSx(col.side === 'debtor' ? DEBIT_SIDE.color : CREDIT_SIDE.color, { first: col.side === 'debtor' }) : {}),
+    };
+  }
+
+  function reportCellSx(col: DataTableColumn<TRow>) {
+    if (!report) return {};
+    const offset = frozenOffsets.get(col.key);
+    return {
+      ...(offset !== undefined ? frozenCell(offset) : {}),
+      ...(col.key === lastFrozenKey ? { borderInlineEnd: sectionSeparator } : {}),
+      ...(col.side === 'debtor' ? { borderInlineStart: groupSeparator } : {}),
+      ...(col.align === 'end' ? { fontVariantNumeric: 'tabular-nums' } : {}),
+    };
+  }
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const showPager = pageable && !isLoading && rows.length > PAGE_SIZE_OPTIONS[0];
@@ -114,12 +208,29 @@ export function DataTable<TRow>({
 
   return (
     <>
+      {(showChooser || (sort && !pageable)) && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'flex-end', mb: 0.5, minHeight: 32 }}>
+          {sort && !pageable && (
+            <Typography variant="caption" color="text.secondary">
+              مرتب‌سازی فقط در همین صفحه
+            </Typography>
+          )}
+          {showChooser && <ColumnChooser columns={choosable} visibility={visibility} />}
+        </Stack>
+      )}
       <TableContainer
         component={Paper}
         variant="outlined"
-        sx={{ maxHeight: { xs: 'none', md: '68vh' }, overflowX: 'auto' }}
+        {...(report
+          ? { ref: columnHighlight.ref, onMouseOver: columnHighlight.onMouseOver, onMouseLeave: columnHighlight.onMouseLeave }
+          : {})}
+        sx={{ maxHeight: { xs: 'none', md: '68vh' }, overflow: report ? 'auto' : undefined, overflowX: 'auto' }}
       >
-        <Table stickyHeader size="small" sx={minWidth ? { minWidth } : undefined}>
+        <Table
+          stickyHeader
+          size="small"
+          sx={{ ...(report ? reportGridTableSx({ wrap: true }) : {}), ...(minWidth ? { minWidth } : {}) }}
+        >
           <TableHead>
             <TableRow>
               {columns.map((col, index) => (
@@ -127,6 +238,7 @@ export function DataTable<TRow>({
                   key={col.key}
                   scope="col"
                   align={cellAlign(col)}
+                  data-ci={report && !frozenOffsets.has(col.key) ? index : undefined}
                   sx={{
                     width: col.width,
                     ...columnGutter(col, columns[index - 1]),
@@ -136,9 +248,25 @@ export function DataTable<TRow>({
                     // background — `stickyHeader` alone leaves it see-through.
                     backgroundColor: 'background.paper',
                     borderBottom: (theme) => `2px solid ${theme.palette.divider}`,
+                    ...reportHeadSx(col),
                   }}
+                  sortDirection={sort?.key === col.key ? sort.direction : false}
                 >
-                  {col.header}
+                  {isSortable(col) ? (
+                    <TableSortLabel
+                      active={sort?.key === col.key}
+                      direction={sort?.key === col.key ? sort.direction : 'asc'}
+                      onClick={() => {
+                        toggleSort(col.key);
+                        setPageNumber(1);
+                      }}
+                      title="مرتب‌سازی: صعودی، نزولی، بدون ترتیب"
+                    >
+                      {col.header}
+                    </TableSortLabel>
+                  ) : (
+                    col.header
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -195,22 +323,34 @@ export function DataTable<TRow>({
                 return (
                   <TableRow
                     key={getRowKey(row)}
-                    hover
-                    sx={{
-                      // Zebra striping on an accounting table is not decoration: it is how the eye
-                      // keeps its place when tracking a wide row of numbers back to its label.
-                      '&:nth-of-type(odd)': {
-                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.018),
-                      },
-                      ...(highlighted && {
-                        backgroundColor: (theme) => alpha(theme.palette.secondary.main, 0.1),
-                      }),
-                      '& td': { borderBottom: (theme) => `1px solid ${alpha(theme.palette.divider, 0.6)}` },
-                      '&:last-of-type td': { borderBottom: 'none' },
-                    }}
+                    hover={!report}
+                    sx={
+                      report
+                        ? // گرید گزارشی: راه‌راه و هاور از reportGridTableSx؛ ردیف انتخاب‌شده مات (ستون ثابت شفاف نشود).
+                          highlighted
+                          ? { '& > td': { backgroundColor: (theme: Theme) => lighten(theme.palette.secondary.main, 0.9) } }
+                          : undefined
+                        : {
+                            // Zebra striping on an accounting table is not decoration: it is how the eye
+                            // keeps its place when tracking a wide row of numbers back to its label.
+                            '&:nth-of-type(odd)': {
+                              backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.018),
+                            },
+                            ...(highlighted && {
+                              backgroundColor: (theme) => alpha(theme.palette.secondary.main, 0.1),
+                            }),
+                            '& td': { borderBottom: (theme) => `1px solid ${alpha(theme.palette.divider, 0.6)}` },
+                            '&:last-of-type td': { borderBottom: 'none' },
+                          }
+                    }
                   >
                     {columns.map((col, index) => (
-                      <TableCell key={col.key} align={cellAlign(col)} sx={{ width: col.width, ...columnGutter(col, columns[index - 1]) }}>
+                      <TableCell
+                        key={col.key}
+                        align={cellAlign(col)}
+                        data-ci={report && !frozenOffsets.has(col.key) ? index : undefined}
+                        sx={{ width: col.width, ...columnGutter(col, columns[index - 1]), ...reportCellSx(col) }}
+                      >
                         {col.render(row)}
                       </TableCell>
                     ))}

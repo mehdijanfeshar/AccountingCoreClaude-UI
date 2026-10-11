@@ -19,7 +19,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { alpha } from '@mui/material/styles';
+import { lighten, type Theme } from '@mui/material/styles';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
@@ -43,8 +43,36 @@ import { voucherReviewApi } from './api';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { exportVoucherReviewToExcel, exportVoucherReviewToPdf } from './export';
 import { VOUCHER_REVIEW_PRINT_STYLES } from './printStyles';
+import { ColumnChooser, SortLabel, normalizeSortValue, sortRows, useColumnVisibility, useGridSort } from '../../../components/gridTools';
+import {
+  GRID_SIDES,
+  GRID_TOTAL_ROW,
+  amountCellSx,
+  frozenCell,
+  frozenHeadCell,
+  groupSeparator,
+  reportGridTableSx,
+  sectionSeparator,
+  sideHeadSx,
+  totalsCellSx,
+  totalsSurfaceSx,
+  useColumnHighlight,
+} from '../_shared/reportGrid';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+
+/** عرض ستون‌های ثابت — طراحی گرید ماتریسی. */
+const ACTION_WIDTH = 56;
+const NUMBER_WIDTH = 120;
+
+/** ستون‌های اطلاعاتی قابل پنهان کردن و مرتب‌سازی (کلید = فیلد ردیف). */
+const INFO_COLUMNS: { key: 'voucherDate' | 'atfNo' | 'systemName' | 'docLife' | 'description'; label: string; width?: number }[] = [
+  { key: 'voucherDate', label: 'تاریخ', width: 120 },
+  { key: 'atfNo', label: 'شماره عطف', width: 120 },
+  { key: 'systemName', label: 'نوع سند', width: 140 },
+  { key: 'docLife', label: 'وضعیت', width: 110 },
+  { key: 'description', label: 'شرح' },
+];
 
 /** Formats an amount with thousands separators in Persian digits. */
 function amount(value: number): string {
@@ -72,6 +100,7 @@ function jalali(value: string): string {
  */
 export function VoucherReviewPage() {
   const { financialYear, unitLabel, isConfigured } = useSession();
+  const columnHighlight = useColumnHighlight();
   const notify = useNotify();
   const navigate = useNavigate();
 
@@ -129,6 +158,17 @@ export function VoucherReviewPage() {
   });
 
   const rows = useMemo(() => report.data?.items ?? [], [report.data]);
+
+  // مرتب‌سازی با سرستون (روی صفحهٔ جاری — صفحه‌بندی سمت سرور است) و ستون‌های قابل نمایش.
+  const { sort, toggle: toggleSort } = useGridSort();
+  const sortedRows = useMemo(
+    () => sortRows(rows, sort, (r, key) => normalizeSortValue((r as unknown as Record<string, unknown>)[key])),
+    [rows, sort],
+  );
+  const visibility = useColumnVisibility([...INFO_COLUMNS.map((c) => c.key), 'amounts'], 'grid-cols:voucher-review');
+  const shownInfo = INFO_COLUMNS.filter((c) => visibility.isVisible(c.key));
+  const showAmounts = visibility.isVisible('amounts');
+  const columnCount = 2 + shownInfo.length + (showAmounts ? 2 : 0);
   const totalDebtor = report.data?.totalDebtor ?? 0;
   const totalCreditor = report.data?.totalCreditor ?? 0;
   const unbalanced = report.data?.unbalancedCount ?? 0;
@@ -414,26 +454,54 @@ export function VoucherReviewPage() {
                 {toPersianDigits(totalCount)} سند
               </Typography>
             )}
+            <Box sx={{ flexGrow: 1 }} />
+            {sort && (
+              <Typography variant="caption" color="text.secondary">
+                مرتب‌سازی فقط در همین صفحه
+              </Typography>
+            )}
+            <ColumnChooser
+              columns={[...INFO_COLUMNS.map((c) => ({ key: c.key, label: c.label })), { key: 'amounts', label: 'بدهکار و بستانکار' }]}
+              visibility={visibility}
+            />
           </Box>
 
           {/* Bounded height with its own scrollbar — otherwise a large page scrolls the whole
               document and carries the sticky header and the totals row out of view. */}
           <TableContainer
+            ref={columnHighlight.ref}
+            onMouseOver={columnHighlight.onMouseOver}
+            onMouseLeave={columnHighlight.onMouseLeave}
             aria-busy={report.isFetching}
-            sx={{ overflowX: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
+            sx={{ overflow: 'auto', maxHeight: '60vh', opacity: report.isFetching && !report.isLoading ? 0.55 : 1, transition: 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)' }}
           >
-            <Table size="small" stickyHeader>
+            <Table size="small" stickyHeader sx={reportGridTableSx()}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 56 }} className="voucher-review-no-print" />
-                  <TableCell sx={{ width: 110 }}>شماره سند</TableCell>
-                  <TableCell sx={{ width: 120 }}>تاریخ</TableCell>
-                  <TableCell sx={{ width: 120 }}>شماره عطف</TableCell>
-                  <TableCell sx={{ width: 140 }}>نوع سند</TableCell>
-                  <TableCell sx={{ width: 110 }}>وضعیت</TableCell>
-                  <TableCell>شرح</TableCell>
-                  <TableCell align="left">بدهکار</TableCell>
-                  <TableCell align="left">بستانکار</TableCell>
+                  <TableCell sx={frozenHeadCell(0, ACTION_WIDTH)} className="voucher-review-no-print" />
+                  <TableCell
+                    sx={frozenHeadCell(ACTION_WIDTH, NUMBER_WIDTH, { borderInlineEnd: sectionSeparator })}
+                    sortDirection={sort?.key === 'voucherNumber' ? sort.direction : false}
+                  >
+                    <SortLabel sortKey="voucherNumber" sort={sort} onSort={toggleSort}>شماره سند</SortLabel>
+                  </TableCell>
+                  {shownInfo.map((c) => (
+                    <TableCell key={c.key} sx={c.width ? { width: c.width } : undefined} sortDirection={sort?.key === c.key ? sort.direction : false}>
+                      <SortLabel sortKey={c.key} sort={sort} onSort={toggleSort}>{c.label}</SortLabel>
+                    </TableCell>
+                  ))}
+                  {showAmounts &&
+                    GRID_SIDES.map((side, sideIndex) => (
+                      <TableCell
+                        key={side.key}
+                        data-ci={0}
+                        align="left"
+                        sx={sideHeadSx(side.color, { first: sideIndex === 0 })}
+                        sortDirection={sort?.key === side.key ? sort.direction : false}
+                      >
+                        <SortLabel sortKey={side.key} sort={sort} onSort={toggleSort}>{side.label}</SortLabel>
+                      </TableCell>
+                    ))}
                 </TableRow>
               </TableHead>
 
@@ -441,7 +509,7 @@ export function VoucherReviewPage() {
                 {report.isLoading &&
                   Array.from({ length: 8 }).map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      {Array.from({ length: 9 }).map((__, j) => (
+                      {Array.from({ length: columnCount }).map((__, j) => (
                         <TableCell key={j}>
                           <Skeleton />
                         </TableCell>
@@ -451,7 +519,7 @@ export function VoucherReviewPage() {
 
                 {!report.isLoading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                    <TableCell colSpan={columnCount} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                       {!isConfigured
                         ? 'سال مالی انتخاب نشده است.'
                         : 'برای این بازه، سندی ثبت نشده است.'}
@@ -460,24 +528,17 @@ export function VoucherReviewPage() {
                 )}
 
                 {!report.isLoading &&
-                  rows.map((row) => {
+                  sortedRows.map((row) => {
                     const balanced = isVoucherBalanced(row);
+                    // An unbalanced voucher is the one thing this report exists to surface, so it is
+                    // marked on the row itself. Opaque (lighten, not alpha): the frozen cells must stay
+                    // opaque or scrolled columns show through them; the grid banding still layers on top.
                     return (
                       <TableRow
                         key={row.id}
-                        hover
-                        sx={
-                          balanced
-                            ? undefined
-                            : {
-                                // An unbalanced voucher is the one thing this report exists to
-                                // surface, so it is marked on the row itself rather than left for
-                                // the reader to spot by comparing two columns.
-                                backgroundColor: (theme) => alpha(theme.palette.error.main, 0.06),
-                              }
-                        }
+                        sx={balanced ? undefined : { '& > td': { backgroundColor: (theme: Theme) => lighten(theme.palette.error.main, 0.94) } }}
                       >
-                        <TableCell className="voucher-review-no-print">
+                        <TableCell className="voucher-review-no-print" sx={frozenCell(0)}>
                           <Tooltip title="نمایش سند">
                             <IconButton
                               size="small"
@@ -487,7 +548,7 @@ export function VoucherReviewPage() {
                             </IconButton>
                           </Tooltip>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...frozenCell(ACTION_WIDTH), borderInlineEnd: sectionSeparator }}>
                           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                             <MonoCode value={row.voucherNumber} />
                             {!balanced && (
@@ -497,19 +558,23 @@ export function VoucherReviewPage() {
                             )}
                           </Stack>
                         </TableCell>
-                        <TableCell>{jalali(row.voucherDate)}</TableCell>
-                        <TableCell>{row.atfNo || '—'}</TableCell>
-                        <TableCell>{row.systemName || '—'}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={getDocLifeLabel(row.docLife)}
-                            color={getDocLifeTone(row.docLife)}
-                          />
-                        </TableCell>
-                        <TableCell>{row.description || '—'}</TableCell>
-                        <TableCell align="left">{amount(row.debtor)}</TableCell>
-                        <TableCell align="left">{amount(row.creditor)}</TableCell>
+                        {shownInfo.map((c) => (
+                          <TableCell key={c.key} sx={c.key === 'description' ? { whiteSpace: 'normal', minWidth: 200 } : undefined}>
+                            {c.key === 'voucherDate' && jalali(row.voucherDate)}
+                            {c.key === 'atfNo' && (row.atfNo || '—')}
+                            {c.key === 'systemName' && (row.systemName || '—')}
+                            {c.key === 'docLife' && (
+                              <Chip size="small" label={getDocLifeLabel(row.docLife)} color={getDocLifeTone(row.docLife)} />
+                            )}
+                            {c.key === 'description' && (row.description || '—')}
+                          </TableCell>
+                        ))}
+                        {showAmounts && (
+                          <>
+                            <TableCell align="left" data-ci={0} sx={amountCellSx(row.debtor, { first: true })}>{amount(row.debtor)}</TableCell>
+                            <TableCell align="left" data-ci={0} sx={amountCellSx(row.creditor)}>{amount(row.creditor)}</TableCell>
+                          </>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -517,20 +582,18 @@ export function VoucherReviewPage() {
 
               {rows.length > 0 && (
                 <TableBody>
-                  <TableRow
-                    sx={{
-                      '& td': {
-                        fontWeight: 700,
-                        borderTop: (theme) => `2px solid ${alpha(theme.palette.text.primary, 0.35)}`,
-                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                      },
-                    }}
-                  >
-                    {/* Labelled as the whole filtered set, because that is what the server sent —
-                        a footer that silently summed the page would misread as the grand total. */}
-                    <TableCell colSpan={7}>جمع کل ({toPersianDigits(totalCount)} سند)</TableCell>
-                    <TableCell align="left">{amount(totalDebtor)}</TableCell>
-                    <TableCell align="left">{amount(totalCreditor)}</TableCell>
+                  {/* Labelled as the whole filtered set, because that is what the server sent —
+                      a footer that silently summed the page would misread as the grand total. */}
+                  <TableRow className={GRID_TOTAL_ROW}>
+                    <TableCell colSpan={2 + shownInfo.length} sx={{ ...totalsCellSx, ...frozenCell(0, 6), ...totalsSurfaceSx }}>
+                      جمع کل ({toPersianDigits(totalCount)} سند)
+                    </TableCell>
+                    {showAmounts && (
+                      <>
+                        <TableCell align="left" sx={{ ...totalsCellSx, borderInlineStart: groupSeparator }}>{amount(totalDebtor)}</TableCell>
+                        <TableCell align="left" sx={totalsCellSx}>{amount(totalCreditor)}</TableCell>
+                      </>
+                    )}
                   </TableRow>
                 </TableBody>
               )}

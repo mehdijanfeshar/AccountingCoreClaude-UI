@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
@@ -20,6 +22,27 @@ import Typography from '@mui/material/Typography';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import { accountBreakdownUrl } from '../_shared/accountBreakdownLink';
+import { SortLabel, normalizeSortValue, sortRows, useGridSort } from '../../../components/gridTools';
+import { MonoCode } from '../../../components/MonoCode';
+import {
+  GRID_SIDES,
+  GRID_TOTAL_ROW,
+  amountCellSx,
+  frozenCell,
+  frozenHeadCell,
+  groupHeadSx,
+  groupSeparator,
+  reportGridTableSx,
+  rowTotalCellSx,
+  sectionSeparator,
+  sideHeadSx,
+  totalsCellSx,
+  totalsSurfaceSx,
+  useColumnHighlight,
+  useHeaderRowHeight,
+} from '../_shared/reportGrid';
 import { PageHeader } from '../../../components/PageHeader';
 import { ErrorBanner } from '../../../components/ErrorBanner';
 import { JalaliDateField } from '../../../components/JalaliDateField';
@@ -64,6 +87,12 @@ const PAGE_SIZE = 100;
 
 /** Shared by the dim-while-refetching transitions: crisp and short, a report is not a showpiece. */
 const FADE = 'opacity 150ms cubic-bezier(0.23, 1, 0.32, 1)';
+
+/** عرض ستون‌های ثابت — طراحی گرید ماتریسی. */
+const KOL_CODE_WIDTH = 110;
+const KOL_NAME_WIDTH = 260;
+const DATE_WIDTH = 104;
+const DOC_WIDTH = 96;
 
 function money(v: number): string {
   return v ? toPersianDigits(formatThousands(v)) : '—';
@@ -132,6 +161,14 @@ export function GeneralLedgerPage() {
   const refreshing = query.isFetching && !query.isLoading;
   const showUnit = getReportUnitScope().unitScope !== 0;
   const detailCols = showUnit ? 7 : 6;
+  const summaryHighlight = useColumnHighlight();
+  const detailHighlight = useColumnHighlight();
+  const summaryHeaderTop = useHeaderRowHeight();
+  // مرتب‌سازی خلاصهٔ حساب‌ها با سرستون. جدول گردش سندها عمداً مرتب‌شدنی نیست: ماندهٔ جاری فقط به ترتیب تاریخ معنا دارد.
+  const { sort: summarySort, toggle: toggleSummarySort } = useGridSort();
+  const sortedAccounts = sortRows(data?.accounts ?? [], summarySort, (a, key) =>
+    normalizeSortValue((a as unknown as Record<string, unknown>)[key]),
+  );
 
   const totals = (data?.accounts ?? []).reduce(
     (t, a) => ({ opening: t.opening + a.opening, debit: t.debit + a.periodDebit, credit: t.credit + a.periodCredit, closing: t.closing + a.closing }),
@@ -225,16 +262,47 @@ export function GeneralLedgerPage() {
               </Typography>
             )}
           </Stack>
-          <TableContainer component={Paper} variant="outlined" sx={{ mb: 4, opacity: refreshing ? 0.55 : 1, transition: FADE }} aria-busy={query.isFetching}>
-            <Table size="small">
+          <TableContainer
+            component={Paper}
+            variant="outlined"
+            ref={summaryHighlight.ref}
+            onMouseOver={summaryHighlight.onMouseOver}
+            onMouseLeave={summaryHighlight.onMouseLeave}
+            sx={{ mb: 4, maxHeight: { md: '50vh' }, overflow: 'auto', opacity: refreshing ? 0.55 : 1, transition: FADE, '@media print': { maxHeight: 'none' } }}
+            aria-busy={query.isFetching}
+          >
+            <Table size="small" stickyHeader sx={reportGridTableSx()}>
               <TableHead>
+                <TableRow ref={summaryHeaderTop.ref}>
+                  <TableCell rowSpan={2} sx={frozenHeadCell(0, KOL_CODE_WIDTH)}>
+                    <SortLabel sortKey="kolCode" sort={summarySort} onSort={toggleSummarySort}>کد کل</SortLabel>
+                  </TableCell>
+                  <TableCell rowSpan={2} sx={frozenHeadCell(KOL_CODE_WIDTH, KOL_NAME_WIDTH, { borderInlineEnd: sectionSeparator })}>
+                    <SortLabel sortKey="kolName" sort={summarySort} onSort={toggleSummarySort}>نام حساب</SortLabel>
+                  </TableCell>
+                  <TableCell rowSpan={2} align="left" data-ci={0} sx={{ ...groupHeadSx(0), fontWeight: 600 }}>
+                    <SortLabel sortKey="opening" sort={summarySort} onSort={toggleSummarySort}>ماندهٔ ابتدای دوره</SortLabel>
+                  </TableCell>
+                  <TableCell colSpan={2} align="center" data-ci={1} sx={groupHeadSx(1)}>
+                    گردش دوره
+                  </TableCell>
+                  <TableCell rowSpan={2} align="left" data-ci={2} sx={groupHeadSx(2, { strong: true })}>
+                    <SortLabel sortKey="closing" sort={summarySort} onSort={toggleSummarySort}>ماندهٔ پایان دوره</SortLabel>
+                  </TableCell>
+                </TableRow>
                 <TableRow>
-                  <TableCell>کد کل</TableCell>
-                  <TableCell>نام حساب</TableCell>
-                  <TableCell align="left">ماندهٔ ابتدای دوره</TableCell>
-                  <TableCell align="left">گردش بدهکار</TableCell>
-                  <TableCell align="left">گردش بستانکار</TableCell>
-                  <TableCell align="left">ماندهٔ پایان دوره</TableCell>
+                  {GRID_SIDES.map((side, sideIndex) => (
+                    <TableCell
+                      key={side.key}
+                      data-ci={1}
+                      align="left"
+                      sx={sideHeadSx(side.color, { top: summaryHeaderTop.height, first: sideIndex === 0 })}
+                    >
+                      <SortLabel sortKey={side.key === 'debtor' ? 'periodDebit' : 'periodCredit'} sort={summarySort} onSort={toggleSummarySort}>
+                        {side.label}
+                      </SortLabel>
+                    </TableCell>
+                  ))}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -246,12 +314,11 @@ export function GeneralLedgerPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {data?.accounts.map((a) => {
+                {sortedAccounts.map((a) => {
                   const selected = singleKol === a.kolCode;
                   return (
                     <TableRow
                       key={a.kolCode}
-                      hover
                       selected={selected}
                       tabIndex={0}
                       aria-label={`نمایش گردش حساب کل ${a.kolCode}`}
@@ -262,22 +329,44 @@ export function GeneralLedgerPage() {
                         '&:focus-visible': { outline: (t) => `2px solid ${t.palette.primary.main}`, outlineOffset: -2 },
                       }}
                     >
-                      <TableCell sx={{ fontWeight: 600 }}>{toPersianDigits(a.kolCode)}</TableCell>
-                      <TableCell>{a.kolName ?? '—'}</TableCell>
-                      <TableCell align="left">{balance(a.opening)}</TableCell>
-                      <TableCell align="left">{money(a.periodDebit)}</TableCell>
-                      <TableCell align="left">{money(a.periodCredit)}</TableCell>
-                      <TableCell align="left" sx={{ fontWeight: 700 }}>{balance(a.closing)}</TableCell>
+                      <TableCell sx={frozenCell(0)}>
+                        <MonoCode value={a.kolCode} />
+                      </TableCell>
+                      <TableCell
+                        title={a.kolName ?? undefined}
+                        sx={{ ...frozenCell(KOL_CODE_WIDTH), maxWidth: KOL_NAME_WIDTH, overflow: 'hidden', textOverflow: 'ellipsis', borderInlineEnd: sectionSeparator }}
+                      >
+                        <Tooltip title="این حساب به تفکیک استان / واحد / سند">
+                          <IconButton
+                            size="small"
+                            className="no-print"
+                            sx={{ ml: 0.5, p: 0.25 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(accountBreakdownUrl(2, a.kolCode, { from: applied.fromDate, to: applied.toDate }));
+                            }}
+                          >
+                            <AccountTreeOutlinedIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                        {a.kolName ?? '—'}
+                      </TableCell>
+                      <TableCell align="left" data-ci={0} sx={amountCellSx(a.opening, { first: true })}>{balance(a.opening)}</TableCell>
+                      <TableCell align="left" data-ci={1} sx={amountCellSx(a.periodDebit, { band: true, first: true })}>{money(a.periodDebit)}</TableCell>
+                      <TableCell align="left" data-ci={1} sx={amountCellSx(a.periodCredit, { band: true })}>{money(a.periodCredit)}</TableCell>
+                      <TableCell align="left" data-ci={2} sx={{ ...rowTotalCellSx, borderInlineStart: sectionSeparator }}>{balance(a.closing)}</TableCell>
                     </TableRow>
                   );
                 })}
                 {data && data.accounts.length > 1 && (
-                  <TableRow sx={{ '& td': { fontWeight: 800, borderTop: '3px double', borderTopColor: 'text.secondary', bgcolor: 'grey.50' } }}>
-                    <TableCell colSpan={2}>جمع</TableCell>
-                    <TableCell align="left">{balance(totals.opening)}</TableCell>
-                    <TableCell align="left">{money(totals.debit)}</TableCell>
-                    <TableCell align="left">{money(totals.credit)}</TableCell>
-                    <TableCell align="left">{balance(totals.closing)}</TableCell>
+                  <TableRow className={GRID_TOTAL_ROW}>
+                    <TableCell colSpan={2} sx={{ ...totalsCellSx, ...frozenCell(0, 6), ...totalsSurfaceSx, borderInlineEnd: sectionSeparator }}>
+                      جمع ({toPersianDigits(data.accounts.length)} حساب)
+                    </TableCell>
+                    <TableCell align="left" sx={{ ...totalsCellSx, borderInlineStart: groupSeparator }}>{balance(totals.opening)}</TableCell>
+                    <TableCell align="left" sx={{ ...totalsCellSx, borderInlineStart: groupSeparator }}>{money(totals.debit)}</TableCell>
+                    <TableCell align="left" sx={totalsCellSx}>{money(totals.credit)}</TableCell>
+                    <TableCell align="left" sx={{ ...totalsCellSx, borderInlineStart: sectionSeparator }}>{balance(totals.closing)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -301,19 +390,25 @@ export function GeneralLedgerPage() {
           <TableContainer
             component={Paper}
             variant="outlined"
-            sx={{ maxHeight: { md: '70vh' }, opacity: refreshing ? 0.55 : 1, transition: FADE, '@media print': { maxHeight: 'none' } }}
+            ref={detailHighlight.ref}
+            onMouseOver={detailHighlight.onMouseOver}
+            onMouseLeave={detailHighlight.onMouseLeave}
+            sx={{ maxHeight: { md: '70vh' }, overflow: 'auto', opacity: refreshing ? 0.55 : 1, transition: FADE, '@media print': { maxHeight: 'none' } }}
             aria-busy={query.isFetching}
           >
-            <Table size="small" stickyHeader>
+            <Table size="small" stickyHeader sx={reportGridTableSx()}>
               <TableHead>
                 <TableRow>
-                  <TableCell>تاریخ سند</TableCell>
-                  <TableCell>شماره سند</TableCell>
+                  <TableCell sx={frozenHeadCell(0, DATE_WIDTH)}>تاریخ سند</TableCell>
+                  <TableCell sx={frozenHeadCell(DATE_WIDTH, DOC_WIDTH, { borderInlineEnd: sectionSeparator })}>شماره سند</TableCell>
                   {showUnit && <TableCell>واحد</TableCell>}
                   <TableCell>شرح</TableCell>
-                  <TableCell align="left">بدهکار</TableCell>
-                  <TableCell align="left">بستانکار</TableCell>
-                  <TableCell align="left">مانده</TableCell>
+                  {GRID_SIDES.map((side, sideIndex) => (
+                    <TableCell key={side.key} data-ci={0} align="left" sx={sideHeadSx(side.color, { first: sideIndex === 0 })}>
+                      {side.label}
+                    </TableCell>
+                  ))}
+                  <TableCell align="left" data-ci={1} sx={{ borderInlineStart: sectionSeparator, fontWeight: 700 }}>مانده</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -334,7 +429,7 @@ export function GeneralLedgerPage() {
                   return (
                     <Fragment key={`${r.kolCode}-${r.voucherHeadId}`}>
                       {first && (
-                        <TableRow>
+                        <TableRow className={GRID_TOTAL_ROW}>
                           <TableCell colSpan={detailCols - 1} sx={{ bgcolor: 'grey.100', fontWeight: 700, py: 1 }}>
                             کل {toPersianDigits(r.kolCode)}
                             {account?.kolName && (
@@ -351,9 +446,9 @@ export function GeneralLedgerPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                      <TableRow hover>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatLegacyJalaliDate(r.dateDoc)}</TableCell>
-                        <TableCell>
+                      <TableRow>
+                        <TableCell sx={frozenCell(0)}>{formatLegacyJalaliDate(r.dateDoc)}</TableCell>
+                        <TableCell sx={{ ...frozenCell(DATE_WIDTH), borderInlineEnd: sectionSeparator }}>
                           {/* A real link: middle-click and «open in new tab» work, and the ledger
                               keeps its place when the user comes back. */}
                           <Link
@@ -370,10 +465,10 @@ export function GeneralLedgerPage() {
                           </Link>
                         </TableCell>
                         {showUnit && <TableCell>{toPersianDigits(r.vahedCode ?? '')}</TableCell>}
-                        <TableCell>{r.description ?? '—'}</TableCell>
-                        <TableCell align="left">{money(r.debit)}</TableCell>
-                        <TableCell align="left">{money(r.credit)}</TableCell>
-                        <TableCell align="left" sx={{ fontWeight: 600 }}>{balance(r.balance)}</TableCell>
+                        <TableCell sx={{ whiteSpace: 'normal', minWidth: 220 }}>{r.description ?? '—'}</TableCell>
+                        <TableCell align="left" data-ci={0} sx={amountCellSx(r.debit, { first: true })}>{money(r.debit)}</TableCell>
+                        <TableCell align="left" data-ci={0} sx={amountCellSx(r.credit)}>{money(r.credit)}</TableCell>
+                        <TableCell align="left" data-ci={1} sx={{ ...rowTotalCellSx, borderInlineStart: sectionSeparator }}>{balance(r.balance)}</TableCell>
                       </TableRow>
                     </Fragment>
                   );

@@ -329,6 +329,7 @@ export function ElamsListPage() {
         title={pending ? ACTION_TEXT[pending.kind].title : ''}
         description={pending ? ACTION_TEXT[pending.kind].body(pending.row) : undefined}
         pending={action.isPending}
+        error={action.isError ? action.error : undefined}
         onCancel={() => {
           setPending(null);
           action.reset();

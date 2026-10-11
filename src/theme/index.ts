@@ -256,6 +256,131 @@ export const theme = createTheme(
           sizeSmall: { height: 22, fontSize: '0.72rem' },
         },
       },
+      /*
+       * Dialogs — نزدیک ۶۰ فرم و تأیید در برنامه با DialogTitle/DialogActions ساده ساخته شده‌اند. سبک در تم است تا
+       * همه یک‌جا هم‌شکل `FormDialog` شوند: سربرگ با زمینهٔ کم‌رنگ و خط جدا، نوار دکمه‌های جدا با زمینهٔ ملایم،
+       * گوشهٔ گردتر و پس‌زمینهٔ تیره‌تر که فرم را از صفحه جدا می‌کند.
+       */
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: 14,
+            boxShadow: `0 24px 48px -12px ${alpha('#0F172A', 0.28)}, 0 2px 6px ${alpha('#0F172A', 0.08)}`,
+          },
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            // فقط پس‌زمینهٔ دیالوگ‌ها؛ نسخهٔ invisible (منوها/پاپ‌اورها) دست نمی‌خورد.
+            '&:not(.MuiBackdrop-invisible)': { backgroundColor: alpha('#0F172A', 0.42) },
+          },
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            fontSize: '1.05rem',
+            fontWeight: 700,
+            lineHeight: 1.4,
+            letterSpacing: '-0.008em',
+            paddingBlock: 16,
+            paddingInline: 24,
+            backgroundColor: alpha('#1E3A8A', 0.035),
+            borderBottom: `1px solid ${BORDER}`,
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: {
+            // MUI بدنهٔ بعد از عنوان را بی‌فاصلهٔ بالا می‌گذارد؛ با خط زیر عنوان فاصله لازم است.
+            '.MuiDialogTitle-root + &': { paddingTop: 20 },
+          },
+        },
+      },
+      MuiDialogActions: {
+        styleOverrides: {
+          root: {
+            paddingBlock: 12,
+            paddingInline: 24,
+            gap: 8,
+            backgroundColor: '#F8FAFC',
+            borderTop: `1px solid ${BORDER}`,
+            '& > :not(style) ~ :not(style)': { marginInlineStart: 0 },
+          },
+        },
+      },
+      /*
+       * Segmented choices (نوع، وضعیت، سطح…) — حالت انتخاب‌شده پیش‌فرض MUI خاکستری کم‌رنگی است که در فرم
+       * به‌سختی دیده می‌شود. این‌جا رنگ اصلی کم‌رنگ با متن و وزن پررنگ‌تر.
+       */
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            borderColor: BORDER,
+            color: '#475569',
+            fontWeight: 500,
+            transition: 'background-color 150ms, color 150ms',
+            '&.Mui-selected': {
+              backgroundColor: alpha('#1E3A8A', 0.09),
+              color: '#1E3A8A',
+              fontWeight: 700,
+              '&:hover': { backgroundColor: alpha('#1E3A8A', 0.14) },
+            },
+          },
+        },
+      },
+      MuiTabs: {
+        styleOverrides: {
+          root: { minHeight: 44 },
+          indicator: { height: 3, borderRadius: '3px 3px 0 0' },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            minHeight: 44,
+            fontWeight: 500,
+            color: '#475569',
+            transition: 'color 150ms',
+            '&.Mui-selected': { fontWeight: 700 },
+          },
+        },
+      },
+      // فهرست‌های بازشونده (Select، منوها، Autocomplete): لبه و سایهٔ هم‌خانوادهٔ کارت‌ها و گزینه‌های گردتر.
+      MuiPopover: {
+        styleOverrides: {
+          paper: {
+            border: `1px solid ${BORDER}`,
+            boxShadow: `0 12px 32px -8px ${alpha('#0F172A', 0.2)}`,
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: 6,
+            marginInline: 6,
+            fontSize: '0.875rem',
+            '&.Mui-selected': { backgroundColor: alpha('#1E3A8A', 0.08), fontWeight: 600 },
+            '&.Mui-selected:hover': { backgroundColor: alpha('#1E3A8A', 0.12) },
+          },
+        },
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          paper: {
+            border: `1px solid ${BORDER}`,
+            boxShadow: `0 12px 32px -8px ${alpha('#0F172A', 0.2)}`,
+          },
+          option: {
+            fontSize: '0.875rem',
+            borderRadius: 6,
+            marginInline: 6,
+          },
+        },
+      },
       MuiTooltip: {
         styleOverrides: {
           tooltip: { backgroundColor: SHELL.main, fontSize: '0.75rem', paddingBlock: 6, paddingInline: 10 },

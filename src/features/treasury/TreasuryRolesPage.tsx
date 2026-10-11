@@ -217,7 +217,11 @@ export function TreasuryRolesPage() {
             : undefined
         }
         pending={deleteMutation.isPending}
-        onCancel={() => setPendingDelete(null)}
+        error={deleteMutation.isError ? deleteMutation.error : undefined}
+        onCancel={() => {
+          setPendingDelete(null);
+          deleteMutation.reset();
+        }}
         onConfirm={() => pendingDelete && deleteMutation.mutate(pendingDelete)}
       />
     </section>

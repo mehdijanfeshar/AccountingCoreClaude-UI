@@ -123,11 +123,11 @@ export function AttributeAccountReconciliationPage() {
   ];
 
   const moeinColumns: DataTableColumn<AttributeAccountMoeinDto>[] = [
-    { key: 'code', header: 'کد معین', width: 110, render: (m) => <MonoCode value={m.accCode} /> },
+    { key: 'code', header: 'کد معین', width: 110, frozen: true, render: (m) => <MonoCode value={m.accCode} /> },
     { key: 'name', header: 'شرح معین', render: (m) => m.accName ?? '—' },
     { key: 'sum', header: 'حالت شناسه', render: (m) => ATTRIB_SUM_LABEL[m.attribSum] ?? '—' },
-    { key: 'd', header: 'گردش بدهکار', align: 'end', render: (m) => amount(m.debtor) },
-    { key: 'c', header: 'گردش بستانکار', align: 'end', render: (m) => amount(m.creditor) },
+    { key: 'd', header: 'گردش بدهکار', align: 'end', side: 'debtor', render: (m) => amount(m.debtor) },
+    { key: 'c', header: 'گردش بستانکار', align: 'end', side: 'creditor', render: (m) => amount(m.creditor) },
     { key: 'b', header: 'مانده', align: 'end', render: (m) => balance(m.debtor, m.creditor) },
     { key: 'n', header: 'شناسه', align: 'center', render: (m) => toPersianDigits(m.identifierCount) },
     {
@@ -181,8 +181,8 @@ export function AttributeAccountReconciliationPage() {
         ),
     },
     { key: 'n', header: 'ردیف', align: 'center', render: (v) => toPersianDigits(v.lineCount) },
-    { key: 'd', header: 'بدهکار', align: 'end', render: (v) => amount(v.debtor) },
-    { key: 'c', header: 'بستانکار', align: 'end', render: (v) => amount(v.creditor) },
+    { key: 'd', header: 'بدهکار', align: 'end', side: 'debtor', render: (v) => amount(v.debtor) },
+    { key: 'c', header: 'بستانکار', align: 'end', side: 'creditor', render: (v) => amount(v.creditor) },
     { key: 'b', header: 'مانده', align: 'end', render: (v) => balance(v.debtor, v.creditor) },
     {
       key: 'st',
@@ -211,12 +211,12 @@ export function AttributeAccountReconciliationPage() {
   ];
 
   const lineColumns: DataTableColumn<AttributeAccountLineDto>[] = [
-    { key: 'no', header: 'شماره سند', width: 90, render: (l) => toPersianDigits(l.docNum ?? '—') },
-    { key: 'date', header: 'تاریخ سند', width: 110, render: (l) => jalali(l.dateDoc) },
+    { key: 'no', header: 'شماره سند', width: 90, frozen: true, render: (l) => toPersianDigits(l.docNum ?? '—') },
+    { key: 'date', header: 'تاریخ سند', width: 110, frozen: true, render: (l) => jalali(l.dateDoc) },
     { key: 'life', header: 'وضعیت', render: (l) => (l.docLife ? getDocLifeLabel(l.docLife) : '—') },
     { key: 'desc', header: 'شرح آرتیکل', render: (l) => l.lineDesc || l.headDesc || '—' },
-    { key: 'd', header: 'بدهکار', align: 'end', render: (l) => (l.debtor ? amount(l.debtor) : '—') },
-    { key: 'c', header: 'بستانکار', align: 'end', render: (l) => (l.creditor ? amount(l.creditor) : '—') },
+    { key: 'd', header: 'بدهکار', align: 'end', side: 'debtor', render: (l) => (l.debtor ? amount(l.debtor) : '—') },
+    { key: 'c', header: 'بستانکار', align: 'end', side: 'creditor', render: (l) => (l.creditor ? amount(l.creditor) : '—') },
     {
       key: 'act',
       header: '',
@@ -293,6 +293,7 @@ export function AttributeAccountReconciliationPage() {
       {moeinsQuery.data && <StatTiles tiles={tiles} />}
 
       <DataTable
+        variant="report"
         columns={moeinColumns}
         rows={moeins}
         getRowKey={(m) => m.accountId}
@@ -308,6 +309,7 @@ export function AttributeAccountReconciliationPage() {
           </Typography>
           {valuesQuery.isError && <ErrorBanner error={valuesQuery.error} />}
           <DataTable
+            variant="report"
             columns={valueColumns}
             rows={values}
             getRowKey={(v) => v.attributeValue ?? '__none__'}
@@ -325,6 +327,7 @@ export function AttributeAccountReconciliationPage() {
           </Typography>
           {linesQuery.isError && <ErrorBanner error={linesQuery.error} />}
           <DataTable
+            variant="report"
             columns={lineColumns}
             rows={lines}
             getRowKey={(l) => l.lineId}

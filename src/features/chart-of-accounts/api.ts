@@ -35,7 +35,8 @@ export const accountCodesApi = {
     AccountCodeDto,
     AccountCodeWritePayload,
     AccountCodeWritePayload,
-    { pageNumber?: number; pageSize?: number; search?: string }
+    // typeCode: فقط یک سطح کدینگ (۱ گروه، ۲ کل، ۳ معین) — تب‌های انتخابگر حساب.
+    { pageNumber?: number; pageSize?: number; search?: string; typeCode?: 1 | 2 | 3 }
   >('account-codes'),
   /** لیست انتخاب معینِ ثبت سند — فقط معین‌های مجاز برای واحد کاربر در تاریخ سند (ماتریس دسترسی کدینگ). */
   entryMoins(params: { pageNumber: number; pageSize: number; search?: string; dateDoc?: string }): Promise<PagedResult<AccountCodeDto>> {
