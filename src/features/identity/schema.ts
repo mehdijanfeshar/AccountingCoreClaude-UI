@@ -20,7 +20,15 @@ export const identityGroupFormSchema = z.object({
     .trim()
     .min(1, 'شرح گروه الزامی است')
     .max(100, 'شرح گروه حداکثر ۱۰۰ کاراکتر است'),
-  identityGroupsCode: z.string().trim().max(10, 'کد گروه حداکثر ۱۰ کاراکتر است'),
+  // برنامهٔ مرجع (add-base-feature-group): کد و تفصیلی الزامی، کد فقط عدد. سقف ۳ = ستون اوراکل.
+  identityGroupsCode: z
+    .string()
+    .trim()
+    .min(1, 'کد گروه الزامی است')
+    .regex(/^[0-9]+$/, 'کد گروه فقط عدد است')
+    .max(3, 'کد گروه حداکثر ۳ رقم است'),
+  /** ردیف سندی که این تفصیلی را در هر سطحی دارد فرم این ویژگی را می‌خواهد. */
+  tafsiliId: z.string().min(1, 'انتخاب تفصیلی الزامی است'),
 });
 
 export type IdentityGroupFormValues = z.infer<typeof identityGroupFormSchema>;
@@ -28,12 +36,14 @@ export type IdentityGroupFormValues = z.infer<typeof identityGroupFormSchema>;
 export const emptyIdentityGroupFormValues: IdentityGroupFormValues = {
   identityGroupsDesc: '',
   identityGroupsCode: '',
+  tafsiliId: '',
 };
 
 export function identityGroupDtoToFormValues(dto: IdentityGroupDto): IdentityGroupFormValues {
   return {
     identityGroupsDesc: dto.identityGroupsDesc ?? '',
     identityGroupsCode: dto.identityGroupsCode ?? '',
+    tafsiliId: dto.tafsiliId ?? '',
   };
 }
 
@@ -41,9 +51,7 @@ export function identityGroupFormValuesToPayload(values: IdentityGroupFormValues
   return {
     identityGroupsDesc: values.identityGroupsDesc,
     identityGroupsCode: values.identityGroupsCode || null,
-    // Not exposed in the form: the reference app does not set it here either, and inventing a
-    // تفصیلی picker for it would be guessing at a business rule nobody has stated.
-    tafsiliId: null,
+    tafsiliId: values.tafsiliId || null,
   };
 }
 
@@ -56,8 +64,8 @@ export const identitySubGroupFormSchema = z.object({
     .trim()
     .min(1, 'شرح زیرگروه الزامی است')
     .max(100, 'شرح زیرگروه حداکثر ۱۰۰ کاراکتر است'),
-  // TB_IDENTITYSUBGRP.SUBGRPS_LEN is a byte, so 0..255 is the physical ceiling. The lower bound
-  // is 1 because a zero-length value could never hold anything.
+  // SUBGRPS_LEN is Oracle NUMBER(2) — max 99 (the server validator enforces the same). The lower
+  // bound is 1 because a zero-length value could never hold anything.
   // Plain z.number() with `valueAsNumber` at the register site, NOT z.coerce.number(): coerce
   // makes the schema's input and output types differ, which zodResolver cannot reconcile with
   // RHF's single TFieldValues. Note `tsc --noEmit` accepts the coerce form and only
@@ -66,14 +74,25 @@ export const identitySubGroupFormSchema = z.object({
     .number({ message: 'طول باید عدد باشد' })
     .int('طول باید عدد صحیح باشد')
     .min(1, 'طول حداقل ۱ است')
-    .max(255, 'طول حداکثر ۲۵۵ است'),
+    .max(99, 'طول حداکثر ۹۹ است'),
   sumFlag: z.boolean(),
   // Non-nullable server-side, so no null branch here (unlike subgrpsType below).
   fixed: z
     .number({ message: 'نوع زیرگروه الزامی است' })
     .refine((v) => IDENTITY_SUB_GROUP_KIND_VALUES.includes(v), 'نوع زیرگروه نامعتبر است'),
-  subgrpsType: enumFieldSchema(IDENTITY_SUB_GROUP_TYPE_VALUES, 'نوع مقدار نامعتبر است'),
-  identySubGroupsCode: z.string().trim().max(10, 'کد زیرگروه حداکثر ۱۰ کاراکتر است'),
+  // برنامهٔ مرجع (add-base-feature): «حالت» و کد الزامی، کد فقط عدد؛ سقف ۲ = ستون اوراکل.
+  subgrpsType: enumFieldSchema(IDENTITY_SUB_GROUP_TYPE_VALUES, 'حالت نامعتبر است').refine(
+    // `: boolean` stops TS inferring a type predicate, which would narrow the output type and
+    // break zodResolver's single TFieldValues (same issue as z.coerce above).
+    (v): boolean => v !== null,
+    'انتخاب حالت الزامی است',
+  ),
+  identySubGroupsCode: z
+    .string()
+    .trim()
+    .min(1, 'کد ویژگی الزامی است')
+    .regex(/^[0-9]+$/, 'کد ویژگی فقط عدد است')
+    .max(2, 'کد ویژگی حداکثر ۲ رقم است'),
   year: z.string().trim().min(1, 'سال مالی الزامی است').max(4, 'سال مالی حداکثر ۴ کاراکتر است'),
 });
 

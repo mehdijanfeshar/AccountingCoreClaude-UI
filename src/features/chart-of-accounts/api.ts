@@ -30,14 +30,18 @@ export interface AccountCodeWritePayload {
 }
 
 /** `search`: server-side, over the whole chart (code prefix or title contains). */
-export const accountCodesApi = createResourceApi<
-  AccountCodeDto,
-  AccountCodeWritePayload,
-  AccountCodeWritePayload,
-  { pageNumber?: number; pageSize?: number; search?: string }
->(
-  'account-codes',
-);
+export const accountCodesApi = {
+  ...createResourceApi<
+    AccountCodeDto,
+    AccountCodeWritePayload,
+    AccountCodeWritePayload,
+    { pageNumber?: number; pageSize?: number; search?: string }
+  >('account-codes'),
+  /** لیست انتخاب معینِ ثبت سند — فقط معین‌های مجاز برای واحد کاربر در تاریخ سند (ماتریس دسترسی کدینگ). */
+  entryMoins(params: { pageNumber: number; pageSize: number; search?: string; dateDoc?: string }): Promise<PagedResult<AccountCodeDto>> {
+    return apiClient.get<PagedResult<AccountCodeDto>>('/account-codes/entry-moins', { params }).then((res) => res.data);
+  },
+};
 
 /**
  * Phase 20-b dynamic تفصیلی endpoints, nested under a معین's id. See

@@ -24,6 +24,8 @@ export interface IdentityGroupDto {
   addUserId: string | null;
   changeUserId: string | null;
   isDeleted: boolean;
+  /** «کد - نام» تفصیلی گروه، برای فهرست. */
+  tafsiliTitle?: string | null;
 }
 
 export interface IdentitySubGroupDto {
@@ -70,4 +72,6 @@ export interface IdentityHeadDto {
   addUserId: string | null;
   changeUserId: string | null;
   isDeleted: boolean;
+  /** در سند استفاده شده — ویرایش و حذف ممنوع (سرور هم رد می‌کند). */
+  isUsed?: boolean;
 }

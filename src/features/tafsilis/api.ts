@@ -1,4 +1,4 @@
-import { createResourceApi } from '../../lib/api/createResourceApi';
+import { createResourceApi, type ListParams } from '../../lib/api/createResourceApi';
 import type { TafsiliDto } from '../../types/tafsiliMaster';
 
 /**
@@ -29,4 +29,9 @@ export interface TafsiliWritePayload {
   tafsilGroupLinkVahedType: number | null;
 }
 
-export const tafsilisApi = createResourceApi<TafsiliDto, TafsiliWritePayload, TafsiliWritePayload>('tafsilis');
+export const tafsilisApi = createResourceApi<
+  TafsiliDto,
+  TafsiliWritePayload,
+  TafsiliWritePayload,
+  ListParams & { search?: string }
+>('tafsilis');

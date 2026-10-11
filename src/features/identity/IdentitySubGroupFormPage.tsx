@@ -39,6 +39,10 @@ import {
 /** `''` is the Select's own "not selected" sentinel for a `number | null` RHF field. */
 const UNSET = '';
 
+/** `IdentitySubGroupType.Date`. */
+const DATE_TYPE = 1;
+const DATE_LENGTH = 8;
+
 /**
  * Handles both `/base/features/groups/:groupId/parts/new` and `…/:id/edit`.
  *
@@ -67,6 +71,9 @@ export function IdentitySubGroupFormPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
+    getValues,
+    watch,
     formState: { errors },
   } = useForm<IdentitySubGroupFormValues>({
     resolver: zodResolver(identitySubGroupFormSchema),
@@ -77,6 +84,22 @@ export function IdentitySubGroupFormPage() {
     if (!existingQuery.data) return;
     reset(identitySubGroupDtoToFormValues(existingQuery.data));
   }, [existingQuery.data, reset]);
+
+  // برنامهٔ مرجع: کد ویژگی جدید با «بیشترین کد واحد در سال + ۱» پر می‌شود (قابل تغییر).
+  const nextCodeQuery = useQuery({
+    queryKey: ['identity-sub-groups', 'next-code', financialYear],
+    queryFn: () => identitySubGroupsApi.nextCode(financialYear),
+    enabled: !isEdit && Boolean(financialYear),
+  });
+
+  useEffect(() => {
+    if (nextCodeQuery.data && !getValues('identySubGroupsCode')) {
+      setValue('identySubGroupsCode', nextCodeQuery.data);
+    }
+  }, [nextCodeQuery.data, getValues, setValue]);
+
+  // حالت «تاریخ» ⇒ طول ثابت ۸ (yyyymmdd)، مثل برنامهٔ مرجع.
+  const isDateType = watch('subgrpsType') === DATE_TYPE;
 
   const createMutation = useMutation({
     mutationFn: (values: IdentitySubGroupFormValues) =>
@@ -137,7 +160,7 @@ export function IdentitySubGroupFormPage() {
               label="کد جزء"
               {...register('identySubGroupsCode')}
               error={Boolean(errors.identySubGroupsCode)}
-              helperText={errors.identySubGroupsCode?.message ?? 'اختیاری'}
+              helperText={errors.identySubGroupsCode?.message ?? (isEdit ? 'عدد، حداکثر ۲ رقم' : 'پیشنهاد خودکار — قابل تغییر')}
               slotProps={{
                 input: {
                   startAdornment: (
@@ -205,15 +228,17 @@ export function IdentitySubGroupFormPage() {
                 <TextField
                   select
                   fullWidth
-                  label="نوع مقدار"
+                  label="حالت"
+                  required
                   value={field.value === null ? UNSET : String(field.value)}
-                  onChange={(event) =>
-                    field.onChange(event.target.value === UNSET ? null : Number(event.target.value))
-                  }
+                  onChange={(event) => {
+                    const next = event.target.value === UNSET ? null : Number(event.target.value);
+                    field.onChange(next);
+                    if (next === DATE_TYPE) setValue('subgrpsLen', DATE_LENGTH, { shouldValidate: true });
+                  }}
                   error={Boolean(errors.subgrpsType)}
-                  helperText={errors.subgrpsType?.message ?? 'اختیاری'}
+                  helperText={errors.subgrpsType?.message ?? 'تاریخ / حروف فارسی / عدد / حروف لاتین'}
                 >
-                  <MenuItem value={UNSET}>تعیین‌نشده</MenuItem>
                   {IDENTITY_SUB_GROUP_TYPE_OPTIONS.map((option) => (
                     <MenuItem key={option.value} value={String(option.value)}>
                       {option.label}
@@ -228,10 +253,11 @@ export function IdentitySubGroupFormPage() {
             <TextField
               fullWidth
               label="طول"
+              required
               {...register('subgrpsLen', { valueAsNumber: true })}
               error={Boolean(errors.subgrpsLen)}
-              helperText={errors.subgrpsLen?.message}
-              slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+              helperText={errors.subgrpsLen?.message ?? (isDateType ? 'تاریخ همیشه ۸ رقم است.' : 'حداکثر ۹۹')}
+              slotProps={{ htmlInput: { inputMode: 'numeric', readOnly: isDateType } }}
             />
           </Grid>
 
@@ -245,8 +271,10 @@ export function IdentitySubGroupFormPage() {
                   label="سال مالی"
                   value={field.value}
                   onChange={(event) => field.onChange(toLatinDigits(event.target.value))}
+                  // مثل برنامهٔ مرجع، سال از سال مالی جاری کاربر می‌آید و تایپ‌شدنی نیست.
+                  disabled
                   error={Boolean(errors.year)}
-                  helperText={errors.year?.message}
+                  helperText={errors.year?.message ?? 'سال مالی جاری'}
                   slotProps={{
                     htmlInput: { maxLength: 4, inputMode: 'numeric' },
                     input: {

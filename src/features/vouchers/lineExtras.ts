@@ -133,6 +133,43 @@ export function attributeHint(a: AttributeRequirement): string {
 
 export const IDENTITY_TYPE_LABEL: Record<number, string> = { 1: 'تاریخ', 2: 'حروف فارسی', 3: 'عدد', 4: 'حروف لاتین' };
 
+const PERSIAN_TEXT = /^[؀-ۿ‌\s0-9۰-۹\-_.()/]+$/;
+const LATIN_TEXT = /^[A-Za-z\s0-9\-_.()/]+$/;
+
+/**
+ * خطای قالب یک فیلد متغیر ویژگی — آینهٔ `IdentityError` سرور (VoucherLineExtrasService)، تا کاربر
+ * مثل برنامهٔ مرجع همان‌جا در پنجره خطا را ببیند نه هنگام ذخیرهٔ سند. null یعنی درست یا خالی.
+ */
+export function identityFieldError(f: IdentityFieldInfo, raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  if (f.length > 0 && value.length > f.length) return `حداکثر ${f.length} کاراکتر است.`;
+  switch (f.type) {
+    case 3:
+      return /^[0-9]+$/.test(toLatinDigits(value)) ? null : 'فقط عدد مجاز است.';
+    case 2:
+      return PERSIAN_TEXT.test(value) ? null : 'فقط حروف فارسی مجاز است.';
+    case 4:
+      return LATIN_TEXT.test(value) ? null : 'فقط حروف لاتین مجاز است.';
+    default:
+      return null;
+  }
+}
+
+/** آیا ویژگی یک گروه کامل و درست پر شده (شناسنامه + همهٔ متغیرها بدون خطای قالب). */
+export function identityComplete(
+  g: IdentityRequirement,
+  value: { headId: string; values: Record<string, string> } | undefined,
+): boolean {
+  if (!value?.headId) return false;
+  return g.fields
+    .filter((f) => f.kind === 2)
+    .every((f) => {
+      const v = value.values[f.subGroupId] ?? '';
+      return v.trim() !== '' && identityFieldError(f, v) === null;
+    });
+}
+
 /** آیا ردیف بانک بدهکار (واریز) است؛ فیش/حواله‌اش الزامی است. */
 export function canHaveReceipt(line: LineExtrasFormFields): boolean {
   return !!line.extrasReq?.isBankAccount && Number(line.debtor || 0) > 0;
@@ -158,7 +195,10 @@ export function missingExtras(line: LineExtrasFormFields): string[] {
       continue;
     }
     for (const f of g.fields.filter((x) => x.kind === 2)) {
-      if (!given.values[f.subGroupId]?.trim()) out.push(`«${f.title}» (ویژگی ${g.title})`);
+      const v = given.values[f.subGroupId] ?? '';
+      const formatError = identityFieldError(f, v);
+      if (!v.trim()) out.push(`«${f.title}» (ویژگی ${g.title})`);
+      else if (formatError) out.push(`«${f.title}» (ویژگی ${g.title}): ${formatError}`);
     }
   }
   // ردیف حساب بانکی بدون مدرک ثبت نمی‌شود (تصمیم صاحب پروژه ۲۰۲۶-۱۰-۰۸؛ سرور هم کنترل می‌کند).

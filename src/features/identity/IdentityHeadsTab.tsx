@@ -124,23 +124,29 @@ export function IdentityHeadsTab({
       key: 'action',
       header: 'عملیات',
       render: (row) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="ویرایش">
-            <IconButton
-              size="small"
-              aria-label="ویرایش"
-              component={RouterLink}
-              to={`/base/features/records/${row.id}/edit`}
-            >
-              <EditOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="حذف">
-            <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
+        row.isUsed ? (
+          <Typography variant="caption" color="text.secondary">
+            در سند استفاده شده
+          </Typography>
+        ) : (
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="ویرایش">
+              <IconButton
+                size="small"
+                aria-label="ویرایش"
+                component={RouterLink}
+                to={`/base/features/records/${row.id}/edit`}
+              >
+                <EditOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="حذف">
+              <IconButton size="small" color="error" aria-label="حذف" onClick={() => setPendingDelete(row)}>
+                <DeleteOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        )
       ),
     },
   ];

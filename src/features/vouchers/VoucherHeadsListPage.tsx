@@ -56,6 +56,10 @@ import {
 import { SortVouchersDialog } from './SortVouchersDialog';
 import { DeletedVouchersDialog } from './DeletedVouchersDialog';
 import RestoreFromTrashOutlinedIcon from '@mui/icons-material/RestoreFromTrashOutlined';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+import { VOUCHER_EXPORT_LIMIT, exportVoucherHeadsToExcel, fetchAllVoucherHeads } from './voucherHeadsExport';
+import { PrintPortal } from '../../components/PrintPortal';
 import type { VoucherHeadDto } from '../../types/voucherHead';
 
 const PAGE_SIZE = 20;
@@ -270,6 +274,69 @@ export function VoucherHeadsListPage() {
   });
 
   const sysTypeNameById = new Map(sysTypes.map((t) => [t.id, t.sysName ?? t.sysCode]));
+
+  // ── خروجی اکسل / PDF: همهٔ اسناد با فیلترها و تب فعلی، نه فقط صفحهٔ جاری ──
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+  const [printRows, setPrintRows] = useState<VoucherHeadDto[] | null>(null);
+
+  function exportSubtitle(count: number): string {
+    const parts = [
+      filters.year ? `سال مالی ${filters.year}` : null,
+      `وضعیت: ${statusTab ? getDocLifeLabel(Number(statusTab)) : 'همه'}`,
+      filters.dateDocFrom || filters.dateDocTo
+        ? `تاریخ ${filters.dateDocFrom ? formatLegacyJalaliDate(filters.dateDocFrom) : '…'} تا ${filters.dateDocTo ? formatLegacyJalaliDate(filters.dateDocTo) : '…'}`
+        : null,
+      filters.docNumFrom || filters.docNumTo ? `شماره ${filters.docNumFrom || '…'} تا ${filters.docNumTo || '…'}` : null,
+      filters.systemTypeId ? `نوع سند: ${sysTypeNameById.get(filters.systemTypeId) ?? '—'}` : null,
+      `${count} سند`,
+    ];
+    return toPersianDigits(parts.filter(Boolean).join('   |   '));
+  }
+
+  async function handleExport(kind: 'excel' | 'pdf') {
+    setExporting(kind);
+    try {
+      const { rows, totalCount, truncated } = await fetchAllVoucherHeads({
+        year: filters.year || undefined,
+        docNumFrom: filters.docNumFrom || undefined,
+        docNumTo: filters.docNumTo || undefined,
+        dateDocFrom: filters.dateDocFrom || undefined,
+        dateDocTo: filters.dateDocTo || undefined,
+        systemTypeId: filters.systemTypeId || undefined,
+        docLife: statusTab ? Number(statusTab) : undefined,
+      });
+      if (truncated) {
+        notify(
+          `${toPersianDigits(totalCount)} سند با این فیلترها هست؛ فقط ${toPersianDigits(VOUCHER_EXPORT_LIMIT)} سند اول در خروجی آمد. برای همه، فیلتر را کوچک‌تر کنید.`,
+        );
+      }
+      if (kind === 'excel') {
+        await exportVoucherHeadsToExcel(rows, {
+          subtitle: exportSubtitle(rows.length),
+          sysTypeName: (id) => (id ? (sysTypeNameById.get(id) ?? '') : ''),
+          year: filters.year || financialYear,
+        });
+      } else {
+        setPrintRows(rows);
+      }
+    } catch {
+      notify('آماده‌سازی خروجی با خطا روبه‌رو شد.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  // PDF از مسیر چاپ مرورگر (شکل‌دهی درست فارسی): بعد از رندر جدول چاپی، پنجرهٔ چاپ باز می‌شود.
+  useEffect(() => {
+    if (!printRows) return;
+    const done = () => setPrintRows(null);
+    window.addEventListener('afterprint', done, { once: true });
+    const timer = window.setTimeout(() => window.print(), 50);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', done);
+    };
+  }, [printRows]);
 
   // Widths are shares of the row, not pixels: on a wide screen the spare space is spread across
   // every column instead of all landing in «شرح سند», where it opened a gap between the
@@ -489,7 +556,8 @@ export function VoucherHeadsListPage() {
   }
 
   return (
-    <section>
+    // در چاپ فقط جدول چاپی (PrintPortal، بیرون از قالب برنامه) چاپ می‌شود.
+    <Box component="section">
       <PageHeader
         eyebrow="عملیات"
         icon={<DescriptionOutlinedIcon />}
@@ -498,6 +566,22 @@ export function VoucherHeadsListPage() {
         description="اسناد بر اساس وضعیت — همهٔ فیلترها و تب‌ها روی کل اسناد واحد شما اعمال می‌شوند، نه فقط صفحهٔ جاری."
         actions={
           <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<FileDownloadOutlinedIcon />}
+              onClick={() => void handleExport('excel')}
+              disabled={!isConfigured || exporting !== null || !query.data?.totalCount}
+            >
+              {exporting === 'excel' ? 'در حال آماده‌سازی…' : 'خروجی اکسل'}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<PictureAsPdfOutlinedIcon />}
+              onClick={() => void handleExport('pdf')}
+              disabled={!isConfigured || exporting !== null || !query.data?.totalCount}
+            >
+              {exporting === 'pdf' ? 'در حال آماده‌سازی…' : 'چاپ / PDF'}
+            </Button>
             <Button
               variant="outlined"
               startIcon={<SortOutlinedIcon />}
@@ -816,7 +900,61 @@ export function VoucherHeadsListPage() {
           </MenuItem>
         ))}
       </Menu>
-    </section>
+
+      {/* فقط در چاپ / PDF دیده می‌شود: همهٔ اسناد فیلترشده، نه صفحهٔ جاری. */}
+      {printRows && (
+        <PrintPortal>
+          <Typography variant="h6" sx={{ textAlign: 'center', fontWeight: 700 }}>کارتابل اسناد</Typography>
+          <Typography variant="body2" sx={{ textAlign: 'center', mb: 1.5 }}>{exportSubtitle(printRows.length)}</Typography>
+          <Box
+            component="table"
+            sx={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: 11,
+              '& th, & td': { border: '1px solid #999', px: 0.75, py: 0.4, textAlign: 'right' },
+              '& th': { bgcolor: '#f1f5f9' },
+              '& td.num': { textAlign: 'left', whiteSpace: 'nowrap' },
+              '& thead': { display: 'table-header-group' },
+              '& tr': { breakInside: 'avoid' },
+            }}
+          >
+            <thead>
+              <tr>
+                <th>شماره سند</th>
+                <th>شماره عطف</th>
+                <th>تاریخ سند</th>
+                <th>شرح سند</th>
+                <th>جمع بدهکار</th>
+                <th>جمع بستانکار</th>
+                <th>نوع سند</th>
+                <th>وضعیت</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printRows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.docNum ? toPersianDigits(row.docNum) : '—'}</td>
+                  <td>{row.atfNum?.trim() ? toPersianDigits(row.atfNum.trim()) : '—'}</td>
+                  <td>{formatLegacyJalaliDate(row.dateDoc)}</td>
+                  <td>{row.headDesc || '—'}</td>
+                  <td className="num">{toPersianDigits(formatThousands(Number(row.totalDebtor ?? 0)))}</td>
+                  <td className="num">{toPersianDigits(formatThousands(Number(row.totalCreditor ?? 0)))}</td>
+                  <td>{row.systemTypeId ? (sysTypeNameById.get(row.systemTypeId) ?? '—') : '—'}</td>
+                  <td>{getDocLifeLabel(row.docLife)}</td>
+                </tr>
+              ))}
+              <tr>
+                <th colSpan={4}>جمع ({toPersianDigits(printRows.length)} سند)</th>
+                <th className="num">{toPersianDigits(formatThousands(printRows.reduce((s, r) => s + Number(r.totalDebtor ?? 0), 0)))}</th>
+                <th className="num">{toPersianDigits(formatThousands(printRows.reduce((s, r) => s + Number(r.totalCreditor ?? 0), 0)))}</th>
+                <th colSpan={2} />
+              </tr>
+            </tbody>
+          </Box>
+        </PrintPortal>
+      )}
+    </Box>
   );
 }
 

@@ -117,7 +117,7 @@ function LineBlock({ form, index, isBankCredit }: { form: UseFormReturn<VoucherE
   return (
     <>
       {isBankCredit && <VoucherLineCheque form={form} index={index} />}
-      <VoucherLineExtras form={form} index={index} />
+      <VoucherLineExtras form={form} index={index} identityInline />
     </>
   );
 }

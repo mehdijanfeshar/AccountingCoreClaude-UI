@@ -1,28 +1,36 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import { JalaliDateField } from '../../components/JalaliDateField';
 import { toPersianDigits } from '../../lib/format/numbers';
 import {
-  IDENTITY_TYPE_LABEL,
   attributeHint,
   canHaveReceipt,
+  identityComplete,
   isDateAttribute,
   lineExtrasApi,
   savedToForm,
-  type IdentityRequirement,
 } from './lineExtras';
+import { IdentityFieldsBlock } from './IdentityFieldsBlock';
+import { VoucherIdentityDialog } from './VoucherIdentityDialog';
 import type { VoucherEntryFormSchema } from './voucherEntrySchema';
 
 interface Props {
   form: UseFormReturn<VoucherEntryFormSchema>;
   index: number;
+  /**
+   * ویژگی درجا (بدون پنجره) — برای جایی که خودش پنجره است (دیالوگ «تکمیل اطلاعات ردیف‌ها»ی حسابیار).
+   * پیش‌فرض: پنجرهٔ «اطلاعات ویژگی» که مثل برنامهٔ مرجع با ورود تفصیلی ویژگی‌دار خودکار باز می‌شود.
+   */
+  identityInline?: boolean;
 }
 
 /**
@@ -33,7 +41,7 @@ interface Props {
  * <li>حساب بانکی بدهکار (واریز): فیش/حواله. برای ردیف بستانکار بانک، برگ چک از بخش چک همین ردیف.</li>
  * </ul>
  */
-export function VoucherLineExtras({ form, index }: Props) {
+export function VoucherLineExtras({ form, index, identityInline = false }: Props) {
   const { control, setValue, formState } = form;
   const p = `lines.${index}` as const;
   const accountId = useWatch({ control, name: `${p}.accountId` });
@@ -93,6 +101,22 @@ export function VoucherLineExtras({ form, index }: Props) {
   const lineErrors = formState.errors.lines?.[index];
   const summaryError = (lineErrors?.attributes as { message?: string } | undefined)?.message;
 
+  // برنامهٔ مرجع: با ورود تفصیلی ویژگی‌دار، پنجرهٔ «اطلاعات ویژگی» خودکار باز می‌شود. فقط یک بار به‌ازای
+  // هر مجموعهٔ ویژگیِ ناقص — بستن پنجره آن را دوباره باز نمی‌کند؛ دکمهٔ «اطلاعات ویژگی» ردیف بازش می‌کند.
+  const [identityOpen, setIdentityOpen] = useState(false);
+  const autoOpenedFor = useRef('');
+  const incompleteKey = (req?.identities ?? [])
+    .filter((g) => !identities[g.groupId]?.headId)
+    .map((g) => g.groupId)
+    .join(',');
+  useEffect(() => {
+    if (identityInline || !loaded || !accountId) return;
+    if (incompleteKey && incompleteKey !== autoOpenedFor.current) {
+      autoOpenedFor.current = incompleteKey;
+      setIdentityOpen(true);
+    }
+  }, [identityInline, loaded, accountId, incompleteKey]);
+
   if (!accountId || !req) return null;
   const showReceipt = canHaveReceipt({ debtor, extrasLoaded: loaded, extrasReq: req, attributes, identities, receiptKind, receiptNo, receiptDate });
   const bankCredit = req.isBankAccount && Number(creditor || 0) > 0;
@@ -137,16 +161,48 @@ export function VoucherLineExtras({ form, index }: Props) {
           </Grid>
         )}
 
-        {req.identities.map((g) => (
-          <IdentityBlock
-            key={g.groupId}
-            group={g}
-            year={year}
-            disabled={!loaded}
-            value={identities[g.groupId] ?? { headId: '', values: {} }}
-            onChange={(patch) => setIdentity(g.groupId, patch)}
-          />
-        ))}
+        {identityInline &&
+          req.identities.map((g) => (
+            <IdentityFieldsBlock
+              key={g.groupId}
+              group={g}
+              year={year}
+              disabled={!loaded}
+              value={identities[g.groupId] ?? { headId: '', values: {} }}
+              onChange={(patch) => setIdentity(g.groupId, patch)}
+            />
+          ))}
+
+        {!identityInline && req.identities.length > 0 && (
+          <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            {req.identities.map((g) => {
+              const complete = identityComplete(g, identities[g.groupId]);
+              return (
+                <Chip
+                  key={g.groupId}
+                  size="small"
+                  color={complete ? 'success' : 'warning'}
+                  variant="outlined"
+                  label={`ویژگی «${g.title}»: ${complete ? 'تکمیل شده' : 'ناقص'}`}
+                />
+              );
+            })}
+            <Button size="small" startIcon={<TuneOutlinedIcon />} disabled={!loaded} onClick={() => setIdentityOpen(true)}>
+              اطلاعات ویژگی
+            </Button>
+            <VoucherIdentityDialog
+              open={identityOpen}
+              groups={req.identities}
+              year={year}
+              value={identities}
+              onClose={() => setIdentityOpen(false)}
+              onSave={(next) => {
+                setValue(`${p}.identities`, { ...identities, ...next }, dirty);
+                setIdentityOpen(false);
+              }}
+            />
+          </Stack>
+        )}
 
         {showReceipt && (
           <Grid container spacing={1.5}>
@@ -178,79 +234,6 @@ export function VoucherLineExtras({ form, index }: Props) {
 
         {summaryError && <Alert severity="error" sx={{ py: 0 }}>{summaryError}</Alert>}
       </Stack>
-    </Grid>
-  );
-}
-
-function IdentityBlock({
-  group, year, value, disabled, onChange,
-}: {
-  group: IdentityRequirement;
-  year: string;
-  value: { headId: string; values: Record<string, string> };
-  disabled: boolean;
-  onChange: (patch: Partial<{ headId: string; values: Record<string, string> }>) => void;
-}) {
-  const heads = useQuery({
-    queryKey: ['identity-heads', group.groupId, year],
-    queryFn: () => lineExtrasApi.heads(group.groupId, year),
-    staleTime: 60_000,
-  });
-
-  // تنها شناسنامهٔ این ویژگی ⇒ خودکار انتخاب.
-  useEffect(() => {
-    if (!value.headId && heads.data?.length === 1) onChange({ headId: heads.data[0].headId });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [heads.data, value.headId]);
-
-  const variable = group.fields.filter((f) => f.kind === 2);
-  const chosen = heads.data?.find((h) => h.headId === value.headId);
-
-  function headLabel(h: { serial: number; fixedValues: { title: string; value: string | null }[] }) {
-    const fixed = h.fixedValues.filter((f) => f.value).map((f) => `${f.title}: ${f.value}`).join(' — ');
-    return toPersianDigits(`شناسنامه ${h.serial}${fixed ? ` — ${fixed}` : ''}`);
-  }
-
-  return (
-    <Grid container spacing={1.5}>
-      <Grid size={12}>
-        <Typography variant="body2" sx={{ fontWeight: 700 }}>ویژگی «{group.title}»</Typography>
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6 }}>
-        <TextField select label="شناسنامه" required size="small" fullWidth disabled={disabled || heads.isLoading}
-          value={heads.data?.some((h) => h.headId === value.headId) ? value.headId : ''}
-          onChange={(e) => onChange({ headId: e.target.value })}
-          helperText={heads.data && heads.data.length === 0 ? 'برای این ویژگی در سال جاری شناسنامه‌ای تعریف نشده است.' : undefined}
-          error={!!heads.data && heads.data.length === 0}>
-          {(heads.data ?? []).map((h) => (
-            <MenuItem key={h.headId} value={h.headId}>{headLabel(h)}</MenuItem>
-          ))}
-        </TextField>
-      </Grid>
-      {chosen && chosen.fixedValues.length > 0 && (
-        <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
-          <Typography variant="caption" color="text.secondary">
-            مقادیر ثابت: {toPersianDigits(chosen.fixedValues.map((f) => `${f.title}: ${f.value ?? '—'}`).join('، '))}
-          </Typography>
-        </Grid>
-      )}
-      {variable.map((f) => {
-        const v = value.values[f.subGroupId] ?? '';
-        const set = (next: string) => onChange({ values: { ...value.values, [f.subGroupId]: next } });
-        const hint = [f.type ? IDENTITY_TYPE_LABEL[f.type] : null, f.length > 0 ? `حداکثر ${f.length} کاراکتر` : null]
-          .filter(Boolean).join('، ');
-        return (
-          <Grid key={f.subGroupId} size={{ xs: 12, sm: 4 }}>
-            {f.type === 1 ? (
-              <JalaliDateField label={f.title} required size="small" fullWidth disabled={disabled} value={v} onChange={set} />
-            ) : (
-              <TextField label={f.title} required size="small" fullWidth disabled={disabled} value={v}
-                onChange={(e) => set(e.target.value)} helperText={hint || undefined}
-                slotProps={{ htmlInput: { maxLength: f.length > 0 ? f.length : undefined, dir: f.type === 4 || f.type === 3 ? 'ltr' : undefined } }} />
-            )}
-          </Grid>
-        );
-      })}
     </Grid>
   );
 }

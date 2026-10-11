@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import Grid from '@mui/material/Grid';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -18,6 +18,7 @@ import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { identityGroupsApi } from './api';
+import { IdentityTafsiliSelect } from './IdentityTafsiliSelect';
 import {
   emptyIdentityGroupFormValues,
   identityGroupDtoToFormValues,
@@ -43,6 +44,7 @@ export function IdentityGroupFormPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -115,7 +117,7 @@ export function IdentityGroupFormPage() {
               label="کد گروه"
               {...register('identityGroupsCode')}
               error={Boolean(errors.identityGroupsCode)}
-              helperText={errors.identityGroupsCode?.message ?? 'اختیاری'}
+              helperText={errors.identityGroupsCode?.message ?? 'عدد، حداکثر ۳ رقم'}
               slotProps={{
                 input: {
                   startAdornment: (
@@ -144,6 +146,21 @@ export function IdentityGroupFormPage() {
                   ),
                 },
               }}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Controller
+              name="tafsiliId"
+              control={control}
+              render={({ field }) => (
+                <IdentityTafsiliSelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={pending}
+                  error={errors.tafsiliId?.message}
+                />
+              )}
             />
           </Grid>
 

@@ -70,6 +70,7 @@ export function VoucherLineRow({
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const dateDoc = useWatch({ control, name: 'dateDoc' }) ?? '';
   const accountId = useWatch({ control, name: `lines.${index}.accountId` });
   const accountLabel = useWatch({ control, name: `lines.${index}.accountLabel` });
   const tafsili = useWatch({ control, name: `lines.${index}.tafsili` }) ?? {};
@@ -308,6 +309,7 @@ export function VoucherLineRow({
       <AccountCodePickerDialog
         open={accountPickerOpen}
         title="انتخاب حساب معین"
+        voucherEntry={{ dateDoc }}
         onClose={() => setAccountPickerOpen(false)}
         onSelect={onSelectAccount}
       />

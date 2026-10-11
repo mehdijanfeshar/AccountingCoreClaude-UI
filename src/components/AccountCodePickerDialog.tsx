@@ -30,6 +30,12 @@ interface AccountCodePickerDialogProps {
    * it narrows the CURRENT page's rows, it does not ask the server for a different page.
    */
   filterRows?: (account: AccountCodeDto) => boolean;
+  /**
+   * لیست ثبت سند: فقط حساب‌های معینِ مجاز برای نوع واحد کاربر در این تاریخ سند (ماتریس دسترسی
+   * کدینگ) — از `GET /api/account-codes/entry-moins`، با همان قاعده‌ای که ذخیرهٔ سند را کنترل می‌کند.
+   * `undefined` = همهٔ حساب‌ها (مثلاً انتخاب حساب والد در کدینگ).
+   */
+  voucherEntry?: { dateDoc: string };
 }
 
 /**
@@ -48,6 +54,7 @@ export function AccountCodePickerDialog({
   onSelect,
   excludeId,
   filterRows,
+  voucherEntry,
 }: AccountCodePickerDialogProps) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
@@ -64,8 +71,11 @@ export function AccountCodePickerDialog({
   }, [searchText]);
 
   const query = useQuery({
-    queryKey: ['account-codes-picker', pageNumber, pageSize, search],
-    queryFn: () => accountCodesApi.list({ pageNumber, pageSize, search: search || undefined }),
+    queryKey: ['account-codes-picker', pageNumber, pageSize, search, voucherEntry?.dateDoc ?? null],
+    queryFn: () =>
+      voucherEntry
+        ? accountCodesApi.entryMoins({ pageNumber, pageSize, search: search || undefined, dateDoc: voucherEntry.dateDoc })
+        : accountCodesApi.list({ pageNumber, pageSize, search: search || undefined }),
     enabled: open,
     placeholderData: (previous) => previous,
   });
@@ -110,7 +120,11 @@ export function AccountCodePickerDialog({
             size="small"
             autoFocus
             label="جستجوی کد یا عنوان حساب"
-            helperText="در همهٔ حساب‌ها جستجو می‌شود: کدی که با این عدد شروع شود، یا عنوانی که این متن را داشته باشد."
+            helperText={
+              voucherEntry
+                ? 'فقط حساب‌های معینِ مجاز برای واحد شما در تاریخ این سند: کدی که با این عدد شروع شود، یا عنوانی که این متن را داشته باشد.'
+                : 'در همهٔ حساب‌ها جستجو می‌شود: کدی که با این عدد شروع شود، یا عنوانی که این متن را داشته باشد.'
+            }
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
@@ -126,7 +140,13 @@ export function AccountCodePickerDialog({
               rows={rows}
               getRowKey={(row) => row.id}
               isLoading={query.isLoading}
-              emptyMessage={search ? `حسابی با «${searchText.trim()}» پیدا نشد.` : 'هیچ حسابی یافت نشد.'}
+              emptyMessage={
+                search
+                  ? `حسابی با «${searchText.trim()}» پیدا نشد.`
+                  : voucherEntry
+                    ? 'هیچ معینی برای واحد شما در تاریخ این سند مجاز نشده است («اطلاعات پایه › دسترسی کدینگ حسابداری»).'
+                    : 'هیچ حسابی یافت نشد.'
+              }
             />
             {query.data && (
               <Pagination

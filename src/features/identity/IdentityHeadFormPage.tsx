@@ -132,6 +132,8 @@ export function IdentityHeadFormPage() {
   });
 
   const pending = isEdit ? updateMutation.isPending : createMutation.isPending;
+  // برنامهٔ مرجع (identity-head-edit): مقداردهیِ به‌کاررفته در سند قابل ویرایش نیست — سرور هم رد می‌کند.
+  const locked = isEdit && Boolean(existingQuery.data?.isUsed);
 
   const missingGroup = touched && !groupId;
   const missingYear = touched && !year.trim();
@@ -143,7 +145,7 @@ export function IdentityHeadFormPage() {
     setTouched(true);
     setSubmitError(null);
 
-    if (!groupId || !year.trim() || emptyFields.length > 0) {
+    if (locked || !groupId || !year.trim() || emptyFields.length > 0) {
       return;
     }
 
@@ -179,6 +181,12 @@ export function IdentityHeadFormPage() {
       />
 
       {submitError !== null && <ErrorBanner error={submitError} />}
+
+      {locked && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          این مقداردهی در سند استفاده شده است و قابل ویرایش یا حذف نیست.
+        </Alert>
+      )}
 
       <FormCard onSubmit={onSubmit} watermarkIcon={<BadgeOutlinedIcon />}>
         <Grid container spacing={3}>
@@ -222,9 +230,10 @@ export function IdentityHeadFormPage() {
               label="سال مالی"
               value={year}
               onChange={(event) => setYear(toLatinDigits(event.target.value))}
-              disabled={isEdit}
+              // مثل برنامهٔ مرجع، سال از سال مالی جاری کاربر می‌آید.
+              disabled
               error={missingYear}
-              helperText={missingYear ? 'سال مالی الزامی است' : undefined}
+              helperText={missingYear ? 'سال مالی الزامی است' : 'سال مالی جاری'}
               slotProps={{
                 htmlInput: { maxLength: 4, inputMode: 'numeric' },
                 input: {
@@ -284,6 +293,7 @@ export function IdentityHeadFormPage() {
                   fullWidth
                   label={subGroup.subgrpsDesc}
                   value={value}
+                  disabled={locked}
                   onChange={(event) =>
                     setValues((previous) => ({ ...previous, [subGroup.id]: event.target.value }))
                   }

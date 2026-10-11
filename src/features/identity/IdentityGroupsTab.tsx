@@ -63,7 +63,8 @@ export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: stri
     ? items.filter(
         (row) =>
           (row.identityGroupsDesc ?? '').toLowerCase().includes(needle) ||
-          (row.identityGroupsCode ?? '').toLowerCase().includes(needle),
+          (row.identityGroupsCode ?? '').toLowerCase().includes(needle) ||
+          (row.tafsiliTitle ?? '').toLowerCase().includes(needle),
       )
     : items;
 
@@ -74,6 +75,18 @@ export function IdentityGroupsTab({ onOpenParts }: { onOpenParts: (groupId: stri
       header: 'شرح گروه',
       render: (row) =>
         row.identityGroupsDesc ?? (
+          <Typography variant="body2" color="text.disabled">
+            —
+          </Typography>
+        ),
+    },
+    {
+      key: 'tafsili',
+      header: 'تفصیلی',
+      render: (row) =>
+        row.tafsiliTitle ? (
+          toPersianDigits(row.tafsiliTitle)
+        ) : (
           <Typography variant="body2" color="text.disabled">
             —
           </Typography>

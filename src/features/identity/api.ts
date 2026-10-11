@@ -1,3 +1,4 @@
+import { apiClient } from '../../lib/api/client';
 import { createResourceApi, type ListParams } from '../../lib/api/createResourceApi';
 import type {
   IdentityGroupDto,
@@ -49,12 +50,20 @@ export interface IdentitySubGroupListParams extends ListParams {
   kind?: number;
 }
 
-export const identitySubGroupsApi = createResourceApi<
-  IdentitySubGroupDto,
-  IdentitySubGroupWritePayload,
-  IdentitySubGroupWritePayload,
-  IdentitySubGroupListParams
->('identity-sub-groups');
+export const identitySubGroupsApi = {
+  ...createResourceApi<
+    IdentitySubGroupDto,
+    IdentitySubGroupWritePayload,
+    IdentitySubGroupWritePayload,
+    IdentitySubGroupListParams
+  >('identity-sub-groups'),
+  /** کد پیشنهادی بعدی در واحد و سال (بیشترین + ۱، دو رقمی) — برنامهٔ مرجع `getMaxSubGroupCode`. */
+  nextCode(year: string): Promise<string> {
+    return apiClient
+      .get<{ code: string }>('/identity-sub-groups/next-code', { params: { year } })
+      .then((res) => res.data.code);
+  },
+};
 
 // --- شناسنامه --------------------------------------------------------------------------------
 
