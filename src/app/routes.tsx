@@ -17,6 +17,7 @@ import { AttribForAccountCodesListPage } from '../features/attrib-for-account-co
 import { AttribForAccountCodeFormPage } from '../features/attrib-for-account-codes/AttribForAccountCodeFormPage';
 import { CodingPermissionsListPage } from '../features/coding-permissions/CodingPermissionsListPage';
 import { RoleAccessPage } from '../features/role-access/RoleAccessPage';
+import { LicensePage } from '../features/license/LicensePage';
 import { FinancialYearsPage } from '../features/financial-years/FinancialYearsPage';
 import { FeaturesPage } from './FeaturesPage';
 import { IdentityGroupFormPage } from '../features/identity/IdentityGroupFormPage';
@@ -138,6 +139,7 @@ export const routes: RouteObject[] = [
   // ساخت یک عملیات دسته‌ای روی ضرب دکارتی است و به یک ردیف مشخص گره نمی‌خورد.
   { path: '/base/coding-permissions', element: <CodingPermissionsListPage /> },
   { path: '/base/role-access', element: <RoleAccessPage /> },
+  { path: '/base/license', element: <LicensePage /> },
   { path: '/base/financial-years', element: <FinancialYearsPage /> },
 
   // ویژگی — یک صفحهٔ تب‌دار (گروه / اجزا / ثبت‌شده‌ها) مثل کدینگ، نه چند منوی خواهر.

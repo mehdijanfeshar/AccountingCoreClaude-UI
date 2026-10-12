@@ -39,6 +39,7 @@ import FunctionsOutlinedIcon from "@mui/icons-material/FunctionsOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import VpnKeyOutlinedIcon from "@mui/icons-material/VpnKeyOutlined";
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
@@ -141,6 +142,13 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'هر نقش کدام منوها را ببیند و در کدام ثبت و تغییر کند',
         to: '/base/role-access',
         icon: <AdminPanelSettingsOutlinedIcon fontSize="small" />,
+        setadOnly: true,
+      },
+      {
+        label: "لایسنس",
+        description: "وضعیت لایسنس سامانه و بارگذاری فایل تمدید",
+        to: "/base/license",
+        icon: <VpnKeyOutlinedIcon fontSize="small" />,
         setadOnly: true,
       },
       {

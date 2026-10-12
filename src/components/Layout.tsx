@@ -37,6 +37,7 @@ import { InitialSettingsDialog } from '../features/session/InitialSettingsDialog
 import { useSessionDefaults } from '../features/session/useSessionDefaults';
 import { toPersianDigits } from '../lib/format/numbers';
 import { SHELL } from '../theme';
+import { LicenseBanner } from '../features/license/LicenseBanner';
 
 const DRAWER_WIDTH = 260;
 
@@ -386,6 +387,7 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
 
         <Box component="main" id="main-content" sx={{ flex: 1, minWidth: 0, p: 3, "@media print": { p: 0 } }}>
+          <LicenseBanner />
           {children}
         </Box>
       </Box>
