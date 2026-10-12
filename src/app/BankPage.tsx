@@ -7,6 +7,7 @@ import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlin
 import BookOutlinedIcon from '@mui/icons-material/BookOutlined';
 import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
 import { PageHeader } from '../components/PageHeader';
+import { useTabAccess } from '../lib/roles';
 import { BankAccountsTab } from '../features/bank-accounts/BankAccountsTab';
 import { CheckBooksTab } from '../features/check-books/CheckBooksTab';
 import { ChequeTypesTab } from '../features/cheque-types/ChequeTypesTab';
@@ -27,7 +28,11 @@ type TabKey = (typeof TABS)[number];
  * which is the question someone actually has when they click it.
  */
 export function BankPage() {
-  const [tab, setTab] = useState<TabKey>('accounts');
+  const [selectedTab, setTab] = useState<TabKey>('accounts');
+  // «دسترسی نقش‌ها»: تب بدون دسترسی نمایش داده نمی‌شود؛ اگر تب انتخاب‌شده بسته شد، اولین تب دیدنی باز می‌شود.
+  const access = useTabAccess('/base/bank');
+  const visibleTabs = TABS.filter((t) => access.canSee(t));
+  const tab: TabKey | undefined = visibleTabs.includes(selectedTab) ? selectedTab : visibleTabs[0];
   const [accountFilter, setAccountFilter] = useState('');
 
   function handleChange(_event: SyntheticEvent, value: TabKey) {
@@ -51,25 +56,31 @@ export function BankPage() {
       />
 
       <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
-        <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto">
-          <Tab
-            value="accounts"
-            iconPosition="start"
-            icon={<AccountBalanceOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label="حساب‌های بانکی"
-          />
-          <Tab
-            value="checkBooks"
-            iconPosition="start"
-            icon={<BookOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label="دسته‌چک"
-          />
-          <Tab
-            value="chequeSettings"
-            iconPosition="start"
-            icon={<PrintOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label="تنظیمات محیطی چک"
-          />
+        <Tabs value={tab ?? false} onChange={handleChange} variant="scrollable" scrollButtons="auto">
+          {access.canSee('accounts') && (
+            <Tab
+              value="accounts"
+              iconPosition="start"
+              icon={<AccountBalanceOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label="حساب‌های بانکی"
+            />
+          )}
+          {access.canSee('checkBooks') && (
+            <Tab
+              value="checkBooks"
+              iconPosition="start"
+              icon={<BookOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label="دسته‌چک"
+            />
+          )}
+          {access.canSee('chequeSettings') && (
+            <Tab
+              value="chequeSettings"
+              iconPosition="start"
+              icon={<PrintOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label="تنظیمات محیطی چک"
+            />
+          )}
         </Tabs>
       </Paper>
 

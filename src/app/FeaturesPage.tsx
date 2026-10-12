@@ -11,6 +11,7 @@ import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import { PageHeader } from '../components/PageHeader';
+import { useTabAccess } from '../lib/roles';
 import { toPersianDigits } from '../lib/format/numbers';
 import { identityGroupsApi } from '../features/identity/api';
 import { IdentityGroupsTab } from '../features/identity/IdentityGroupsTab';
@@ -54,7 +55,11 @@ function TabLabel({ text, count }: { text: string; count?: number }) {
  * «حساب‌های شناسه‌دار» (`TB_ATTRIBFORACCOUNTCODE`) — a genuinely separate mechanism.
  */
 export function FeaturesPage() {
-  const [tab, setTab] = useState<TabKey>('groups');
+  const [selectedTab, setTab] = useState<TabKey>('groups');
+  // «دسترسی نقش‌ها»: تب بدون دسترسی نمایش داده نمی‌شود؛ اگر تب انتخاب‌شده بسته شد، اولین تب دیدنی باز می‌شود.
+  const access = useTabAccess('/base/features');
+  const visibleTabs = TABS.filter((t) => access.canSee(t));
+  const tab: TabKey | undefined = visibleTabs.includes(selectedTab) ? selectedTab : visibleTabs[0];
   const [selectedGroupId, setSelectedGroupId] = useState('');
 
   const groupsQuery = useQuery({
@@ -92,25 +97,31 @@ export function FeaturesPage() {
       />
 
       <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
-        <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto">
-          <Tab
-            value="groups"
-            iconPosition="start"
-            icon={<AccountTreeOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="گروه ویژگی" count={groupsQuery.isLoading ? undefined : groups.length} />}
-          />
-          <Tab
-            value="parts"
-            iconPosition="start"
-            icon={<ListAltOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="اجزای ویژگی" />}
-          />
-          <Tab
-            value="records"
-            iconPosition="start"
-            icon={<FactCheckOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="ویژگی‌های ثبت‌شده" />}
-          />
+        <Tabs value={tab ?? false} onChange={handleChange} variant="scrollable" scrollButtons="auto">
+          {access.canSee('groups') && (
+            <Tab
+              value="groups"
+              iconPosition="start"
+              icon={<AccountTreeOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="گروه ویژگی" count={groupsQuery.isLoading ? undefined : groups.length} />}
+            />
+          )}
+          {access.canSee('parts') && (
+            <Tab
+              value="parts"
+              iconPosition="start"
+              icon={<ListAltOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="اجزای ویژگی" />}
+            />
+          )}
+          {access.canSee('records') && (
+            <Tab
+              value="records"
+              iconPosition="start"
+              icon={<FactCheckOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="ویژگی‌های ثبت‌شده" />}
+            />
+          )}
         </Tabs>
       </Paper>
 

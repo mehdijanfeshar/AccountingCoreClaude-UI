@@ -1,4 +1,5 @@
 import { useMemo, useState, type SyntheticEvent } from 'react';
+import { useTabAccess } from '../lib/roles';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -43,7 +44,11 @@ function TabLabel({ text, count }: { text: string; count?: number }) {
 }
 
 export function AccountCodingPage() {
-  const [tab, setTab] = useState<TabKey>('group');
+  const [selectedTab, setTab] = useState<TabKey>('group');
+  // «دسترسی نقش‌ها»: تب بدون دسترسی نمایش داده نمی‌شود؛ اگر تب انتخاب‌شده بسته شد، اولین تب دیدنی باز می‌شود.
+  const access = useTabAccess('/base/account-codes');
+  const visibleTabs = TABS.filter((t) => access.canSee(t));
+  const tab: TabKey | undefined = visibleTabs.includes(selectedTab) ? selectedTab : visibleTabs[0];
   // Same cached query the گروه/کل/معین tabs already use — reading it here costs no extra request.
   const { items, isLoading } = useAllAccountCodes();
 
@@ -92,37 +97,47 @@ export function AccountCodingPage() {
       <StatTiles tiles={statTiles} isLoading={isLoading} />
 
       <Paper variant="outlined" sx={{ mb: 3, px: 1, borderRadius: 2 }}>
-        <Tabs value={tab} onChange={handleChange} variant="scrollable" scrollButtons="auto">
-          <Tab
-            value="group"
-            iconPosition="start"
-            icon={<AccountTreeOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="گروه" count={levelCount(2)} />}
-          />
-          <Tab
-            value="kol"
-            iconPosition="start"
-            icon={<CallSplitOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="کل" count={levelCount(4)} />}
-          />
-          <Tab
-            value="moin"
-            iconPosition="start"
-            icon={<AccountBalanceWalletOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="معین" count={levelCount(6)} />}
-          />
-          <Tab
-            value="tafsili"
-            iconPosition="start"
-            icon={<CategoryOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="تفصیلی" />}
-          />
-          <Tab
-            value="moinTafsiliLink"
-            iconPosition="start"
-            icon={<LinkOutlinedIcon fontSize="small" sx={tabIconSx} />}
-            label={<TabLabel text="ارتباط معین با گروه تفصیلی" />}
-          />
+        <Tabs value={tab ?? false} onChange={handleChange} variant="scrollable" scrollButtons="auto">
+          {access.canSee('group') && (
+            <Tab
+              value="group"
+              iconPosition="start"
+              icon={<AccountTreeOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="گروه" count={levelCount(2)} />}
+            />
+          )}
+          {access.canSee('kol') && (
+            <Tab
+              value="kol"
+              iconPosition="start"
+              icon={<CallSplitOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="کل" count={levelCount(4)} />}
+            />
+          )}
+          {access.canSee('moin') && (
+            <Tab
+              value="moin"
+              iconPosition="start"
+              icon={<AccountBalanceWalletOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="معین" count={levelCount(6)} />}
+            />
+          )}
+          {access.canSee('tafsili') && (
+            <Tab
+              value="tafsili"
+              iconPosition="start"
+              icon={<CategoryOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="تفصیلی" />}
+            />
+          )}
+          {access.canSee('moinTafsiliLink') && (
+            <Tab
+              value="moinTafsiliLink"
+              iconPosition="start"
+              icon={<LinkOutlinedIcon fontSize="small" sx={tabIconSx} />}
+              label={<TabLabel text="ارتباط معین با گروه تفصیلی" />}
+            />
+          )}
         </Tabs>
       </Paper>
 

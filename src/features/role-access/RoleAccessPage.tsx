@@ -4,6 +4,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -22,6 +23,8 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import RestartAltOutlinedIcon from '@mui/icons-material/RestartAltOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
@@ -53,6 +56,12 @@ interface AbilityDto {
   menuKey: string | null;
   title: string;
 }
+interface TabDto {
+  /** کلید ذخیره: `منو#تب`. */
+  key: string;
+  menuKey: string;
+  title: string;
+}
 interface RoleDto {
   name: string;
   label: string | null;
@@ -65,6 +74,7 @@ interface RoleAccessDto {
   roles: RoleDto[];
   menus: MenuDto[];
   abilities: AbilityDto[];
+  tabs: TabDto[];
   matrix: Record<string, Record<string, number>>;
 }
 
@@ -113,7 +123,7 @@ export function RoleAccessPage() {
   useEffect(() => {
     if (!data || !role) return;
     const fromServer = data.matrix[role];
-    setDraft(fromServer ? { ...fromServer } : Object.fromEntries(data.menus.map((m) => [m.key, 0])));
+    setDraft(fromServer ? { ...fromServer } : Object.fromEntries([...data.menus, ...data.tabs].map((m) => [m.key, 0])));
   }, [data, role]);
 
   const groups = useMemo(() => {
@@ -162,7 +172,12 @@ export function RoleAccessPage() {
 
   const current = roles.find((r) => r.name === role) ?? null;
   const setGroup = (menus: MenuDto[], level: number) =>
-    setDraft((d) => ({ ...d, ...Object.fromEntries(menus.map((m) => [m.key, m.hasWrite ? level : Math.min(level, 1)])) }));
+    setDraft((d) => ({
+      ...d,
+      ...Object.fromEntries(menus.map((m) => [m.key, m.hasWrite ? level : Math.min(level, 1)])),
+      // تب‌های هر منو هم‌سطح خود منو می‌شوند؛ بعد می‌شود تب‌ها را جدا تنظیم کرد.
+      ...Object.fromEntries(data.tabs.filter((t) => menus.some((m) => m.key === t.menuKey)).map((t) => [t.key, level])),
+    }));
 
   return (
     <section>
@@ -258,6 +273,7 @@ export function RoleAccessPage() {
                   group={group}
                   menus={menus}
                   abilities={data.abilities.filter((a) => a.group === group)}
+                  tabs={data.tabs}
                   draft={draft}
                   setDraft={setDraft}
                   setGroup={setGroup}
@@ -359,6 +375,7 @@ function GroupRows({
   group,
   menus,
   abilities,
+  tabs,
   draft,
   setDraft,
   setGroup,
@@ -366,10 +383,12 @@ function GroupRows({
   group: string;
   menus: MenuDto[];
   abilities: AbilityDto[];
+  tabs: TabDto[];
   draft: Record<string, number>;
   setDraft: (fn: (d: Record<string, number>) => Record<string, number>) => void;
   setGroup: (menus: MenuDto[], level: number) => void;
 }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   return (
     <>
       <TableRow sx={{ bgcolor: 'action.hover' }}>
@@ -392,13 +411,38 @@ function GroupRows({
       {menus.map((m) => (
         <Fragment key={m.key}>
         <TableRow hover>
-          <TableCell sx={{ pl: 4 }}>{m.title}</TableCell>
+          <TableCell sx={{ pl: 4 }}>
+            <Stack direction="row" sx={{ alignItems: 'center' }}>
+              {tabs.some((t) => t.menuKey === m.key) ? (
+                <IconButton
+                  size="small"
+                  aria-label={open[m.key] ? 'بستن تب‌ها' : 'نمایش تب‌ها'}
+                  onClick={() => setOpen((o) => ({ ...o, [m.key]: !o[m.key] }))}
+                >
+                  {open[m.key] ? <ExpandMoreIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+                </IconButton>
+              ) : (
+                <Box sx={{ width: 30 }} />
+              )}
+              {m.title}
+              {tabs.some((t) => t.menuKey === m.key) && (
+                <Chip size="small" variant="outlined" label={`${tabs.filter((t) => t.menuKey === m.key).length} تب`} sx={{ ml: 1 }} />
+              )}
+            </Stack>
+          </TableCell>
           <TableCell>
             <ToggleButtonGroup
               size="small"
               exclusive
               value={draft[m.key] ?? 0}
-              onChange={(_, v: number | null) => v !== null && setDraft((d) => ({ ...d, [m.key]: v }))}
+              onChange={(_, v: number | null) =>
+                v !== null &&
+                setDraft((d) => ({
+                  ...d,
+                  [m.key]: v,
+                  ...Object.fromEntries(tabs.filter((t) => t.menuKey === m.key).map((t) => [t.key, v])),
+                }))
+              }
             >
               {LEVELS.map((l) => (
                 <ToggleButton key={l.value} value={l.value} disabled={l.value === 2 && !m.hasWrite} sx={{ px: 1.5 }}>
@@ -408,6 +452,30 @@ function GroupRows({
             </ToggleButtonGroup>
           </TableCell>
         </TableRow>
+        {open[m.key] &&
+          tabs
+            .filter((t) => t.menuKey === m.key)
+            .map((t) => (
+              <TableRow key={t.key} hover>
+                <TableCell sx={{ pl: 9 }}>
+                  <Typography variant="body2">↳ تب: {t.title}</Typography>
+                </TableCell>
+                <TableCell>
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={draft[t.key] ?? 0}
+                    onChange={(_, v: number | null) => v !== null && setDraft((d) => ({ ...d, [t.key]: v }))}
+                  >
+                    {LEVELS.map((l) => (
+                      <ToggleButton key={l.value} value={l.value} sx={{ px: 1.5 }}>
+                        {l.label}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </TableCell>
+              </TableRow>
+            ))}
         {abilities
           .filter((a) => a.menuKey === m.key)
           .map((a) => (

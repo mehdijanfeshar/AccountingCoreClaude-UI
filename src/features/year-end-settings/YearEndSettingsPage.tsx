@@ -23,6 +23,7 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import { useTabAccess } from '../../lib/roles';
 import { PageHeader } from '../../components/PageHeader';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -59,7 +60,11 @@ function accountText(a: Pick<AccountCodeDto, 'accCode' | 'accCodeName'> | undefi
  * نوشتنشان فقط با مدیر ستاد است (همان قاعدهٔ «اطلاعات پایه»).
  */
 export function YearEndSettingsPage() {
-  const [tab, setTab] = useState<TabKey>('elam');
+  const [selectedTab, setTab] = useState<TabKey>('elam');
+  // «دسترسی نقش‌ها»: تب بدون دسترسی دیده نمی‌شود؛ اگر تب انتخاب‌شده بسته شد، اولین تب دیدنی باز می‌شود.
+  const access = useTabAccess('/base/year-end-settings');
+  const visibleTabs = (['elam', 'interfaces', 'rabet', 'exceptions'] as TabKey[]).filter((t) => access.canSee(t));
+  const tab: TabKey | undefined = visibleTabs.includes(selectedTab) ? selectedTab : visibleTabs[0];
   const { items: accounts } = useAllAccountCodes();
   const accountById = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a])), [accounts]);
   const vahedTypes = useQuery({ queryKey: ['vahed-types'], queryFn: vahedTypesApi.list, staleTime: 5 * 60_000 });
@@ -76,11 +81,11 @@ export function YearEndSettingsPage() {
         description="حساب‌های رابطی که سندهای اعلامیه، افتتاحیه و اختتامیه با آن‌ها تراز می‌شوند، و حساب‌هایی که منتقل نمی‌شوند."
       />
       <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
-        <Tabs value={tab} onChange={(_, v: TabKey) => setTab(v)} variant="scrollable" sx={{ px: 1 }}>
-          <Tab value="elam" label="رابط اعلامیه" />
-          <Tab value="interfaces" label="رابط افتتاحیه/اختتامیه" />
-          <Tab value="rabet" label="رابط اختتامیه (گروه ۶، ۷، ۸)" />
-          <Tab value="exceptions" label="حساب‌های مستثنا" />
+        <Tabs value={tab ?? false} onChange={(_, v: TabKey) => setTab(v)} variant="scrollable" sx={{ px: 1 }}>
+          {access.canSee('elam') && <Tab value="elam" label="رابط اعلامیه" />}
+          {access.canSee('interfaces') && <Tab value="interfaces" label="رابط افتتاحیه/اختتامیه" />}
+          {access.canSee('rabet') && <Tab value="rabet" label="رابط اختتامیه (گروه ۶، ۷، ۸)" />}
+          {access.canSee('exceptions') && <Tab value="exceptions" label="حساب‌های مستثنا" />}
         </Tabs>
       </Paper>
 

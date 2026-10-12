@@ -1,7 +1,8 @@
-import { useState, type SyntheticEvent } from 'react';
+import { useEffect, useState, type SyntheticEvent } from 'react';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import { useTabAccess } from '../../lib/roles';
 import { PageHeader } from '../../components/PageHeader';
 import { ReceiptListPanel } from './ReceiptListPanel';
 import { TransferListPanel } from './TransferListPanel';
@@ -15,6 +16,13 @@ type NatureTab = 'receipts' | 'transfers';
  */
 export function ReceiptsTransfersPage() {
   const [tab, setTab] = useState<NatureTab>('receipts');
+  // «دسترسی نقش‌ها»: تب بدون دسترسی دیده نمی‌شود؛ اگر تب انتخاب‌شده بسته شد، تب دیگر باز می‌شود.
+  const access = useTabAccess('/treasury/khazaneh/receipts-transfers');
+  const visibleTabs = (['receipts', 'transfers'] as NatureTab[]).filter((t) => access.canSee(t));
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(tab)) setTab(visibleTabs[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleTabs.join(','), tab]);
 
   function handleTabChange(_event: SyntheticEvent, value: NatureTab) {
     setTab(value);
@@ -30,12 +38,12 @@ export function ReceiptsTransfersPage() {
         description="ثبت دریافت وجه از مشتریان و انتقال وجه بین حساب‌های بانکی واحد."
       />
 
-      <Tabs value={tab} onChange={handleTabChange} sx={{ mb: 3 }}>
-        <Tab value="receipts" label="دریافت وجه" />
-        <Tab value="transfers" label="انتقال وجه" />
+      <Tabs value={visibleTabs.includes(tab) ? tab : false} onChange={handleTabChange} sx={{ mb: 3 }}>
+        {access.canSee('receipts') && <Tab value="receipts" label="دریافت وجه" />}
+        {access.canSee('transfers') && <Tab value="transfers" label="انتقال وجه" />}
       </Tabs>
 
-      {tab === 'receipts' ? <ReceiptListPanel /> : <TransferListPanel />}
+      {visibleTabs.includes(tab) && (tab === 'receipts' ? <ReceiptListPanel /> : <TransferListPanel />)}
     </section>
   );
 }

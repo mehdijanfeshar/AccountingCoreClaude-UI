@@ -120,3 +120,16 @@ export function visibleNavGroups(groups: NavGroup[], state: RoleState): NavGroup
     })
     .filter((g) => g.items.some((item) => item.to));
 }
+
+/**
+ * دسترسی تب‌های یک صفحه («دسترسی نقش‌ها»، کلید `منو#تب` در `menuAccess`). تا پیکربندی نشده (`menuAccess` تهی) همهٔ
+ * تب‌ها دیدنی‌اند و فقط سرور محدود می‌کند. تبِ بی‌ردیف از سطح منوی والد ارث می‌برد (سرور همین را در `/api/me` می‌فرستد).
+ */
+export function useTabAccess(menuKey: string): { canSee: (tab: string) => boolean; canEdit: (tab: string) => boolean } {
+  const { menuAccess, loaded } = useRoles();
+  const level = (tab: string) => menuAccess?.[`${menuKey}#${tab}`] ?? menuAccess?.[menuKey] ?? 2;
+  return {
+    canSee: (tab) => !loaded || !menuAccess || level(tab) >= 1,
+    canEdit: (tab) => !loaded || !menuAccess || level(tab) >= 2,
+  };
+}

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useTabAccess } from '../../lib/roles';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Button from '@mui/material/Button';
@@ -73,6 +74,7 @@ export function ElamsListPage() {
   const queryClient = useQueryClient();
   const { financialYear, isConfigured } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
+  const access = useTabAccess('/operation/elams');
   const kind = (Number(searchParams.get('kind')) || ELAM_KIND.Sent) as ElamKind;
 
   const emptyDraft = { serialFrom: '', serialTo: '', dateFrom: '', dateTo: '', dabirNo: '', counterVahedCode: '' };
@@ -128,6 +130,19 @@ export function ElamsListPage() {
       setPending(null);
     },
   });
+
+  // «دسترسی نقش‌ها»: نوع بدون دسترسی دیده نمی‌شود؛ اگر نوع انتخاب‌شده بسته شد، اولین نوع دیدنی باز می‌شود.
+  const kindKeys = [
+    [ELAM_KIND.Sent, 'sent'],
+    [ELAM_KIND.Received, 'received'],
+    [ELAM_KIND.Revenue, 'revenue'],
+  ] as const;
+  const firstVisibleKind = kindKeys.find(([, key]) => access.canSee(key))?.[0];
+  const kindVisible = kindKeys.some(([k, key]) => k === kind && access.canSee(key));
+  useEffect(() => {
+    if (firstVisibleKind !== undefined && !kindVisible) changeKind(firstVisibleKind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstVisibleKind, kindVisible]);
 
   function changeKind(next: ElamKind) {
     setSearchParams({ kind: String(next) });
@@ -249,9 +264,9 @@ export function ElamsListPage() {
       />
 
       <Tabs value={kind} onChange={(_, v) => changeKind(v)} sx={{ mb: 2 }}>
-        <Tab value={ELAM_KIND.Sent} label="سایر اعلامیه‌ها — صادره" />
-        <Tab value={ELAM_KIND.Received} label="سایر اعلامیه‌ها — رسیده" />
-        <Tab value={ELAM_KIND.Revenue} label="اعلامیهٔ درآمد" />
+        {access.canSee('sent') && <Tab value={ELAM_KIND.Sent} label="سایر اعلامیه‌ها — صادره" />}
+        {access.canSee('received') && <Tab value={ELAM_KIND.Received} label="سایر اعلامیه‌ها — رسیده" />}
+        {access.canSee('revenue') && <Tab value={ELAM_KIND.Revenue} label="اعلامیهٔ درآمد" />}
       </Tabs>
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>

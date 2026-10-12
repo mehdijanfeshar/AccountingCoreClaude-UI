@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -24,6 +24,7 @@ import { DataTable, type DataTableColumn } from '../../components/DataTable';
 import { useSession } from '../../lib/session/SessionContext';
 import { formatThousands, normalizeNumericInput, toPersianDigits } from '../../lib/format/numbers';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
+import { useTabAccess } from '../../lib/roles';
 import { yearEndApi, type YearEndKind, type YearEndLine, type YearEndVoucher } from './api';
 
 const KINDS: Record<YearEndKind, { tab: string; yearLabel: string; explain: (year: string) => string }> = {
@@ -60,6 +61,7 @@ export function YearEndVouchersPage() {
   const queryClient = useQueryClient();
   const { financialYear, isConfigured } = useSession();
   const [kind, setKind] = useState<YearEndKind>('closing');
+  const access = useTabAccess('/operation/year-end');
   const [yearDraft, setYearDraft] = useState(financialYear || '');
   const [year, setYear] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,6 +87,13 @@ export function YearEndVouchersPage() {
     setYear(normalizeNumericInput(yearDraft).slice(0, 4));
   }
 
+  // تب بدون دسترسی دیده نمی‌شود؛ اگر نوع انتخاب‌شده بسته شد، اولین نوع دیدنی باز می‌شود.
+  const firstVisibleKind = (Object.keys(KINDS) as YearEndKind[]).find((k) => access.canSee(k));
+  useEffect(() => {
+    if (firstVisibleKind && !access.canSee(kind)) switchKind(firstVisibleKind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstVisibleKind, kind]);
+
   function switchKind(next: YearEndKind) {
     setKind(next);
     setYear(null);
@@ -92,7 +101,7 @@ export function YearEndVouchersPage() {
   }
 
   const data = preview.data;
-  const canIssue = !!data && data.problems.length === 0 && data.vouchers.length > 0 && !issue.isSuccess;
+  const canIssue = access.canEdit(kind) && !!data && data.problems.length === 0 && data.vouchers.length > 0 && !issue.isSuccess;
   const yearValid = /^\d{4}$/.test(normalizeNumericInput(yearDraft));
 
   return (
@@ -106,7 +115,7 @@ export function YearEndVouchersPage() {
       <Paper variant="outlined" sx={{ mb: 3, overflow: 'hidden' }}>
         <Tabs value={kind} onChange={(_, v: YearEndKind) => switchKind(v)} sx={{ px: 1, borderBottom: 1, borderColor: 'divider' }}>
           {(Object.keys(KINDS) as YearEndKind[]).map((k) => (
-            <Tab key={k} value={k} label={KINDS[k].tab} />
+            access.canSee(k) && <Tab key={k} value={k} label={KINDS[k].tab} />
           ))}
         </Tabs>
         <Box component="form" noValidate onSubmit={showPreview} sx={{ p: { xs: 2, sm: 3 } }}>
