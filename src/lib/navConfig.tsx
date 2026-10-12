@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import ManageHistoryOutlinedIcon from '@mui/icons-material/ManageHistoryOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
@@ -59,6 +60,8 @@ export interface NavItem {
   icon: ReactElement;
   /** فقط مدیر ستاد (مثل «دسترسی نقش‌ها») — در «دسترسی نقش‌ها» قابل تخصیص نیست. */
   setadOnly?: boolean;
+  /** فقط نقش مدیر مالی (لاگ تغییرات) — در «دسترسی نقش‌ها» قابل تخصیص نیست، حتی مدیر ستاد بدون نقش نمی‌بیند. */
+  auditOnly?: boolean;
 }
 
 export type NavAccentColor = 'primary' | 'secondary' | 'warning';
@@ -302,6 +305,13 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'تقاطع دو بُعد — یکی روی سطر، یکی روی ستون، با بدهکار/بستانکار در هر خانه',
         to: '/reports/matrix',
         icon: <PivotTableChartOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'لاگ تغییرات',
+        description: 'چه کسی، کی، از کجا، چه چیزی را ثبت، اصلاح یا حذف کرده — مقدار قبلی و جدید',
+        to: '/reports/audit-log',
+        icon: <ManageHistoryOutlinedIcon fontSize="small" />,
+        auditOnly: true,
       },
     ],
   },

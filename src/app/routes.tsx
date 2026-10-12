@@ -46,6 +46,7 @@ import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
 import { TrialBalancePage } from '../features/reports/trial-balance/TrialBalancePage';
 import { AccountReviewPage } from '../features/reports/account-review/AccountReviewPage';
 import { MatrixReportPage } from '../features/reports/matrix/MatrixReportPage';
+import { AuditLogPage } from '../features/audit-log/AuditLogPage';
 import { VoucherReviewPage } from '../features/reports/voucher-review/VoucherReviewPage';
 import { ChequeBookPage } from '../features/cheque-book/ChequeBookPage';
 import { ChequePrintPage } from '../features/cheque-book/ChequePrintPage';
@@ -186,6 +187,7 @@ export const routes: RouteObject[] = [
   { path: '/reports/trial-balance', element: <TrialBalancePage /> },
   { path: '/reports/account-review', element: <AccountReviewPage /> },
   { path: '/reports/matrix', element: <MatrixReportPage /> },
+  { path: '/reports/audit-log', element: <AuditLogPage /> },
   { path: '/reports/voucher-review', element: <VoucherReviewPage /> },
   { path: '/reports/attribute-accounts', element: <AttributeAccountReconciliationPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },

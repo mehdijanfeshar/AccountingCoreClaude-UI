@@ -16,6 +16,8 @@ export interface CurrentUserDto {
   menuAccess?: Record<string, number> | null;
   /** قابلیت‌های زیرمنو که کاربر دارد (مثل `tafsili.scope`) — بخش‌ها و دکمه‌های داخل فرم با آن فعال می‌شوند. */
   abilities?: string[] | null;
+  /** نقش مدیر مالی (FINANCIAL CORE AUDIT) — تنها کسی که لاگ تغییرات را می‌بیند. */
+  canViewAuditLog?: boolean;
 }
 
 /** Mirrors Accounting.Api's AccessibleUnitDto exactly — `GET /api/me/accessible-units`. */

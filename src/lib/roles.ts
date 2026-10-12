@@ -59,6 +59,8 @@ export interface RoleState {
   menuAccess: Record<string, number> | null;
   /** قابلیت زیرمنو — `ABILITIES`؛ سرور همان را کنترل می‌کند. */
   hasAbility: (ability: Ability) => boolean;
+  /** نقش مدیر مالی — لاگ تغییرات. */
+  canViewAuditLog: boolean;
 }
 
 export function useRoles(): RoleState {
@@ -67,7 +69,8 @@ export function useRoles(): RoleState {
   return {
     loaded: !!me.data,
     roles,
-    none: !!me.data && roles.length === 0,
+    none: !!me.data && roles.length === 0 && !me.data.canViewAuditLog,
+    canViewAuditLog: !!me.data?.canViewAuditLog,
     canOperate: roles.some((r) => OPERATORS.includes(r)),
     isSetad: roles.includes(ROLES.SetadAdmin),
     isNational: roles.includes(ROLES.National),
@@ -108,6 +111,7 @@ export function visibleNavGroups(groups: NavGroup[], state: RoleState): NavGroup
     .map((g) => {
       const fixed = groupVisibleByFixedRules(g, state);
       const items = g.items.filter((item) => {
+        if (item.auditOnly) return state.canViewAuditLog;
         if (item.setadOnly) return state.isSetad;
         if (access && item.to && item.to in access) return access[item.to] >= 1;
         return fixed;
