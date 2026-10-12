@@ -1,22 +1,25 @@
-import { getReportUnitScope } from './reportUnitScope';
+import { reportUnitScopeUrlParams, type ReportUnitScopeValue } from './reportUnitScope';
 import { reportUrl } from './reportUrlParams';
 
 /**
  * پیوند «این حساب به تفکیک استان / واحد / سند» از هر گزارش به مرور حساب‌ها. مسیر (`path`) به شکل
- * `سطح:کد,سطح:کد` است (سطوح همان `ACCOUNT_REVIEW_LEVEL`)، و دامنهٔ واحد مشترک است پس همان دامنه باز می‌شود.
+ * `سطح:کد,سطح:کد` است (سطوح همان `ACCOUNT_REVIEW_LEVEL`)، و دامنهٔ واحد تب مبدأ در آدرس می‌رود تا همان دامنه باز شود.
  * دامنهٔ چندواحدی ⇒ تفکیک استان؛ فقط واحد جاری ⇒ فهرست اسناد.
  */
 export function accountBreakdownUrl(
   accountLevel: number,
   code: string,
+  unitScope: ReportUnitScopeValue,
   filters?: { from?: string; to?: string },
 ): string {
-  const multiUnit = getReportUnitScope().unitScope !== 0;
+  const multiUnit = unitScope.unitScope !== 0;
   return reportUrl('/reports/account-review', {
     level: multiUnit ? 11 : 14,
     path: `${accountLevel}:${code}`,
     from: filters?.from,
     to: filters?.to,
+    // دامنه برای هر تب جداست؛ تب مقصد (مرور حساب‌ها) با همین دامنه شروع می‌کند.
+    ...reportUnitScopeUrlParams(unitScope),
   });
 }
 

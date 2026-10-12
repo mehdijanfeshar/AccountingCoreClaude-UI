@@ -12,6 +12,7 @@
 
 import { authConfig } from './authConfig';
 import { isKeycloak, keycloakLogin, keycloakLogout } from './keycloak';
+import { clearWorkspaceTabs } from '../../components/workspace-tabs/workspaceTabsStorage';
 import {
   clearCodeVerifier,
   clearRedirectPath,
@@ -28,6 +29,8 @@ import {
  * they were trying to reach) — not to be confused with `redirect_uri`,
  * which is the fixed IDP-registered app origin. */
 export async function startLogin(returnTo?: string): Promise<void> {
+  // ورود تازه = شروع با تب‌های بسته (رفرش صفحه از اینجا نمی‌گذرد).
+  clearWorkspaceTabs();
   if (isKeycloak) {
     await keycloakLogin(returnTo);
     return;
@@ -58,6 +61,7 @@ export async function startLogin(returnTo?: string): Promise<void> {
 
 /** Signs the user out both locally and at the IDP. */
 export function startLogout(): void {
+  clearWorkspaceTabs();
   if (isKeycloak) {
     void keycloakLogout();
     return;

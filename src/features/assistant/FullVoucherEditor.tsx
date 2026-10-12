@@ -30,6 +30,7 @@ import type { TafsiliLevelDto } from '../../types/tafsili';
 import { operationsApi } from './api';
 import { applyServerErrors, draftToFormValues, formToComposeInput, lineIndexOf } from './draftMapping';
 import type { EngineError, OperationResult, VoucherDraft } from './types';
+import { getElementByIdInActiveTab } from '../../components/workspace-tabs/tabActivity';
 
 interface FullVoucherEditorProps {
   seed: VoucherDraft | null;
@@ -123,7 +124,7 @@ export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, 
 
   function scrollToLine(index: number | null) {
     const key = index !== null ? getValues(`lines.${index}.key`) : null;
-    if (key) document.getElementById(`voucher-line-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (key) getElementByIdInActiveTab(`voucher-line-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   return (

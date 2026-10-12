@@ -6,7 +6,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import GlobalStyles from '@mui/material/GlobalStyles';
+import { TabGlobalStyles } from '../../components/workspace-tabs/TabGlobalStyles';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
@@ -87,7 +87,7 @@ export function FsRunPrintPage() {
 
   return (
     <Box>
-      <GlobalStyles
+      <TabGlobalStyles
         styles={{
           '@page': { size: 'A4', margin: '16mm 14mm 20mm' },
           '@media print': { body: { background: '#fff' }, '.fs-print-sheet .MuiPaper-root': { border: 0, boxShadow: 'none' } },

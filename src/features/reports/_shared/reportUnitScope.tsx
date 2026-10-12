@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../lib/api/client';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
@@ -8,11 +9,15 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import { ABILITIES, useRoles } from '../../../lib/roles';
+import { onTabLifecycle, useTabId } from '../../../components/workspace-tabs/tabActivity';
 
 /**
- * دامنهٔ واحد گزارش‌های تراز آزمایشی، مرور حساب‌ها و ماتریسی (فاز ۴۸): واحد جاری (0)، واحد و زیرمجموعه (1)،
- * همهٔ واحدها (2، فقط نقش مدیریتی سطح کشور) + گروه واحدها (1 بیمه‌ای، 2 درمانی، 3 ستادی). یک انبار مشترک ساده تا
- * api.ts هر گزارش بدون تغییر امضا آن را به درخواست بیفزاید؛ با تغییرش فقط کوئری‌های همین سه گزارش تازه می‌شوند.
+ * دامنهٔ واحد گزارش‌های تراز آزمایشی، مرور حساب‌ها، ماتریسی و دفتر کل (فاز ۴۸): واحد جاری (0)، واحد و زیرمجموعه
+ * (1)، همهٔ واحدها (2، فقط نقش مدیریتی سطح کشور) + گروه واحدها (1 بیمه‌ای، 2 درمانی، 3 ستادی) + استان.
+ *
+ * <b>برای هر تب جدا</b> (کلید = شناسهٔ تب): چند نسخه از یک گزارش کنار هم باید دامنهٔ مستقل داشته باشند. مقدار در
+ * کلید کوئری هر گزارش هست، پس تغییرش فقط کوئری همان تب را تازه می‌کند. پیوند بین گزارش‌ها (`accountBreakdownUrl`)
+ * دامنه را در آدرس می‌برد و تب مقصد اولین بار از آدرس مقداردهی می‌شود. «نسخهٔ دیگر» دامنه را کپی می‌کند.
  */
 export interface ReportUnitScopeValue {
   unitScope: 0 | 1 | 2;
@@ -21,25 +26,71 @@ export interface ReportUnitScopeValue {
   provinceCode: string | null;
 }
 
-let current: ReportUnitScopeValue = { unitScope: 0, unitCategory: null, provinceCode: null };
+const DEFAULT_SCOPE: ReportUnitScopeValue = { unitScope: 0, unitCategory: null, provinceCode: null };
+
+const scopes = new Map<string, ReportUnitScopeValue>();
 const listeners = new Set<() => void>();
 
-export function getReportUnitScope(): ReportUnitScopeValue {
-  return current;
-}
-
-function setReportUnitScope(next: ReportUnitScopeValue) {
-  current = next;
+function emit() {
   listeners.forEach((l) => l());
 }
 
+onTabLifecycle({
+  closed: (ids) => ids.forEach((id) => scopes.delete(id)),
+  duplicated: (fromId, toId) => {
+    const value = scopes.get(fromId);
+    if (value) scopes.set(toId, value);
+  },
+});
+
+/** دامنه از آدرس (`unitScope`، `unitCategory`، `province`) — مقدار اولیهٔ تبی که از پیوند گزارش دیگر باز شده. */
+function scopeFromUrl(params: URLSearchParams): ReportUnitScopeValue {
+  const unitScope = Number(params.get('unitScope'));
+  if (unitScope !== 1 && unitScope !== 2) return DEFAULT_SCOPE;
+  const category = Number(params.get('unitCategory'));
+  return {
+    unitScope,
+    unitCategory: category === 1 || category === 2 || category === 3 ? category : null,
+    provinceCode: params.get('province')?.trim() || null,
+  };
+}
+
+/** دامنهٔ واحد تبِ همین صفحه و تابع تغییر آن. */
+export function useReportUnitScope(): [ReportUnitScopeValue, (next: ReportUnitScopeValue) => void] {
+  const tabId = useTabId();
+  const [searchParams] = useSearchParams();
+  // بار اول برای این تب: از آدرس (بدون اعلام به شنونده‌ها — فقط مقدار اولیه است).
+  if (!scopes.has(tabId)) scopes.set(tabId, scopeFromUrl(searchParams));
+  const value = useSyncExternalStore(
+    (l) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    () => scopes.get(tabId) ?? DEFAULT_SCOPE,
+  );
+  const setValue = useCallback(
+    (next: ReportUnitScopeValue) => {
+      scopes.set(tabId, next);
+      emit();
+    },
+    [tabId],
+  );
+  return [value, setValue];
+}
+
 /** پارامترهای query برای افزودن به درخواست گزارش (خالی = رفتار قبلی). */
-export function reportUnitScopeParams(): Record<string, number | string> {
+export function reportUnitScopeParams(scope: ReportUnitScopeValue): Record<string, number | string> {
   const p: Record<string, number | string> = {};
-  if (current.unitScope !== 0) p.unitScope = current.unitScope;
-  if (current.unitScope !== 0 && current.unitCategory) p.unitCategory = current.unitCategory;
-  if (current.unitScope !== 0 && current.provinceCode) p.provinceCode = current.provinceCode;
+  if (scope.unitScope !== 0) p.unitScope = scope.unitScope;
+  if (scope.unitScope !== 0 && scope.unitCategory) p.unitCategory = scope.unitCategory;
+  if (scope.unitScope !== 0 && scope.provinceCode) p.provinceCode = scope.provinceCode;
   return p;
+}
+
+/** همان دامنه به شکل پارامترهای آدرس صفحه — برای پیوند به گزارش دیگر. */
+export function reportUnitScopeUrlParams(scope: ReportUnitScopeValue): Record<string, number | string | null> {
+  if (scope.unitScope === 0) return {};
+  return { unitScope: scope.unitScope, unitCategory: scope.unitCategory, province: scope.provinceCode };
 }
 
 interface ReportProvince {
@@ -48,18 +99,9 @@ interface ReportProvince {
   unitCount: number;
 }
 
-const REPORT_QUERY_ROOTS = ['trial-balance', 'account-review', 'matrix-report'];
-
 /** `allowProvince`: انتخاب استان (پیش‌فرض روشن). */
 export function ReportUnitScopeBar({ allowProvince = true, hint }: { allowProvince?: boolean; hint?: string } = {}) {
-  const value = useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-    getReportUnitScope,
-  );
-  const queryClient = useQueryClient();
+  const [value, change] = useReportUnitScope();
   // «همهٔ واحدها» و گروه واحد = قابلیت «reports.unit-category» (پیش‌فرض: ستاد مرکزی یا سطح کشور).
   const { hasAbility } = useRoles();
   const canSeeAllUnits = hasAbility(ABILITIES.ReportsUnitCategory);
@@ -70,11 +112,6 @@ export function ReportUnitScopeBar({ allowProvince = true, hint }: { allowProvin
     enabled: showProvince,
     staleTime: 10 * 60 * 1000,
   });
-
-  function change(next: ReportUnitScopeValue) {
-    setReportUnitScope(next);
-    void queryClient.invalidateQueries({ predicate: (q) => REPORT_QUERY_ROOTS.includes(String(q.queryKey[0])) });
-  }
 
   return (
     <Paper variant="outlined" sx={{ p: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }} className="no-print">

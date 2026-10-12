@@ -43,6 +43,7 @@ import { voucherReviewApi } from './api';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { exportVoucherReviewToExcel, exportVoucherReviewToPdf } from './export';
 import { VOUCHER_REVIEW_PRINT_STYLES } from './printStyles';
+import { TabGlobalStyles } from '../../../components/workspace-tabs/TabGlobalStyles';
 import { ColumnChooser, SortLabel, normalizeSortValue, sortRows, useColumnVisibility, useGridSort } from '../../../components/gridTools';
 import {
   GRID_SIDES,
@@ -225,7 +226,7 @@ export function VoucherReviewPage() {
 
   return (
     <section>
-      <style>{VOUCHER_REVIEW_PRINT_STYLES}</style>
+      <TabGlobalStyles styles={VOUCHER_REVIEW_PRINT_STYLES} />
 
       <Box className="voucher-review-no-print">
         <PageHeader

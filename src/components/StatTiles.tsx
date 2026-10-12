@@ -47,11 +47,9 @@ export function StatTiles({ tiles, isLoading }: { tiles: StatTile[]; isLoading?:
         display: 'grid',
         gap: 2,
         mb: 3,
-        gridTemplateColumns: {
-          xs: '1fr',
-          sm: 'repeat(2, minmax(0, 1fr))',
-          md: `repeat(${Math.min(tiles.length, 4)}, minmax(0, 1fr))`,
-        },
+        // ستون‌ها بر اساس عرض خود ظرف، نه عرض پنجره — در نمای کنار هم تب‌ها هر قسمت باریک است و چهار ستون
+        // ثابت عددها را می‌بُرید. هر کارت دست‌کم ۱۸۰px، و حداکثر ۴ کارت در یک ردیف (مثل قبل).
+        gridTemplateColumns: 'repeat(auto-fit, minmax(max(180px, calc((100% - 48px) / 4)), 1fr))',
       }}
     >
       {tiles.map((tile) => {
@@ -128,7 +126,16 @@ export function StatTiles({ tiles, isLoading }: { tiles: StatTile[]; isLoading?:
                 {isLoading ? (
                   <Skeleton variant="text" width={64} sx={{ fontSize: '1.4rem' }} />
                 ) : (
-                  <Typography variant="h6" sx={{ lineHeight: 1.2, fontWeight: 700, fontVariantNumeric: 'tabular-nums lining-nums' }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      lineHeight: 1.2,
+                      fontWeight: 700,
+                      fontVariantNumeric: 'tabular-nums lining-nums',
+                      // عدد هرگز بریده نشود — در بدترین حالت به سطر بعد می‌رود.
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
                     {/* No count-up: these tiles open dozens of times a day, and a number that rolls
                         for 700ms is a number the user waits to read. */}
                     {formatTileValue(tile.value)}

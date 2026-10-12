@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
+import { useIsActiveTab, getElementByIdInActiveTab } from '../../components/workspace-tabs/tabActivity';
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Alert from '@mui/material/Alert';
 import Box from "@mui/material/Box";
@@ -73,7 +74,7 @@ export function FsRunViewPage() {
 
   useEffect(() => {
     if (tab === notesTab && pendingScroll) {
-      document.getElementById(`fs-note-${pendingScroll}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      getElementByIdInActiveTab(`fs-note-${pendingScroll}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setPendingScroll(null);
     }
   }, [tab, notesTab, pendingScroll]);
@@ -170,8 +171,11 @@ export function FsRunViewPage() {
     )?.id ?? null;
   }, [valueRows]);
   const baseId = statement ? (baseByStatement[statement.id] ?? defaultBaseId) : null;
+  const isActiveTab = useIsActiveTab();
 
   useEffect(() => {
+    // تب پشتی نباید کلیدهای تب فعال را بگیرد.
+    if (!isActiveTab) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -197,10 +201,10 @@ export function FsRunViewPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [valueRows, focusedRowId, drillRow, searchOpen, manualOpen, compareOpen, commentTarget]);
+  }, [isActiveTab, valueRows, focusedRowId, drillRow, searchOpen, manualOpen, compareOpen, commentTarget]);
 
   useEffect(() => {
-    if (focusedRowId) document.getElementById(`fs-row-${focusedRowId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (focusedRowId) getElementByIdInActiveTab(`fs-row-${focusedRowId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [focusedRowId, tab]);
 
   const priorYear = run ? String(Number(run.year) - 1) : '';

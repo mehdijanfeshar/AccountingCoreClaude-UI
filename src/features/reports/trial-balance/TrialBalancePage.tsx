@@ -1,4 +1,4 @@
-import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
+import { ReportUnitScopeBar, useReportUnitScope } from '../_shared/reportUnitScope';
 import { useEffect, useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +7,8 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
-import GlobalStyles from '@mui/material/GlobalStyles';
+import { TabGlobalStyles } from '../../../components/workspace-tabs/TabGlobalStyles';
+import { useIsActiveTab } from '../../../components/workspace-tabs/tabActivity';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -89,9 +90,13 @@ export function TrialBalancePage() {
     return [{ property: TRIAL_BALANCE_FIELD.Code, operator: SEARCH_OPERATOR.LIKE, value: term }];
   }, [applied.code]);
 
+  // دامنهٔ واحد همین تب — هر نسخهٔ گزارش دامنهٔ خودش را دارد.
+  const [unitScope] = useReportUnitScope();
+
   const query = useQuery({
     queryKey: [
       'trial-balance',
+      unitScope,
       variant,
       financialYear,
       level,
@@ -108,7 +113,7 @@ export function TrialBalancePage() {
         toDate: applied.toDate || undefined,
         docLife: applied.docLife === '' ? undefined : applied.docLife,
         filters: filters.length > 0 ? filters : undefined,
-      }),
+      }, unitScope),
     enabled: isConfigured,
     placeholderData: (previous) => previous,
   });
@@ -205,7 +210,10 @@ export function TrialBalancePage() {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [printing, setPrinting] = useState(false);
+  // فقط تب فعال: چاپ تب دیگر نباید تراز تب پشتی را وادار به رندر همهٔ ردیف‌ها کند.
+  const isActiveTab = useIsActiveTab();
   useEffect(() => {
+    if (!isActiveTab) return;
     const before = () => flushSync(() => setPrinting(true));
     const after = () => setPrinting(false);
     window.addEventListener('beforeprint', before);
@@ -214,7 +222,7 @@ export function TrialBalancePage() {
       window.removeEventListener('beforeprint', before);
       window.removeEventListener('afterprint', after);
     };
-  }, []);
+  }, [isActiveTab]);
   const showAll = printing || pageSize === ALL_ROWS;
   const lastPage = showAll ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(pageNumber, lastPage);
@@ -230,7 +238,7 @@ export function TrialBalancePage() {
 
   return (
     <>
-      <GlobalStyles styles={TRIAL_BALANCE_PRINT_STYLES} />
+      <TabGlobalStyles styles={TRIAL_BALANCE_PRINT_STYLES} />
 
       <Stack spacing={2.5}>
         <Box className="tb-no-print">
@@ -447,7 +455,7 @@ export function TrialBalancePage() {
                 setPageNumber(1);
               }}
               isColumnVisible={visibility.isVisible}
-              breakdownHref={(row) => accountBreakdownUrl(level, row.code, { from: applied.fromDate, to: applied.toDate })}
+              breakdownHref={(row) => accountBreakdownUrl(level, row.code, unitScope, { from: applied.fromDate, to: applied.toDate })}
               variant={variant}
               totals={totals}
               isLoading={query.isLoading}

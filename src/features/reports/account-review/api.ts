@@ -1,4 +1,4 @@
-import { reportUnitScopeParams } from '../_shared/reportUnitScope';
+import { reportUnitScopeParams, type ReportUnitScopeValue } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type { AccountReviewParams, AccountReviewResult } from '../../../types/accountReview';
 
@@ -23,7 +23,10 @@ export const accountReviewApi = {
     toVoucherNo,
     docLife,
     systemTypeId,
-  }: AccountReviewParams): Promise<AccountReviewResult> {
+  }: AccountReviewParams,
+    /** دامنهٔ واحد تبِ گزارش (`useReportUnitScope`). */
+    unitScope?: ReportUnitScopeValue,
+  ): Promise<AccountReviewResult> {
     // Blank optionals are dropped rather than sent empty — the backend distinguishes an absent
     // bound from an empty one, and "" would silently narrow the report.
     const params: Record<string, string | number> = { year, level };
@@ -44,7 +47,7 @@ export const accountReviewApi = {
     });
 
     return apiClient
-      .get<AccountReviewResult>('/reports/account-review', { params: { ...params, ...reportUnitScopeParams() } })
+      .get<AccountReviewResult>('/reports/account-review', { params: { ...params, ...(unitScope ? reportUnitScopeParams(unitScope) : {}) } })
       .then((res) => res.data);
   },
 };

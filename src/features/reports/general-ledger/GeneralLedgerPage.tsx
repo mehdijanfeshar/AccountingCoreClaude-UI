@@ -52,7 +52,7 @@ import { apiClient } from '../../../lib/api/client';
 import { formatLegacyJalaliDate } from '../../../lib/format/dates';
 import { formatThousands, toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
 import { DOC_LIFE_OPTIONS } from '../../vouchers/api';
-import { ReportUnitScopeBar, reportUnitScopeParams, getReportUnitScope } from '../_shared/reportUnitScope';
+import { ReportUnitScopeBar, reportUnitScopeParams, useReportUnitScope } from '../_shared/reportUnitScope';
 
 interface AccountDto {
   kolCode: string;
@@ -137,9 +137,11 @@ export function GeneralLedgerPage() {
   const [applied, setApplied] = useState(empty);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  // دامنهٔ واحد همین تب — هر نسخهٔ گزارش دامنهٔ خودش را دارد.
+  const [unitScope] = useReportUnitScope();
 
   const query = useQuery({
-    queryKey: ['trial-balance', 'general-ledger', financialYear, applied, page, pageSize, getReportUnitScope()],
+    queryKey: ['trial-balance', 'general-ledger', financialYear, applied, page, pageSize, unitScope],
     queryFn: () => {
       const params: Record<string, string | number> = { year: financialYear, pageNumber: page, pageSize };
       if (applied.fromDate) params.fromDate = applied.fromDate;
@@ -150,7 +152,7 @@ export function GeneralLedgerPage() {
       if (applied.fromNo) params.fromVoucherNo = toLatinDigits(applied.fromNo);
       if (applied.toNo) params.toVoucherNo = toLatinDigits(applied.toNo);
       return apiClient
-        .get<ResultDto>('/reports/general-ledger', { params: { ...params, ...reportUnitScopeParams() } })
+        .get<ResultDto>('/reports/general-ledger', { params: { ...params, ...reportUnitScopeParams(unitScope) } })
         .then((r) => r.data);
     },
     enabled: isConfigured && !!financialYear,
@@ -159,7 +161,7 @@ export function GeneralLedgerPage() {
 
   const data = query.data;
   const refreshing = query.isFetching && !query.isLoading;
-  const showUnit = getReportUnitScope().unitScope !== 0;
+  const showUnit = unitScope.unitScope !== 0;
   const detailCols = showUnit ? 7 : 6;
   const summaryHighlight = useColumnHighlight();
   const detailHighlight = useColumnHighlight();
@@ -343,7 +345,7 @@ export function GeneralLedgerPage() {
                             sx={{ ml: 0.5, p: 0.25 }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(accountBreakdownUrl(2, a.kolCode, { from: applied.fromDate, to: applied.toDate }));
+                              navigate(accountBreakdownUrl(2, a.kolCode, unitScope, { from: applied.fromDate, to: applied.toDate }));
                             }}
                           >
                             <AccountTreeOutlinedIcon sx={{ fontSize: 16 }} />

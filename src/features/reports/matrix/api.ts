@@ -1,4 +1,4 @@
-import { reportUnitScopeParams } from '../_shared/reportUnitScope';
+import { reportUnitScopeParams, type ReportUnitScopeValue } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type { MatrixParams, MatrixResult } from '../../../types/matrixReport';
 
@@ -24,7 +24,10 @@ export const matrixReportApi = {
     systemTypeId,
     rowCodeFilter,
     columnCodeFilter,
-  }: MatrixParams): Promise<MatrixResult> {
+  }: MatrixParams,
+    /** دامنهٔ واحد تبِ گزارش (`useReportUnitScope`). */
+    unitScope?: ReportUnitScopeValue,
+  ): Promise<MatrixResult> {
     // Blank optionals are dropped rather than sent empty — the backend distinguishes an absent
     // bound from an empty one, and "" would silently narrow the report.
     const params: Record<string, string | number> = { year, rowDimension, columnDimension };
@@ -37,7 +40,7 @@ export const matrixReportApi = {
     if (columnCodeFilter) params.columnCodeFilter = columnCodeFilter;
 
     return apiClient
-      .get<MatrixResult>('/reports/matrix', { params: { ...params, ...reportUnitScopeParams() } })
+      .get<MatrixResult>('/reports/matrix', { params: { ...params, ...(unitScope ? reportUnitScopeParams(unitScope) : {}) } })
       .then((res) => res.data);
   },
 };

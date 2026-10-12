@@ -10,6 +10,7 @@ import { RequireAuth } from '../lib/auth/RequireAuth';
 import { SessionProvider } from '../lib/session/SessionContext';
 import { NotificationProvider } from '../lib/notifications/NotificationProvider';
 import { Layout } from '../components/Layout';
+import { WorkspaceTabs } from '../components/workspace-tabs/WorkspaceTabs';
 
 function AppRoutes() {
   const location = useLocation();
@@ -25,7 +26,7 @@ function AppRoutes() {
   return (
     <RequireAuth>
       <Layout>
-        <PageTransition routeKey={location.pathname}>{element}</PageTransition>
+        <WorkspaceTabs fallback={<PageTransition routeKey={location.pathname}>{element}</PageTransition>} />
       </Layout>
     </RequireAuth>
   );

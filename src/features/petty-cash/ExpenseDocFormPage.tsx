@@ -43,6 +43,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { FormCard } from '../../components/FormCard';
 import { FormActions } from '../../components/FormActions';
 import { FormLoadingSkeleton } from '../../components/FormLoadingSkeleton';
+import { useIsActiveTab } from '../../components/workspace-tabs/tabActivity';
 import { FormSectionLabel } from '../../components/FormSectionLabel';
 import { ErrorBanner } from '../../components/ErrorBanner';
 import { AmountField } from '../../components/AmountField';
@@ -296,8 +297,10 @@ export function ExpenseDocFormPage() {
 
   // میانبر کیبورد (ص ۷): «A» = تأیید (کنترل یا نهایی، هرکدام در دسترس است)، «R» = برگشت — فقط وقتی
   // فوکوس داخل یک input/textarea/select نیست و هیچ دیالوگی باز نیست.
+  const isActiveTab = useIsActiveTab();
   useEffect(() => {
-    if (!canReview || !existingQuery.data) return;
+    // تب پشتی نباید کلیدهای تب فعال را بگیرد.
+    if (!isActiveTab || !canReview || !existingQuery.data) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (reviewActionTarget !== null || reviewReturnTarget !== null) return;
       const target = event.target as HTMLElement | null;
@@ -314,7 +317,7 @@ export function ExpenseDocFormPage() {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canReview, existingQuery.data, primaryApprovalAction, reviewActionTarget, reviewReturnTarget]);
+  }, [isActiveTab, canReview, existingQuery.data, primaryApprovalAction, reviewActionTarget, reviewReturnTarget]);
 
   const startReviewMutation = useMutation({
     mutationFn: () => pettyCashExpenseDocsApi.startReview(id as string),

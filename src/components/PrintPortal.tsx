@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import GlobalStyles from '@mui/material/GlobalStyles';
+import { useIsActiveTab } from './workspace-tabs/tabActivity';
 
 /**
  * محتوای چاپی، بیرون از قالب برنامه (مستقیم در `body`) — هنگام چاپ کل `#root` پنهان می‌شود و فقط
@@ -10,6 +11,9 @@ import GlobalStyles from '@mui/material/GlobalStyles';
  * جابه‌جا و از یک طرف بریده می‌شد. خارج از `#root` هیچ چیدمان والدی روی برگه اثر ندارد.
  */
 export function PrintPortal({ children }: { children: ReactNode }) {
+  // تب پشتی (mount ولی مخفی) نباید `#root` را در چاپ تب فعال پنهان کند و برگهٔ خودش را جا بزند.
+  const isActiveTab = useIsActiveTab();
+  if (!isActiveTab) return null;
   return createPortal(
     <>
       <GlobalStyles

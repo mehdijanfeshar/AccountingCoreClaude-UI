@@ -1,4 +1,4 @@
-import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
+import { ReportUnitScopeBar, useReportUnitScope } from '../_shared/reportUnitScope';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -43,6 +43,7 @@ import { DOC_LIFE_OPTIONS } from '../../vouchers/api';
 import { matrixReportApi } from './api';
 import { exportMatrixToExcel, exportMatrixToPdf } from './export';
 import { MATRIX_REPORT_PRINT_STYLES } from './printStyles';
+import { TabGlobalStyles } from '../../../components/workspace-tabs/TabGlobalStyles';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { SortLabel, normalizeSortValue, sortRows, useGridSort } from '../../../components/gridTools';
 import {
@@ -305,8 +306,11 @@ export function MatrixReportPage() {
   const [draft, setDraft] = useState(initialDraft);
   const [applied, setApplied] = useState(initialDraft);
 
+  // دامنهٔ واحد همین تب — هر نسخهٔ گزارش دامنهٔ خودش را دارد.
+  const [unitScope] = useReportUnitScope();
+
   const report = useQuery({
-    queryKey: ['matrix-report', financialYear, rowDimension, columnDimension, applied],
+    queryKey: ['matrix-report', financialYear, rowDimension, columnDimension, applied, unitScope],
     queryFn: () =>
       matrixReportApi.get({
         year: financialYear,
@@ -317,7 +321,7 @@ export function MatrixReportPage() {
         docLife: applied.docLife === '' ? undefined : Number(applied.docLife),
         rowCodeFilter: applied.rowCodeFilter || undefined,
         columnCodeFilter: applied.columnCodeFilter || undefined,
-      }),
+      }, unitScope),
     enabled: isConfigured,
     placeholderData: (previous) => previous,
   });
@@ -509,7 +513,7 @@ export function MatrixReportPage() {
 
   return (
     <section>
-      <style>{MATRIX_REPORT_PRINT_STYLES}</style>
+      <TabGlobalStyles styles={MATRIX_REPORT_PRINT_STYLES} />
 
       <Box className="matrix-report-no-print">
         <PageHeader

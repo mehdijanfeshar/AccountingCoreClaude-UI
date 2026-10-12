@@ -46,6 +46,7 @@ import { getNextDocNum, saveVoucher, toSaveLine, voucherDetailsApi, voucherHeads
 import { defaultVoucherDate } from '../assistant/draftMapping';
 import { lineExtrasPayload } from './lineExtras';
 import type { TafsiliLevelDto } from '../../types/tafsili';
+import { getElementByIdInActiveTab } from '../../components/workspace-tabs/tabActivity';
 
 /**
  * Section heading for the three parts of the voucher form. Plain text, no icon or coloured rule:
@@ -322,7 +323,7 @@ export function VoucherEntryPage() {
     setHighlightedRowKey(rowKey);
     // The row was hidden until now; scroll after it is shown.
     window.setTimeout(
-      () => document.getElementById(`voucher-line-${rowKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      () => getElementByIdInActiveTab(`voucher-line-${rowKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
       0,
     );
     window.setTimeout(() => setHighlightedRowKey((current) => (current === rowKey ? null : current)), 1600);

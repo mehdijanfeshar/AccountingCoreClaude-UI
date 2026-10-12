@@ -34,6 +34,7 @@ import { DOC_LIFE_OPTIONS, getDocLifeLabel, getDocLifeTone } from '../../voucher
 import { accountJournalApi } from './api';
 import { exportAccountJournalToExcel, exportAccountJournalToPdf } from './export';
 import { ACCOUNT_JOURNAL_PRINT_STYLES } from './printStyles';
+import { TabGlobalStyles } from '../../../components/workspace-tabs/TabGlobalStyles';
 import { SortLabel, normalizeSortValue, sortRows, useGridSort } from '../../../components/gridTools';
 import {
   GRID_SIDES,
@@ -199,7 +200,7 @@ export function AccountJournalPage() {
 
   return (
     <section>
-      <style>{ACCOUNT_JOURNAL_PRINT_STYLES}</style>
+      <TabGlobalStyles styles={ACCOUNT_JOURNAL_PRINT_STYLES} />
 
       <Box className="account-journal-no-print">
         <PageHeader

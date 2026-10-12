@@ -1,4 +1,4 @@
-import { ReportUnitScopeBar } from '../_shared/reportUnitScope';
+import { ReportUnitScopeBar, useReportUnitScope } from '../_shared/reportUnitScope';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
@@ -48,6 +48,7 @@ import { accountReviewApi } from './api';
 import { useReportUrlParams } from '../_shared/reportUrlParams';
 import { exportAccountReviewToExcel, exportAccountReviewToPdf, sumAccountReviewRows } from './export';
 import { ACCOUNT_REVIEW_PRINT_STYLES } from './printStyles';
+import { TabGlobalStyles } from '../../../components/workspace-tabs/TabGlobalStyles';
 import {
   ACCOUNT_REVIEW_CODING_LEVELS,
   ACCOUNT_REVIEW_LEVEL,
@@ -60,7 +61,6 @@ import {
   type AccountReviewRow,
   type AccountReviewScopeStep,
 } from '../../../types/accountReview';
-import { getReportUnitScope } from '../_shared/reportUnitScope';
 import { parseBreakdownPath } from '../_shared/accountBreakdownLink';
 import { ColumnChooser, SortLabel, normalizeSortValue, sortRows, useColumnVisibility, useGridSort } from '../../../components/gridTools';
 import {
@@ -164,8 +164,11 @@ export function AccountReviewPage() {
   const [applied, setApplied] = useState(initialDraft);
   const [codeSearch, setCodeSearch] = useState(() => url.text('code'));
 
+  // دامنهٔ واحد همین تب — هر نسخهٔ گزارش دامنهٔ خودش را دارد.
+  const [unitScope] = useReportUnitScope();
+
   const report = useQuery({
-    queryKey: ['account-review', financialYear, level, scope, applied],
+    queryKey: ['account-review', financialYear, level, scope, applied, unitScope],
     queryFn: () =>
       accountReviewApi.get({
         year: financialYear,
@@ -176,7 +179,7 @@ export function AccountReviewPage() {
         fromVoucherNo: applied.fromVoucherNo || undefined,
         toVoucherNo: applied.toVoucherNo || undefined,
         docLife: applied.docLife === '' ? undefined : Number(applied.docLife),
-      }),
+      }, unitScope),
     enabled: isConfigured,
     placeholderData: (previous) => previous,
   });
@@ -280,7 +283,7 @@ export function AccountReviewPage() {
   /** ردیف سند ⇒ صفحهٔ نمایش سند؛ در دامنهٔ چندواحدی با هدر همان واحد (فقط مشاهده، مثل دفتر کل). */
   function openVoucher(row: AccountReviewRow) {
     if (!row.voucherId) return;
-    const otherUnit = getReportUnitScope().unitScope !== 0 && row.vahedCode;
+    const otherUnit = unitScope.unitScope !== 0 && row.vahedCode;
     navigate(`/operation/vouchers/${row.voucherId}/view${otherUnit ? `?unit=${encodeURIComponent(row.vahedCode!)}` : ''}`);
   }
 
@@ -355,7 +358,7 @@ export function AccountReviewPage() {
 
   return (
     <section>
-      <style>{ACCOUNT_REVIEW_PRINT_STYLES}</style>
+      <TabGlobalStyles styles={ACCOUNT_REVIEW_PRINT_STYLES} />
 
       <Box className="account-review-no-print">
         <PageHeader
@@ -407,7 +410,7 @@ export function AccountReviewPage() {
               startIcon={<HomeOutlinedIcon />}
               onClick={() => jumpTo(0)}
             >
-              {getReportUnitScope().unitScope !== 0 ? 'کل دامنه' : 'کل واحد'}
+              {unitScope.unitScope !== 0 ? 'کل دامنه' : 'کل واحد'}
             </Button>
 
             {crumbs.map((crumb, index) => (

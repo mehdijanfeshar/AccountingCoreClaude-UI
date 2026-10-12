@@ -1,4 +1,4 @@
-import { reportUnitScopeParams } from '../_shared/reportUnitScope';
+import { reportUnitScopeParams, type ReportUnitScopeValue } from '../_shared/reportUnitScope';
 import { apiClient } from '../../../lib/api/client';
 import type {
   TrialBalanceParams,
@@ -25,6 +25,8 @@ export const trialBalanceApi = {
   get(
     variant: TrialBalanceVariant,
     { year, fromDate, toDate, level, docLife, filters }: TrialBalanceParams,
+    /** دامنهٔ واحد تبِ گزارش (`useReportUnitScope`). */
+    unitScope?: ReportUnitScopeValue,
   ): Promise<TrialBalanceRow[]> {
     // Empty optional filters are dropped rather than sent blank: the backend distinguishes an
     // absent fromDate from an empty one, and sending "" would silently narrow the report.
@@ -43,7 +45,7 @@ export const trialBalanceApi = {
     });
 
     return apiClient
-      .get<TrialBalanceRow[]>(`/reports/trial-balance-${variant}`, { params: { ...params, ...reportUnitScopeParams() } })
+      .get<TrialBalanceRow[]>(`/reports/trial-balance-${variant}`, { params: { ...params, ...(unitScope ? reportUnitScopeParams(unitScope) : {}) } })
       .then((res) => res.data);
   },
 };
