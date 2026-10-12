@@ -162,9 +162,19 @@ export function SystemVoucherInboxPage() {
                 تاریخ: {formatLegacyJalaliDate(detail.head.dateDoc)} — شرح: {detail.head.headDesc || '—'} — جمع بدهکار{' '}
                 {formatThousands(detail.head.debtor)} / بستانکار {formatThousands(detail.head.creditor)}
               </Typography>
+              {!detail.head.voucherHeadId && detail.documentErrors.length > 0 && (
+                <Alert severity="error">
+                  <strong>خطاهای کل سند:</strong>
+                  <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                    {detail.documentErrors.map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                </Alert>
+              )}
               {!detail.canReceive && !detail.head.voucherHeadId && (
                 <Alert severity="warning">
-                  ردیف‌هایی که خطا دارند باید در سیستم فرستنده یا در کدینگ اصلاح شوند؛ تا آن موقع سند قابل دریافت نیست.
+                  خطاها باید در سیستم فرستنده یا در کدینگ (تعریف معین/تفصیلی، دسترسی کدینگ واحد) اصلاح شوند؛ تا آن موقع سند قابل دریافت نیست.
                 </Alert>
               )}
               {receive.isError && <ErrorBanner error={receive.error} />}

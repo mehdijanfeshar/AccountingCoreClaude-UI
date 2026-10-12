@@ -29,6 +29,7 @@ export interface SystemVoucherInboxDetail {
   head: SystemVoucherInboxItem;
   lines: SystemVoucherInboxLine[];
   canReceive: boolean;
+  documentErrors: string[];
 }
 
 /** دریافت اسناد از سایر سیستم‌ها — `api/system-voucher-inbox`. */
