@@ -1,5 +1,50 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+const originOf = (value: string | undefined): string | null => {
+  try {
+    return value ? new URL(value).origin : null;
+  } catch {
+    return null; // relative ("/api") or empty
+  }
+};
+
+/**
+ * Content-Security-Policy for the production bundle (risk #20: the token lives in localStorage, so
+ * a script injected by XSS could read it — CSP limits which scripts can run and where data can go).
+ * Build-only: the dev server needs inline scripts for HMR. Inline *styles* stay allowed because
+ * MUI/emotion injects <style> tags at runtime.
+ */
+const cspPlugin = (env: Record<string, string>): Plugin => ({
+  name: 'accounting-csp',
+  apply: 'build',
+  transformIndexHtml() {
+    const connect = [
+      "'self'",
+      originOf(env.VITE_API_BASE_URL),
+      originOf(env.VITE_AUTH_SERVER || 'https://account-pilot.tamin.ir/'),
+      originOf(env.VITE_KEYCLOAK_AUTHORITY),
+    ].filter((o): o is string => !!o);
+    const policy = [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      `connect-src ${[...new Set(connect)].join(' ')}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+    return [
+      {
+        tag: 'meta',
+        attrs: { 'http-equiv': 'Content-Security-Policy', content: policy },
+        injectTo: 'head-prepend',
+      },
+    ];
+  },
+});
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -9,7 +54,7 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'https://localhost:7155';
 
   return {
-    plugins: [react()],
+    plugins: [react(), cspPlugin(env)],
     server: {
       // Fixed at 4200 on purpose: the organization's IDP (account-pilot.tamin.ir)
       // only issues tokens for pre-registered redirect_uri values, and

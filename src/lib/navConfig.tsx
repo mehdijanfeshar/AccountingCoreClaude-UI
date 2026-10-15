@@ -38,6 +38,7 @@ import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
 import FunctionsOutlinedIcon from "@mui/icons-material/FunctionsOutlined";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined';
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import VpnKeyOutlinedIcon from "@mui/icons-material/VpnKeyOutlined";
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
@@ -234,6 +235,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'صورت‌حساب بانک هر حساب جاری در هر ماه — دیسکت بانک، مغایرت‌گیری و صورت مغایرت',
         to: '/operation/bank-card',
         icon: <AccountBalanceOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'انتقال از سیستم قدیم',
+        description: 'تعریف کدینگ واحد از سیستم قدیم — تفصیلی‌ها، اشخاص با کد ملی، فعالیت و مرکز هزینه',
+        to: '/operation/legacy-import',
+        icon: <SyncAltOutlinedIcon fontSize="small" />,
       },
       {
         label: 'دفتر چک',

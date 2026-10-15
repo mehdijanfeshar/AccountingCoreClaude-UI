@@ -19,6 +19,7 @@ import { CodingPermissionsListPage } from '../features/coding-permissions/Coding
 import { RoleAccessPage } from '../features/role-access/RoleAccessPage';
 import { LicensePage } from '../features/license/LicensePage';
 import { FinancialYearsPage } from '../features/financial-years/FinancialYearsPage';
+import { LegacyImportPage } from '../features/legacy-import/LegacyImportPage';
 import { FeaturesPage } from './FeaturesPage';
 import { IdentityGroupFormPage } from '../features/identity/IdentityGroupFormPage';
 import { IdentitySubGroupFormPage } from '../features/identity/IdentitySubGroupFormPage';
@@ -177,6 +178,7 @@ export const routes: RouteObject[] = [
 
   { path: '/operation/elams', element: <ElamsListPage /> },
   { path: '/operation/bank-card', element: <BankCardPage /> },
+  { path: '/operation/legacy-import', element: <LegacyImportPage /> },
   { path: '/operation/cheque-book', element: <ChequeBookPage /> },
   { path: '/operation/cheque-book/:id/print', element: <ChequePrintPage /> },
   { path: '/operation/bank-card/reconciliation', element: <BankCardReconciliationPage /> },
