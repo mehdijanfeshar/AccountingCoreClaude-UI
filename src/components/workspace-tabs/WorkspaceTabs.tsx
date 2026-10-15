@@ -29,7 +29,7 @@ import { ConfirmDialog } from '../ConfirmDialog';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { TabActivityContext, TabIdContext, notifyTabDuplicated, notifyTabsClosed } from './tabActivity';
 import { useResizableColumns } from './useResizableColumns';
-import { SPLIT_STORAGE_KEY, SPLIT_WIDTHS_STORAGE_KEY, TABS_STORAGE_KEY as STORAGE_KEY } from './workspaceTabsStorage';
+import { SPLIT_STORAGE_KEY, SPLIT_WIDTHS_STORAGE_KEY, TABS_STORAGE_KEY as STORAGE_KEY, claimWorkspaceTabs, ownsWorkspaceTabs } from './workspaceTabsStorage';
 
 /**
  * تب‌های داخل برنامه — برای همهٔ صفحه‌های منو (جز صفحهٔ اصلی).
@@ -197,6 +197,8 @@ function tabTitle(tab: WorkspaceTab, tabs: WorkspaceTab[]): string {
 }
 
 function readStoredTabs(): WorkspaceTab[] {
+  // تب‌های نشست ورود دیگر (مثلاً دیروز) برنمی‌گردند — پیش از تقسیم صفحه و عرض‌ها هم اجرا می‌شود
+  claimWorkspaceTabs();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -216,6 +218,8 @@ function readStoredTabs(): WorkspaceTab[] {
 }
 
 function writeStoredTabs(tabs: WorkspaceTab[]) {
+  // پس از ورود تازه در تب دیگری از مرورگر، این تب قدیمی تب‌های ورود قبلی را برنمی‌گرداند
+  if (!ownsWorkspaceTabs()) return;
   try {
     const stored: StoredTab[] = tabs.map((t) => ({
       id: t.id,
@@ -271,6 +275,7 @@ function readStoredWidths(): number[] {
 }
 
 function writeStorage(key: string, value: unknown) {
+  if (!ownsWorkspaceTabs()) return;
   try {
     if (value === null) window.localStorage.removeItem(key);
     else window.localStorage.setItem(key, JSON.stringify(value));
