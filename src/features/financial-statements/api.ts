@@ -2,7 +2,7 @@ import { apiClient } from '../../lib/api/client';
 import type { FsNarrativeDto, FsNarrativeVersionDto, FsRunNarrativeDto } from '../../types/fsNarrative';
 import type { FsDashboardDto, FsRatioDto, FsRatioTrendYearDto, FsRatioValueDto } from '../../types/fsRatio';
 import type { FsPermissionDto } from '../../types/fsAccess';
-import type { FsElimRuleDto, FsEntityDto, FsEntityTbDto, FsEntityTbRow, FsSettingDto, FsWorksheetDto, FsXbrlMapDto } from '../../types/fsConsolidation';
+import type { FsElimPairLineDto, FsElimPairsDto, FsElimRuleDto, FsEntityDto, FsEntityTbDto, FsEntityTbRow, FsSettingDto, FsWorksheetDto, FsXbrlMapDto } from '../../types/fsConsolidation';
 import type {
   FsDrillAccountDto,
   FsDrillUnitDto,
@@ -474,6 +474,15 @@ export const fsConsolidationApi = {
   },
   worksheet(runId: string): Promise<FsWorksheetDto> {
     return apiClient.get<FsWorksheetDto>(`/fs/runs/${runId}/worksheet`).then((res) => res.data);
+  },
+  elimPairs(runId: string): Promise<FsElimPairsDto> {
+    return apiClient.get<FsElimPairsDto>(`/fs/runs/${runId}/elim-pairs`).then((res) => res.data);
+  },
+  /** ردیف‌های سند پشت یک جفت؛ `unitB` خالی = ردیف‌های بی‌طرف مقابل. */
+  elimPairLines(runId: string, rule: string, unitA: string, unitB: string | null): Promise<FsElimPairLineDto[]> {
+    return apiClient
+      .get<FsElimPairLineDto[]>(`/fs/runs/${runId}/elim-pairs/lines`, { params: { rule, unitA, unitB: unitB ?? undefined } })
+      .then((res) => res.data);
   },
   async downloadXbrl(runId: string, fileName: string): Promise<void> {
     const res = await apiClient.get<Blob>(`/fs/runs/${runId}/xbrl`, { responseType: 'blob' });

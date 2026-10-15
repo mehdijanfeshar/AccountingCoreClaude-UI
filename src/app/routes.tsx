@@ -94,6 +94,7 @@ import { FsRunPrintPage } from "../features/financial-statements/FsRunPrintPage"
 import { FsAnalysisPage } from "../features/financial-statements/ratios/FsAnalysisPage";
 import { FsRatiosPage } from "../features/financial-statements/ratios/FsRatiosPage";
 import { FsDashboardPage } from "../features/financial-statements/FsDashboardPage";
+import { FsIntercompanyPage } from "../features/financial-statements/consolidation/FsIntercompanyPage";
 import { FsPermissionsPage } from "../features/financial-statements/FsPermissionsPage";
 import { FsConsolidationPage } from "../features/financial-statements/consolidation/FsConsolidationPage";
 
@@ -250,6 +251,7 @@ export const routes: RouteObject[] = [
   { path: "/fs/approval-steps", element: <FsApprovalStepsPage /> },
   // ح-۵ — بستن دوره.
   { path: "/fs/period-close", element: <FsPeriodClosePage /> },
+  { path: "/fs/intercompany", element: <FsIntercompanyPage /> },
   // ح-۶ — یادداشت‌های توضیحی متنی.
   { path: "/fs/narratives", element: <FsNarrativesPage /> },
   // ح-۸ — تحلیل و نسبت‌ها.

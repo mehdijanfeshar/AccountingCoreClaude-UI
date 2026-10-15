@@ -116,3 +116,50 @@ export const FS_ACC_CLASS_OPTIONS = [
   { value: 2, label: 'حقوق مالکانه' },
   { value: 3, label: 'سود و زیان' },
 ] as const;
+
+/** تطبیق فی‌مابین به تفکیک جفت واحد. status: ۱ تطبیق، ۲ در آستانه، ۳ اختلاف، ۴ بدون طرف مقابل، ۵ طرف مقابل نامعلوم. */
+export interface FsElimPairDto {
+  ruleCode: string;
+  ruleTitle: string;
+  unitA: string;
+  nameA: string | null;
+  unitB: string | null;
+  nameB: string | null;
+  amountA: number;
+  amountB: number;
+  difference: number;
+  status: number;
+  /** یک سوی جفت واحد صاحب اجراست (مثلاً ستاد ↔ اداره کل). */
+  withRoot: boolean;
+}
+
+export interface FsElimPairsDto {
+  pairs: FsElimPairDto[];
+  /** آستانهٔ مشترک قواعد (اگر همه یکی باشند). */
+  tolerance: number | null;
+  available: boolean;
+  message: string | null;
+}
+
+export interface FsElimPairLineDto {
+  voucherHeadId: string;
+  docNum: string | null;
+  dateDoc: string | null;
+  vahedCode: string;
+  accCode: string;
+  counterparty: string | null;
+  /** A = از شناسهٔ ردیف، E = از اعلامیه. */
+  source: 'A' | 'E' | null;
+  attributeValue: string | null;
+  lineDesc: string | null;
+  debtor: number;
+  creditor: number;
+}
+
+export const FS_PAIR_STATUS: Record<number, { label: string; color: 'success' | 'info' | 'error' | 'warning' | 'default' }> = {
+  1: { label: 'تطبیق', color: 'success' },
+  2: { label: 'در آستانه', color: 'info' },
+  3: { label: 'اختلاف', color: 'error' },
+  4: { label: 'بدون طرف مقابل', color: 'warning' },
+  5: { label: 'طرف مقابل نامعلوم', color: 'default' },
+};

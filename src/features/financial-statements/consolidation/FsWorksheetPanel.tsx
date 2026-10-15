@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import { FsElimPairsPanel } from './FsElimPairsPanel';
+import { downloadWorksheet } from './entityTbExcel';
 import Chip from '@mui/material/Chip';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
@@ -32,6 +36,23 @@ export function FsWorksheetPanel({ runId, unitDivisor }: Props) {
 
   const sign = (r: FsWorksheetRowDto) => (r.normalBalance === 2 ? -1 : 1);
   const show = (r: FsWorksheetRowDto, v: number | null | undefined) => (v === null || v === undefined || r.rowType === 1 || r.rowType === 6 ? '' : formatAmount(v * sign(r), unitDivisor));
+  const excelValue = (r: FsWorksheetRowDto, v: number | null | undefined) =>
+    v === null || v === undefined || r.rowType === 1 || r.rowType === 6 ? null : Math.round((v * sign(r)) / unitDivisor);
+  const title = statements.find(([code]) => code === current)?.[1] ?? 'کاربرگ';
+  const excel = useMutation({
+    mutationFn: () =>
+      downloadWorksheet(
+        title,
+        data?.groups ?? [],
+        rows.map((r) => ({
+          title: r.titleFa ?? r.rowCode,
+          bold: r.bold,
+          amounts: (data?.groups ?? []).map((g) => excelValue(r, r.amounts[g.code])),
+          total: excelValue(r, r.total),
+        })),
+        `worksheet-${current}.xlsx`,
+      ),
+  });
 
   const columns: DataTableColumn<FsWorksheetRowDto>[] = [
     {
@@ -80,6 +101,7 @@ export function FsWorksheetPanel({ runId, unitDivisor }: Props) {
           </Typography>
         </Paper>
       )}
+      {data && data.groups.length > 0 && <FsElimPairsPanel runId={runId} unitDivisor={unitDivisor} />}
       {data && data.eliminations.length > 0 && (
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -95,12 +117,21 @@ export function FsWorksheetPanel({ runId, unitDivisor }: Props) {
               کاربرگ ترکیب / تلفیق
             </Typography>
             <TextField select size="small" label="صورت" value={current} onChange={(e) => setStmt(e.target.value)} sx={{ minWidth: 240 }}>
-              {statements.map(([code, title]) => (
+              {statements.map(([code, t]) => (
                 <MenuItem key={code} value={code}>
-                  {title}
+                  {t}
                 </MenuItem>
               ))}
             </TextField>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<FileDownloadOutlinedIcon />}
+              disabled={excel.isPending || rows.length === 0}
+              onClick={() => excel.mutate()}
+            >
+              Excel
+            </Button>
           </Stack>
           <Box sx={{ overflowX: 'auto' }}>
             <DataTable columns={columns} rows={rows} getRowKey={(r) => r.rowId} isLoading={query.isLoading} emptyMessage="ردیفی نیست." />

@@ -78,3 +78,26 @@ export async function readEntityTbFile(file: File): Promise<{ rows: FsEntityTbRo
 
   return { rows, errors: errors.slice(0, 10) };
 }
+
+/** کاربرگ تلفیق یک صورت به Excel: ستون هر گروه، حذفیات و جمع؛ مبالغ با علامت نمایشی (مثل صفحه). */
+export async function downloadWorksheet(
+  title: string,
+  groups: { code: string; name: string | null }[],
+  rows: { title: string; bold: boolean; amounts: (number | null)[]; total: number | null }[],
+  fileName: string,
+): Promise<void> {
+  const ExcelJS = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(title.slice(0, 31) || 'کاربرگ', { views: [{ rightToLeft: true, state: 'frozen', ySplit: 1, xSplit: 1 }] });
+  sheet.addRow(['ردیف', ...groups.map((g) => g.name ?? g.code), 'جمع (صورت)']).font = { bold: true };
+  for (const r of rows) {
+    const row = sheet.addRow([r.title, ...r.amounts, r.total]);
+    if (r.bold) row.font = { bold: true };
+  }
+  sheet.getColumn(1).width = 44;
+  for (let i = 2; i <= groups.length + 2; i++) {
+    sheet.getColumn(i).width = 18;
+    sheet.getColumn(i).numFmt = '#,##0;(#,##0)';
+  }
+  await save(await workbook.xlsx.writeBuffer(), fileName);
+}

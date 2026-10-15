@@ -3,6 +3,7 @@ import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import ManageHistoryOutlinedIcon from '@mui/icons-material/ManageHistoryOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import CallMergeOutlinedIcon from '@mui/icons-material/CallMergeOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -487,6 +488,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "بستن و قفل دورهٔ سال هر واحد؛ پیش‌شرط انتشار صورت‌ها",
         to: "/fs/period-close",
         icon: <EventAvailableOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "تلفیق و حذف فی‌مابین",
+        description: "تطبیق حساب‌های فی‌مابین به تفکیک واحد و کاربرگ تلفیق",
+        to: "/fs/intercompany",
+        icon: <CallMergeOutlinedIcon fontSize="small" />,
       },
       {
         label: "یادداشت‌های توضیحی",
