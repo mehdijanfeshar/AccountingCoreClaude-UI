@@ -22,6 +22,7 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { legacyImportApi, type LegacyImportReportDto } from './api';
 import { ReportView } from './LegacyImportPage';
+import { YearSections } from './YearSections';
 
 const fa = (v: number | string) => toPersianDigits(String(v));
 
@@ -82,6 +83,8 @@ export function VouchersStep({ unit, enabled }: { unit: string; enabled: boolean
   const [checkedYear, setCheckedYear] = useState<number | null>(null);
   const [report, setReport] = useState<LegacyImportReportDto | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /** تصمیمی پس از آخرین بررسی ذخیره شده ⇒ نتیجه کهنه است و ثبت نهایی تا بررسی دوباره بسته. */
+  const [stale, setStale] = useState(false);
 
   const years = [...new Set([...(connections.data?.years.map((y) => y.year) ?? []), ...(status.data?.map((s) => s.year) ?? [])])].sort();
   const done = (y: number) => status.data?.find((s) => s.year === y);
@@ -92,6 +95,7 @@ export function VouchersStep({ unit, enabled }: { unit: string; enabled: boolean
     onSuccess: (r, { y, commit }) => {
       setReport(r);
       setConfirmOpen(false);
+      setStale(false);
       setCheckedYear(!commit && r.success ? y : null);
       if (r.committed) {
         notify({ message: `اسناد سال ${fa(y)} منتقل شد.`, severity: 'success' });
@@ -106,8 +110,11 @@ export function VouchersStep({ unit, enabled }: { unit: string; enabled: boolean
     setYear(y);
     setReport(null);
     setCheckedYear(null);
+    setStale(false);
   };
   const again = year != null && !!done(year);
+  const ready = year != null && checkedYear === year && !stale;
+  const decided = (report?.issues ?? []).filter((i) => i.status === 'resolved' && i.option).length;
 
   return (
     <Box>
@@ -202,21 +209,23 @@ export function VouchersStep({ unit, enabled }: { unit: string; enabled: boolean
               disabled={!enabled || run.isPending}
               onClick={() => run.mutate({ y: year, commit: false })}
             >
-              بررسی سال {fa(year)}
+              {report ? `بررسی دوبارهٔ سال ${fa(year)}` : `بررسی سال ${fa(year)}`}
             </Button>
             <Button
               variant="contained"
               startIcon={<SaveOutlinedIcon />}
-              disabled={!enabled || checkedYear !== year || run.isPending}
+              disabled={!enabled || !ready || run.isPending}
               onClick={() => setConfirmOpen(true)}
             >
-              {again ? `انتقال دوبارهٔ سال ${fa(year)}` : `انتقال سال ${fa(year)}`}
+              {again ? `ثبت نهایی (انتقال دوبارهٔ سال ${fa(year)})` : `ثبت نهایی سال ${fa(year)}`}
             </Button>
           </Stack>
-          <Typography variant="caption" color={checkedYear === year ? 'success.main' : 'text.secondary'} sx={{ display: 'block', mt: 0.75 }}>
-            {checkedYear === year
-              ? `بررسی بدون خطا بود؛ حالا «${again ? 'انتقال دوباره' : 'انتقال'}» را بزنید تا ثبت شود.`
-              : 'مرحلهٔ ۱: «بررسی» (آزمایشی، چیزی ثبت نمی‌شود) — مرحلهٔ ۲: «انتقال» که فقط بعد از بررسی بدون خطا فعال می‌شود.'}
+          <Typography variant="caption" color={ready ? 'success.main' : 'text.secondary'} sx={{ display: 'block', mt: 0.75 }}>
+            {ready
+              ? 'همهٔ بخش‌ها آماده‌اند؛ «ثبت نهایی» همهٔ بخش‌ها را یک‌جا ثبت می‌کند (یا همه، یا هیچ).'
+              : stale
+                ? 'تصمیم تازه ذخیره شد؛ برای اعمال آن «بررسی دوباره» را بزنید.'
+                : '۱) «بررسی» (آزمایشی، چیزی ثبت نمی‌شود) ← ۲) رفع مشکلات هر بخش ← ۳) «ثبت نهایی» که فقط وقتی همهٔ بخش‌ها بدون مشکل باشند فعال است.'}
           </Typography>
         </>
       )}
@@ -230,16 +239,21 @@ export function VouchersStep({ unit, enabled }: { unit: string; enabled: boolean
       )}
       {run.isError && <ErrorBanner error={run.error} />}
       {report && <ReportView report={report} />}
+      {report?.sections && year != null && !report.committed && (
+        <YearSections year={year} report={report} onDecided={() => setStale(true)} />
+      )}
 
       <ConfirmDialog
         open={confirmOpen}
         title={`انتقال اسناد سال ${year != null ? fa(year) : ''}`}
         description={
-          again
-            ? 'اسناد انتقال قبلی این سال حذف و از نو منتقل می‌شوند. ادامه می‌دهید؟'
-            : 'اسناد این سال در سیستم جدید ثبت می‌شوند. ادامه می‌دهید؟'
+          (again
+            ? 'اسناد انتقال قبلی این سال حذف و از نو منتقل می‌شوند. '
+            : 'همهٔ بخش‌های این سال (اسناد، فیش، کارت بانک، اعلامیه و…) یک‌جا ثبت می‌شوند. ') +
+          (decided > 0 ? `${fa(decided)} تصمیم شما (جایگزینی، بدون اتصال یا کنار گذاشتن) اعمال و در سابقهٔ انتقال ثبت می‌شود. ` : '') +
+          'داده‌ها هنگام ثبت دوباره از سیستم قدیم خوانده و کنترل می‌شوند. ادامه می‌دهید؟'
         }
-        confirmLabel={again ? 'انتقال دوباره' : 'انتقال'}
+        confirmLabel="ثبت نهایی"
         confirmColor="primary"
         pending={run.isPending}
         onConfirm={() => year != null && run.mutate({ y: year, commit: true })}

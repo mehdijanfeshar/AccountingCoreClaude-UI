@@ -68,6 +68,55 @@ export interface LegacyImportReportDto {
   errors: string[];
   warnings: string[];
   info: string[];
+  /** فقط انتقال بخش‌بندی‌شده (اسناد سال). */
+  sections?: LegacySectionDto[] | null;
+  issues?: LegacyIssueDto[] | null;
+}
+
+/** یک بخش انتقال (جدول/گروه جدول) با تعداد رکورد آماده و مشکلات باز/حل‌شده. */
+export interface LegacySectionDto {
+  key: string;
+  title: string;
+  records: number;
+  open: number;
+  resolved: number;
+  notes: string[];
+}
+
+export interface LegacyIssueOptionDto {
+  code: string;
+  label: string;
+  /** گزینهٔ «جایگزینی»: انتخاب از فهرست موجود. */
+  picker: 'moein' | 'tafsili' | null;
+}
+
+/** مشکل قابل‌رفع؛ `status`: open (منتظر تصمیم)، resolved، invalid (تصمیم قابل اعمال نیست — `problem`). */
+export interface LegacyIssueDto {
+  id: string;
+  section: string;
+  message: string;
+  hint: string | null;
+  uses: number;
+  samples: string[];
+  options: LegacyIssueOptionDto[];
+  status: 'open' | 'resolved' | 'invalid';
+  option: string | null;
+  value: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  problem: string | null;
+}
+
+export interface LegacyDecisionInput {
+  issueId: string;
+  /** null = حذف تصمیم. */
+  option: string | null;
+  value: string | null;
+}
+
+export interface LegacyLookupDto {
+  code: string;
+  title: string;
 }
 
 /** فایل با blob گرفته و با لینک موقت ذخیره می‌شود — لینک مستقیم هدر احراز هویت و واحد را از دست می‌دهد. */
@@ -119,6 +168,12 @@ export const legacyImportApi = {
   importVouchers: (year: number, commit: boolean) =>
     apiClient.post<LegacyImportReportDto>('/legacy-import/vouchers', null, { params: { year, commit } }).then((r) => r.data),
   voucherStatus: () => apiClient.get<LegacyVoucherYearDto[]>('/legacy-import/vouchers').then((r) => r.data),
+  /** تصمیم‌های کاربر روی مشکلات انتقال یک سال؛ در بررسی بعدی اعمال می‌شوند. */
+  saveVoucherDecisions: (year: number, decisions: LegacyDecisionInput[]) =>
+    apiClient.post<void>(`/legacy-import/vouchers/${year}/decisions`, decisions).then(() => undefined),
+  /** معین/تفصیلی موجود سیستم جدید برای «جایگزینی». */
+  lookup: (kind: 'moein' | 'tafsili', q: string) =>
+    apiClient.get<LegacyLookupDto[]>('/legacy-import/lookup', { params: { kind, q } }).then((r) => r.data),
   /** فهرست شمارهٔ سند جدید ← قدیم. */
   downloadVoucherMap: (year: number) => download(`/legacy-import/vouchers/${year}/map`, undefined, `legacy-vouchers-${year}.xlsx`),
 };

@@ -40,8 +40,9 @@ const faDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString('fa-I
 /** گزارش بررسی/ثبت: خطاها (قرمز)، هشدارها (زرد)، توضیحات. */
 export function ReportView({ report }: { report: LegacyImportReportDto }) {
   const severity = !report.success ? 'error' : report.committed ? 'success' : 'info';
+  const openIssues = (report.issues ?? []).filter((i) => i.status !== 'resolved').length;
   const title = !report.success
-    ? `${fa(report.errors.length)} مورد باید اصلاح شود`
+    ? `${fa(report.errors.length + openIssues)} مورد باید اصلاح یا تصمیم‌گیری شود`
     : report.committed
       ? 'ثبت شد'
       : 'بررسی بدون خطا بود — هنوز چیزی ثبت نشده است';
