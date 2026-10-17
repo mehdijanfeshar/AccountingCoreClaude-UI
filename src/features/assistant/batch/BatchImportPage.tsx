@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { newClientId } from '../../../lib/ids';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -77,7 +78,7 @@ export function BatchImportPage() {
   const [single, setSingle] = useState<{ voucherId: string; voucherNo: string } | null>(null);
   const [singleErrors, setSingleErrors] = useState<string[]>([]);
   const lists = useRef<{ templateId: string; lists: Record<string, DetailList | null> } | null>(null);
-  const singleRequestId = useRef(crypto.randomUUID());
+  const singleRequestId = useRef(newClientId());
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function detailLists(t: TemplateSummaryDto) {
@@ -141,14 +142,14 @@ export function BatchImportPage() {
         const row = await toBatchRow(template, cols, l, raw, parsed.rowNos[i], date);
         let state: RowState;
         if (!row.input) {
-          state = { row, draft: null, messages: row.problems, clientRequestId: crypto.randomUUID(), status: 'invalid' };
+          state = { row, draft: null, messages: row.problems, clientRequestId: newClientId(), status: 'invalid' };
         } else {
           const r = await operationsApi.preview(template.id, row.input, financialYear);
           state = {
             row,
             draft: r.draft,
             messages: r.success ? [] : r.errors.map((e) => e.message),
-            clientRequestId: crypto.randomUUID(),
+            clientRequestId: newClientId(),
             status: r.success && r.draft ? 'ok' : 'invalid',
           };
         }
@@ -215,7 +216,7 @@ export function BatchImportPage() {
       const result = await operationsApi.composeExecute({ ...input, sourceTemplateId: template.id, clientRequestId: singleRequestId.current }, financialYear);
       if (result.success && result.voucherId) {
         setSingle({ voucherId: result.voucherId, voucherNo: result.voucherNo ?? '' });
-        singleRequestId.current = crypto.randomUUID();
+        singleRequestId.current = newClientId();
       } else setSingleErrors(result.errors.map((e) => e.message));
     } catch (e) {
       setError(e);
@@ -240,6 +241,14 @@ export function BatchImportPage() {
       />
 
       {error != null && <Box sx={{ mb: 2 }}><ErrorBanner error={error} /></Box>}
+      {templates.error != null && <Box sx={{ mb: 2 }}><ErrorBanner error={templates.error} /></Box>}
+      {templates.data && templates.data.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}
+          action={<Button color="inherit" size="small" onClick={() => navigate('/assistant/templates')}>الگوهای عملیات</Button>}>
+          برای این واحد هیچ الگوی عملیات فعالی نیست. ثبت گروهی با یکی از الگوها کار می‌کند؛ اول در «الگوهای عملیات» الگو تعریف یا فعال کنید
+          (و اگر برای نوع واحد خاصی محدود شده، نوع این واحد را هم اضافه کنید).
+        </Alert>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: { md: 'center' } }}>
@@ -320,7 +329,7 @@ export function BatchImportPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>سطر</TableCell>
-                  {cols.map((c) => <TableCell key={c.key}>{c.parameter?.title ?? 'تاریخ سند'}</TableCell>)}
+                  {cols.map((c) => <TableCell key={c.key}>{c.label}</TableCell>)}
                   <TableCell>وضعیت</TableCell>
                 </TableRow>
               </TableHead>

@@ -1,4 +1,7 @@
 import type { ReactElement } from 'react';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import ManageHistoryOutlinedIcon from '@mui/icons-material/ManageHistoryOutlined';
@@ -206,6 +209,20 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/assistant/templates',
         icon: <DesignServicesOutlinedIcon fontSize="small" />,
       },
+    ],
+  },
+  {
+    // ماژول فروش، فاز ۱ — docs/sales-module.md (بک‌اند).
+    title: 'فروش',
+    access: 'operate',
+    icon: <StorefrontOutlinedIcon fontSize="small" />,
+    color: 'primary',
+    items: [
+      { label: 'میز کار فروش', description: 'کارتابل تأیید و قطعی‌سازی، پیش‌نویس‌ها و اقدامات سریع', to: '/sales', icon: <StorefrontOutlinedIcon fontSize="small" /> },
+      { label: 'اسناد فروش', description: 'پیش‌فاکتور، سفارش، حواله، فاکتور و برگشت با زنجیرهٔ اسناد و سند حسابداری', to: '/sales/docs', icon: <ReceiptLongOutlinedIcon fontSize="small" /> },
+      { label: 'مشتریان', description: 'پروفایل فروش روی تفصیلی: سقف اعتبار، مهلت پرداخت و اطلاعات مودیان', to: '/sales/customers', icon: <GroupsOutlinedIcon fontSize="small" /> },
+      { label: 'کالا و خدمات', description: 'قیمت، بهای استاندارد، شناسهٔ مودیان و موجودی ساده', to: '/sales/items', icon: <Inventory2OutlinedIcon fontSize="small" /> },
+      { label: 'تنظیمات فروش', description: 'قواعد کنترلی، حساب‌های سند حسابداری، نرخ ارزش افزوده و نقش‌ها', to: '/sales/settings', icon: <TuneOutlinedIcon fontSize="small" /> },
     ],
   },
   {

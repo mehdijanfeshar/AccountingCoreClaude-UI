@@ -1,5 +1,5 @@
 import { tafsiliApi } from '../../chart-of-accounts/api';
-import { normalizeNumericInput, toLatinDigits } from '../../../lib/format/numbers';
+import { normalizeNumericInput, toLatinDigits, toPersianDigits } from '../../../lib/format/numbers';
 import { DATE_KEY, orderedParameters, voucherDateKey } from '../assistantState';
 import { jalaliToGregorian } from '../draftMapping';
 import type { OperationInput, TemplateParameterDto, TemplateSummaryDto } from '../types';
@@ -15,6 +15,8 @@ export interface BatchColumn {
   /** کلید پارامتر الگو، یا {@link DATE_KEY} برای «تاریخ سند» وقتی الگو سؤال تاریخ ندارد. */
   key: string;
   header: string;
+  /** عنوان یکتای سؤال (برای نام برگه و پیام‌ها). */
+  label: string;
   type: 1 | 2 | 3 | 4;
   parameter: TemplateParameterDto | null;
   required: boolean;
@@ -40,11 +42,16 @@ const MAX_LIST_PAGES = 10; // ۲۰۰۰ تفصیلی در برگهٔ فهرست؛
 export function batchColumns(template: TemplateSummaryDto): BatchColumn[] {
   const cols: BatchColumn[] = [];
   if (voucherDateKey(template) === DATE_KEY) {
-    cols.push({ key: DATE_KEY, header: 'تاریخ سند (۱۴۰۴/۰۷/۰۱)', type: 4, parameter: null, required: true });
+    cols.push({ key: DATE_KEY, header: 'تاریخ سند (۱۴۰۴/۰۷/۰۱)', label: 'تاریخ سند', type: 4, parameter: null, required: true });
   }
+  // دو سؤال هم‌عنوان (مثلاً دو «سطح 1») باید سرستون و برگهٔ جدا داشته باشند — فایل با عنوان سرستون خوانده می‌شود.
+  const seen = new Map<string, number>();
   for (const p of orderedParameters(template)) {
-    const header = p.type === 2 ? `${p.title} (کد)` : p.type === 4 ? `${p.title} (۱۴۰۴/۰۷/۰۱)` : p.type === 1 ? `${p.title} (ریال)` : p.title;
-    cols.push({ key: p.key, header, type: p.type, parameter: p, required: p.isRequired });
+    const n = (seen.get(p.title) ?? 0) + 1;
+    seen.set(p.title, n);
+    const label = n === 1 ? p.title : `${p.title} ${toPersianDigits(n)}`;
+    const header = p.type === 2 ? `${label} (کد)` : p.type === 4 ? `${label} (۱۴۰۴/۰۷/۰۱)` : p.type === 1 ? `${label} (ریال)` : label;
+    cols.push({ key: p.key, header, label, type: p.type, parameter: p, required: p.isRequired });
   }
   return cols;
 }
@@ -88,10 +95,13 @@ export async function downloadBatchTemplate(template: TemplateSummaryDto, lists:
     if (c.required) sheet.getCell(1, i + 1).note = 'الزامی';
   });
 
+  const usedSheets = new Set<string>(['ورود اطلاعات']);
   for (const c of cols.filter((x) => x.type === 2 && x.parameter)) {
     const list = lists[c.key];
     if (!list) continue;
-    const name = sheetName(c.parameter!.title);
+    let name = sheetName(c.label);
+    for (let i = 2; usedSheets.has(name); i++) name = sheetName(`${c.label} ${i}`);
+    usedSheets.add(name);
     const ref = workbook.addWorksheet(name, { views: [{ rightToLeft: true }] });
     ref.addRow(['کد', 'عنوان']);
     ref.getRow(1).font = { bold: true };
@@ -187,7 +197,7 @@ export async function toBatchRow(
     const text = raw[c.key] ?? '';
     if (!text) {
       if (c.type === 4 && c.key === dateKey) voucherDate = fallbackDate; // بدون تاریخ ⇒ تاریخ پیش‌فرض صفحه
-      else if (c.required) problems.push(`«${c.parameter?.title ?? 'تاریخ سند'}» خالی است.`);
+      else if (c.required) problems.push(`«${c.label}» خالی است.`);
       continue;
     }
     switch (c.type) {
@@ -200,7 +210,7 @@ export async function toBatchRow(
       case 2: {
         const list = lists[c.key];
         const hit = list ? await findDetailByCode(c.parameter!, list, text) : null;
-        if (!hit) problems.push(`کد «${text}» در فهرست «${c.parameter?.title}» پیدا نشد.`);
+        if (!hit) problems.push(`کد «${text}» در فهرست «${c.label}» پیدا نشد.`);
         else {
           values[c.key] = hit.id;
           labels[c.key] = hit.label;

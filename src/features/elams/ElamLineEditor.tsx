@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { newClientId } from '../../lib/ids';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -28,7 +29,7 @@ export interface ElamLine {
 
 export function newLine(): ElamLine {
   return {
-    key: crypto.randomUUID(),
+    key: newClientId(),
     accountId: '',
     accountLabel: '',
     amount: '',

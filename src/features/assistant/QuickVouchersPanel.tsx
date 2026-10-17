@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { newClientId } from '../../lib/ids';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
@@ -107,7 +108,7 @@ function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInCon
   const [done, setDone] = useState<{ voucherId: string; voucherNo: string } | null>(null);
   const [extras, setExtras] = useState<{ draft: VoucherDraft; requirements: VoucherLineRequirements[] } | null>(null);
   // یک شناسه برای هر تلاش ثبت: کلیک دوباره همان سند قبلی را برمی‌گرداند؛ بعد از ثبت موفق عوض می‌شود.
-  const clientRequestId = useRef(crypto.randomUUID());
+  const clientRequestId = useRef(newClientId());
 
   const missing = asked.filter((p) => p.isRequired && !entered[p.key]);
 
@@ -125,7 +126,7 @@ function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInCon
       setExtras(null);
       setDone({ voucherId: result.voucherId, voucherNo: result.voucherNo ?? '' });
       setEntered({});
-      clientRequestId.current = crypto.randomUUID();
+      clientRequestId.current = newClientId();
     } else {
       setErrors(result.errors.map((e) => e.message));
     }
