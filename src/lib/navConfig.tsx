@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import ManageHistoryOutlinedIcon from '@mui/icons-material/ManageHistoryOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
@@ -174,6 +175,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'عملیات را بگویید، سند از الگو ساخته می‌شود؛ یا سند کامل را در یک مرحله ثبت کنید',
         to: '/assistant',
         icon: <AutoAwesomeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'ثبت گروهی از اکسل',
+        description: 'فهرست پرداخت‌ها یا دریافت‌ها را در اکسل پر کنید؛ همه با یک الگو بررسی و یکجا ثبت می‌شوند',
+        to: '/assistant/batch',
+        icon: <UploadFileOutlinedIcon fontSize="small" />,
       },
       {
         label: 'سندهای حسابیار',

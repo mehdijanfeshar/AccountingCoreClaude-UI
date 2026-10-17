@@ -42,6 +42,7 @@ import { AssistantErrorBoundary } from '../features/assistant/AssistantErrorBoun
 import { AssistantHistoryPage } from '../features/assistant/AssistantHistoryPage';
 import { ReportAssistantPage } from '../features/assistant/reports/ReportAssistantPage';
 import { SavedReportsPage } from '../features/assistant/reports/SavedReportsPage';
+import { BatchImportPage } from '../features/assistant/batch/BatchImportPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
@@ -160,6 +161,7 @@ export const routes: RouteObject[] = [
   { path: '/assistant', element: <AssistantErrorBoundary><AssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates', element: <AssistantErrorBoundary><TemplatesListPage /></AssistantErrorBoundary> },
   { path: '/assistant/history', element: <AssistantErrorBoundary><AssistantHistoryPage /></AssistantErrorBoundary> },
+  { path: '/assistant/batch', element: <AssistantErrorBoundary><BatchImportPage /></AssistantErrorBoundary> },
   { path: '/assistant/reports', element: <AssistantErrorBoundary><ReportAssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/reports/manage', element: <AssistantErrorBoundary><SavedReportsPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/new', element: <AssistantErrorBoundary><TemplateDesignerPage /></AssistantErrorBoundary> },

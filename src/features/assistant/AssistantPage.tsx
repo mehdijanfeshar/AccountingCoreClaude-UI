@@ -24,12 +24,16 @@ import {
   type AssistantState,
 } from './assistantState';
 import { ConversationPanel } from './ConversationPanel';
+import { QuickVouchersPanel } from './QuickVouchersPanel';
+import { SaveQuickVoucherDialog } from './SaveQuickVoucherDialog';
+import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { DraftPreview } from './DraftPreview';
 import { FullVoucherEditor } from './FullVoucherEditor';
-import { gregorianToJalali, jalaliToGregorian } from './draftMapping';
+import { defaultVoucherDate, gregorianToJalali, jalaliToGregorian } from './draftMapping';
 import { LineExtrasDialog, lineNeedsExtras } from './LineExtrasDialog';
 import { lineExtrasApi, type VoucherLineRequirements } from '../vouchers/lineExtras';
-import type { DraftLineExtrasInput, OperationInput, VoucherDraft } from './types';
+import type { DraftLineExtrasInput, OperationInput, TemplateSummaryDto, VoucherDraft } from './types';
+import type { Answer } from './assistantState';
 
 function toOperationInput(state: AssistantState): OperationInput {
   const values: Record<string, string | null> = {};
@@ -54,6 +58,15 @@ export function AssistantPage() {
   const [executing, setExecuting] = useState(false);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [editorDraft, setEditorDraft] = useState<VoucherDraft | null>(null);
+  const [saveQuickOpen, setSaveQuickOpen] = useState(false);
+  const [quickSaved, setQuickSaved] = useState(false);
+
+  // سند پرتکرار ⇒ «ویرایش پیش از ثبت»: همان گفتگو با جواب‌های ثابت.
+  function openInConversation(template: TemplateSummaryDto, answers: Record<string, Answer>) {
+    const date = defaultVoucherDate(financialYear);
+    dispatch({ type: 'selectTemplate', template, today: { value: date.value, label: formatLegacyJalaliDate(date.value) } });
+    dispatch({ type: 'prefill', templateId: template.id, answers });
+  }
 
   const templates = useQuery({ queryKey: ['operation-templates'], queryFn: operationsApi.listTemplates, retry: false });
   // «عملیات‌های اخیر من» — بعد از هر ثبت تازه می‌شود (queryKey در reset/executed دوباره خوانده می‌شود).
@@ -176,10 +189,30 @@ export function AssistantPage() {
               : 'سند در وضعیت «موقت» است و در کارتابل اسناد برای بررسی حسابدار قرار گرفت.'}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-            <Button variant="contained" onClick={() => dispatch({ type: 'reset' })}>عملیات جدید</Button>
+            <Button variant="contained" onClick={() => { setQuickSaved(false); dispatch({ type: 'reset' }); }}>عملیات جدید</Button>
+            {state.template && !quickSaved && (
+              <Button variant="outlined" color="warning" onClick={() => setSaveQuickOpen(true)}>ذخیره به‌عنوان سند پرتکرار</Button>
+            )}
             <Button variant="outlined" onClick={() => navigate(`/operation/vouchers/${state.outcome!.voucherId}/view`)}>مشاهدهٔ سند</Button>
             <Button color="inherit" onClick={() => navigate('/operation/voucher-heads')}>کارتابل اسناد</Button>
           </Stack>
+          {quickSaved && (
+            <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+              به سندهای پرتکرار اضافه شد؛ از این به بعد بالای صفحهٔ حسابیار است.
+            </Typography>
+          )}
+          {state.template && saveQuickOpen && (
+            <SaveQuickVoucherDialog
+              open
+              template={state.template}
+              answers={state.answers}
+              onClose={() => setSaveQuickOpen(false)}
+              onSaved={() => {
+                setSaveQuickOpen(false);
+                setQuickSaved(true);
+              }}
+            />
+          )}
         </Paper>
       ) : state.phase === 'edit' ? (
         <Grid container spacing={2.5}>
@@ -206,6 +239,10 @@ export function AssistantPage() {
           </Grid>
         </Grid>
       ) : (
+        <>
+        {state.phase === 'pick' && (
+          <QuickVouchersPanel templates={templates.data} financialYear={financialYear} onOpenInConversation={openInConversation} />
+        )}
         <Grid container spacing={2.5}>
           <Grid size={{ xs: 12, md: 6, lg: 5 }}>
             <ConversationPanel
@@ -224,6 +261,7 @@ export function AssistantPage() {
             <DraftPreview draft={state.draft} loading={previewLoading} progress={progress} templateTitle={state.template?.title} />
           </Grid>
         </Grid>
+        </>
       )}
     </Box>
   );

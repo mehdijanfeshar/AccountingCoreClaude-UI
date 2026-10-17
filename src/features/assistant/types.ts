@@ -264,3 +264,15 @@ export interface TemplateUsage {
   count: number;
   lastUsedUtc: string;
 }
+
+// ───────────── سندهای پرتکرار (DDL 079) ─────────────
+
+export interface QuickVoucher {
+  id: string;
+  title: string;
+  templateId: string;
+  templateTitle: string;
+  /** جواب‌های ثابت (قالب «اخیرها»)؛ پارامترهای دیگر (معمولاً مبلغ) هنگام ثبت پرسیده می‌شوند. */
+  fixedAnswers: RecentAnswer[];
+  createdBy: string;
+}

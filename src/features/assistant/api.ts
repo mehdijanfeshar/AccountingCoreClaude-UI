@@ -15,6 +15,7 @@ import type {
   RecentOperation,
   ExecutionPage,
   TemplateUsage,
+  QuickVoucher,
 } from './types';
 
 /** ردپای حسابیار: اخیرها، تاریخچه، آمار، آزمایش الگو. */
@@ -94,5 +95,24 @@ export const templateDesignApi = {
     asWriteResult(apiClient.post<TemplateWriteResult>(`/operations/templates/${id}/update`, payload)),
   setActive: async (id: string, isActive: boolean) => {
     await apiClient.post(`/operations/templates/${id}/set-active`, { isActive });
+  },
+};
+
+/** سندهای پرتکرار واحد جاری. ثبت از همان preview/execute الگو انجام می‌شود. */
+export const quickVoucherApi = {
+  list: async () => (await apiClient.get<QuickVoucher[]>('/operations/quick')).data,
+  /** 422 ⇒ `errors: string[]` به‌صورت نتیجه، نه استثنا. */
+  create: async (payload: { templateId: string; title: string; values: Record<string, string | null> }) => {
+    try {
+      return (await apiClient.post<TemplateWriteResult>('/operations/quick', payload)).data;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 422 && Array.isArray(error.problem?.errors)) {
+        return { success: false, id: null, errors: error.problem?.errors as unknown as string[] } satisfies TemplateWriteResult;
+      }
+      throw error;
+    }
+  },
+  remove: async (id: string) => {
+    await apiClient.post(`/operations/quick/${id}/delete`);
   },
 };
