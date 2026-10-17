@@ -25,6 +25,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { routes } from '../../app/routes';
 import { NAV_GROUPS } from '../../lib/navConfig';
 import { useNotify } from '../../lib/notifications/NotificationProvider';
+import { useSession } from '../../lib/session/SessionContext';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { TabActivityContext, TabIdContext, notifyTabDuplicated, notifyTabsClosed } from './tabActivity';
@@ -703,6 +704,49 @@ export function WorkspaceTabs({ fallback }: { fallback: React.ReactNode }) {
     [tabs, doClose],
   );
 
+  // تغییر سال مالی یا واحد وسط کار: همهٔ تب‌ها بسته می‌شوند تا هیچ صفحه‌ای با داده یا فرمِ سال/واحد قبلی باز نماند
+  // و چیزی به اشتباه در سال/واحد تازه ثبت نشود. اگر فرمی باز است، اول پرسیده می‌شود: «بستن» یا «انصراف» که
+  // سال/واحد را به مقدار قبلی برمی‌گرداند تا کاربر فرمش را ذخیره کند. مقدار اولیهٔ خالی تغییر حساب نمی‌شود.
+  const session = useSession();
+  const { financialYear, unitCode, unitName } = session;
+  const scope = useRef({ financialYear, unitCode, unitName });
+  const reverting = useRef(false);
+  const [pendingScope, setPendingScope] = useState<{ prev: typeof scope.current; what: string; forms: string } | null>(null);
+
+  const closeAllForScope = useCallback((what: string) => {
+    doClose(tabs.map((t) => t.id));
+    navigate('/');
+    notify({ message: `با تغییر ${what}، همهٔ تب‌ها بسته شد.`, severity: 'info' });
+  }, [tabs, doClose, navigate, notify]);
+
+  useEffect(() => {
+    const prev = scope.current;
+    scope.current = { financialYear, unitCode, unitName };
+    if (reverting.current) {
+      // برگشت به سال/واحد قبلی پس از «انصراف» — خودش تغییر تازه نیست.
+      reverting.current = false;
+      return;
+    }
+    const yearChanged = !!prev.financialYear && prev.financialYear !== financialYear;
+    const unitChanged = !!prev.unitCode && prev.unitCode !== unitCode;
+    if ((!yearChanged && !unitChanged) || tabs.length === 0) return;
+    const what = yearChanged && unitChanged ? 'سال مالی و واحد' : yearChanged ? 'سال مالی' : 'واحد';
+    const forms = tabs.filter(isFormLocation).map((t) => tabTitle(t, tabs));
+    if (forms.length === 0) closeAllForScope(what);
+    else setPendingScope({ prev, what, forms: forms.join('، ') });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financialYear, unitCode]);
+
+  function cancelScopeChange() {
+    if (!pendingScope) return;
+    const { prev } = pendingScope;
+    reverting.current = true;
+    if (prev.financialYear !== financialYear) session.setFinancialYear(prev.financialYear);
+    if (prev.unitCode !== unitCode) session.setUnit({ unitCode: prev.unitCode, unitName: prev.unitName });
+    setPendingScope(null);
+    notify({ message: `${pendingScope.what} به مقدار قبلی برگشت؛ فرم‌ها را ذخیره کنید و دوباره تغییر دهید.`, severity: 'info' });
+  }
+
   function switchTo(id: string) {
     const tab = tabs.find((t) => t.id === id);
     if (tab && id !== activeId) goToTab(tab);
@@ -934,6 +978,19 @@ export function WorkspaceTabs({ fallback }: { fallback: React.ReactNode }) {
           setPendingClose(null);
         }}
         onCancel={() => setPendingClose(null)}
+      />
+      <ConfirmDialog
+        open={pendingScope !== null}
+        title={`تغییر ${pendingScope?.what ?? ''}`}
+        description={`فرم «${pendingScope?.forms ?? ''}» باز است. با تغییر ${pendingScope?.what ?? ''} همهٔ تب‌ها بسته می‌شوند و اطلاعات ذخیره‌نشدهٔ فرم‌ها از بین می‌رود. اگر نیازی به ذخیرهٔ آن‌ها ندارید «بستن» را بزنید؛ وگرنه «انصراف» تا ${pendingScope?.what ?? ''} به مقدار قبلی برگردد و فرم‌ها را ذخیره کنید.`}
+        confirmLabel="بستن تب‌ها"
+        cancelLabel="انصراف"
+        onConfirm={() => {
+          const what = pendingScope?.what ?? '';
+          setPendingScope(null);
+          closeAllForScope(what);
+        }}
+        onCancel={cancelScopeChange}
       />
 
       {/* ساختار درخت در هر دو نما یکی است تا رفتن به/از نمای کنار هم هیچ تبی را دوباره mount نکند. */}
