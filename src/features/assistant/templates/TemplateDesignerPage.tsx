@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -24,6 +24,10 @@ import { toPersianDigits } from '../../../lib/format/numbers';
 import { tafsilGroupsApi } from '../../tafsil-groups/api';
 import { sysTypesApi } from '../../../lib/api/sysTypesApi';
 import MenuItem from '@mui/material/MenuItem';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
+import { formatThousands, normalizeNumericInput } from '../../../lib/format/numbers';
+import { CATEGORY_LABEL, RISK_BASE_LABEL, type HistoryTemplateDraft, type RiskBase, type TemplateCategory } from '../types';
 import { templateDesignApi } from '../api';
 import { vahedTypesApi } from '../../coding-permissions/api';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
@@ -36,6 +40,7 @@ import {
   emptyModel,
   fromStarter,
   fromDefinition,
+  fromTemplatePayload,
   newLine,
   quickChecks,
   renameKey,
@@ -67,7 +72,11 @@ export function TemplateDesignerPage() {
   const [testOpen, setTestOpen] = useState(false);
   const groupsQuery = useQuery({ queryKey: ['tafsil-groups', 'all'], queryFn: () => tafsilGroupsApi.list({ pageNumber: 1, pageSize: 200 }) });
 
-  const [model, setModel] = useState<DesignModel>(() => emptyModel());
+  // «تبدیل به الگو» از صفحهٔ کشف الگو: پیش‌نویس ذخیره‌نشده در state مسیر می‌آید؛ تا «ذخیرهٔ الگو» چیزی ذخیره نمی‌شود.
+  const location = useLocation();
+  const seed = (location.state as { historyDraft?: HistoryTemplateDraft; accountLabels?: Record<string, string> } | null) ?? null;
+  const historyDraft = !id ? seed?.historyDraft ?? null : null;
+  const [model, setModel] = useState<DesignModel>(() => (historyDraft ? fromTemplatePayload(historyDraft, seed?.accountLabels) : emptyModel()));
   useEffect(() => {
     if (existing.data) setModel(fromDefinition(existing.data));
   }, [existing.data]);
@@ -138,6 +147,23 @@ export function TemplateDesignerPage() {
         actions={<Button color="inherit" onClick={() => navigate('/assistant/templates')}>بازگشت به فهرست</Button>}
       />
 
+      {historyDraft && (
+        <Stack spacing={1} sx={{ mb: 2 }}>
+          <Alert severity="info">این الگو از اسناد گذشته ساخته شده و هنوز ذخیره نشده است؛ بررسی و تکمیلش کنید و بعد «ذخیرهٔ الگو» را بزنید.</Alert>
+          {historyDraft.validationErrors?.length > 0 && (
+            <Alert severity="error">
+              <AlertTitle>پیش از ذخیره باید اصلاح شود</AlertTitle>
+              {historyDraft.validationErrors.map((e) => <Box key={e}>• {e}</Box>)}
+            </Alert>
+          )}
+          {historyDraft.notes?.length > 0 && (
+            <Alert severity="warning">
+              <AlertTitle>نکته‌ها</AlertTitle>
+              {historyDraft.notes.map((n) => <Box key={n}>• {n}</Box>)}
+            </Alert>
+          )}
+        </Stack>
+      )}
       {existing.error != null && <ErrorBanner error={existing.error} />}
       {readOnly && <Alert severity="info" sx={{ mb: 2 }}>فقط «مدیر ستاد» می‌تواند الگو را ذخیره کند؛ شما فقط می‌بینید.</Alert>}
 
@@ -256,6 +282,71 @@ export function TemplateDesignerPage() {
                   {model.params.map((p) => (
                     <Chip key={p.uid} size="small" variant="outlined" label={p.title || p.key}
                       onClick={() => update({ voucherDescriptionPattern: `${model.voucherDescriptionPattern}{${p.key}}` })} />
+                  ))}
+                </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  select
+                  label="دستهٔ عملیات (زبانهٔ خانهٔ حسابیار)"
+                  fullWidth
+                  value={model.category}
+                  onChange={(e) => update({ category: e.target.value === '' ? '' : (Number(e.target.value) as TemplateCategory) })}
+                  slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+                >
+                  <MenuItem value=""><em>بدون دسته (سایر)</em></MenuItem>
+                  {(Object.keys(CATEGORY_LABEL) as unknown as TemplateCategory[]).map((c) => (
+                    <MenuItem key={c} value={Number(c)}>{CATEGORY_LABEL[Number(c) as TemplateCategory]}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  select
+                  label="ریسک پایه"
+                  fullWidth
+                  value={model.riskBase}
+                  onChange={(e) => update({ riskBase: e.target.value === '' ? '' : (Number(e.target.value) as RiskBase) })}
+                  helperText="نقطهٔ شروع ریسک این عملیات؛ مبلغ غیرعادی و پیوست ناقص آن را بالا می‌برند."
+                  slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+                >
+                  <MenuItem value=""><em>پیش‌فرض سرور</em></MenuItem>
+                  {([1, 2, 3] as RiskBase[]).map((r) => <MenuItem key={r} value={r}>{RISK_BASE_LABEL[r]}</MenuItem>)}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="سقف مبلغ (ریال)"
+                  fullWidth
+                  value={model.maxAmount ? formatThousands(model.maxAmount) : ''}
+                  onChange={(e) => update({ maxAmount: normalizeNumericInput(e.target.value).replace(/[^\d]/g, '') })}
+                  helperText="بالاتر از این مبلغ هشدار می‌دهد؛ خالی = بدون سقف."
+                  slotProps={{ htmlInput: { dir: 'ltr', inputMode: 'numeric' } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <FormControlLabel
+                  sx={{ minHeight: 44 }}
+                  control={<Switch checked={model.requireAttachment} onChange={(e) => update({ requireAttachment: e.target.checked })} />}
+                  label="پیوست الزامی است (بدون پیوست هشدار می‌دهد)"
+                />
+              </Grid>
+              <Grid size={12}>
+                <TextField
+                  label="الگوی متن ساده (به زبان ساده برای کاربر)"
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  value={model.plainPattern}
+                  onChange={(e) => update({ plainPattern: e.target.value })}
+                  placeholder="شما {amount} ریال برای {supplier} پرداخت کردید."
+                  helperText="خالی = سرور از روی شرح سند می‌سازد."
+                />
+                <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>درج پاسخ:</Typography>
+                  {model.params.map((p) => (
+                    <Chip key={p.uid} size="small" variant="outlined" label={p.title || p.key}
+                      onClick={() => update({ plainPattern: `${model.plainPattern}{${p.key}}` })} />
                   ))}
                 </Stack>
               </Grid>

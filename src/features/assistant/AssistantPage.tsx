@@ -4,16 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
-import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { PageHeader } from '../../components/PageHeader';
 import { useSession } from '../../lib/session/SessionContext';
 import { ErrorBanner } from '../../components/ErrorBanner';
-import { toPersianDigits } from '../../lib/format/numbers';
-import { assistantHistoryApi, operationsApi } from './api';
+import { assistantHistoryApi, historyApi, operationsApi } from './api';
 import {
   DATE_KEY,
   voucherDateKey, // تاریخ سند = سؤال تاریخ الگو ({date1}) اگر دارد
@@ -21,29 +19,44 @@ import {
   initialAssistantState,
   isReadyForPreview,
   orderedParameters,
+  answerSourceKind,
   type AssistantState,
 } from './assistantState';
 import { ConversationPanel } from './ConversationPanel';
 import { QuickVouchersPanel } from './QuickVouchersPanel';
-import { SaveQuickVoucherDialog } from './SaveQuickVoucherDialog';
+import { SubmittedScreen } from './SubmittedScreen';
+import { MyVouchersStrip } from './MyVouchersStrip';
+import { MobileDraftSheet } from './MobileDraftSheet';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
+import { toPersianDigits } from '../../lib/format/numbers';
 import { DraftPreview } from './DraftPreview';
 import { FullVoucherEditor } from './FullVoucherEditor';
 import { defaultVoucherDate, gregorianToJalali, jalaliToGregorian } from './draftMapping';
 import { LineExtrasDialog, lineNeedsExtras } from './LineExtrasDialog';
 import { lineExtrasApi, type VoucherLineRequirements } from '../vouchers/lineExtras';
-import type { DraftLineExtrasInput, OperationInput, TemplateSummaryDto, VoucherDraft } from './types';
+import type { AnswerSourceKind, DraftLineExtrasInput, OperationInput, TemplateSummaryDto, VoucherDraft } from './types';
+import Avatar from '@mui/material/Avatar';
+import Stack from '@mui/material/Stack';
 import type { Answer } from './assistantState';
 
 function toOperationInput(state: AssistantState): OperationInput {
   const values: Record<string, string | null> = {};
+  const answerSources: Record<string, AnswerSourceKind> = {};
   const dateKeys = new Set(orderedParameters(state.template).filter((p) => p.type === 4).map((p) => p.key));
   for (const [key, answer] of Object.entries(state.answers)) {
     if (key === DATE_KEY) continue;
     // Date answers are kept as Legacy Jalali `YYYYMMDD` (what the date picker emits); the API takes Gregorian.
     values[key] = dateKeys.has(key) ? jalaliToGregorian(answer.value) : answer.value;
+    answerSources[key] = answerSourceKind(answer);
   }
-  return { voucherDate: jalaliToGregorian(state.answers[voucherDateKey(state.template)]?.value), values };
+  return {
+    voucherDate: jalaliToGregorian(state.answers[voucherDateKey(state.template)]?.value),
+    values,
+    answerSources,
+    aiConfirmed: state.aiConfirmed,
+    // پیوست بعد از ثبت از روی خود سند اضافه می‌شود؛ در گفتگو هنوز پیوستی نیست.
+    hasAttachment: false,
+  };
 }
 
 /**
@@ -52,14 +65,14 @@ function toOperationInput(state: AssistantState): OperationInput {
  */
 export function AssistantPage() {
   const navigate = useNavigate();
-  const { financialYear } = useSession();
+  const { financialYear, unitName } = useSession();
   const [state, dispatch] = useReducer(assistantReducer, undefined, initialAssistantState);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [editorDraft, setEditorDraft] = useState<VoucherDraft | null>(null);
-  const [saveQuickOpen, setSaveQuickOpen] = useState(false);
-  const [quickSaved, setQuickSaved] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // سند پرتکرار ⇒ «ویرایش پیش از ثبت»: همان گفتگو با جواب‌های ثابت.
   function openInConversation(template: TemplateSummaryDto, answers: Record<string, Answer>) {
@@ -85,8 +98,10 @@ export function AssistantPage() {
     lastPreviewed.current = signature;
     setPreviewLoading(true);
     setRequestError(null);
-    operationsApi
-      .preview(state.template.id, input, financialYear)
+    const request = state.source === 'history'
+      ? historyApi.preview(state.template.id, { ...input, userSentence: state.userSentence || null, aiTraceId: state.aiTraceId }, financialYear)
+      : operationsApi.preview(state.template.id, input, financialYear);
+    request
       .then((result) => dispatch({ type: 'previewResult', result }))
       .catch(setRequestError)
       .finally(() => setPreviewLoading(false));
@@ -128,11 +143,21 @@ export function AssistantPage() {
     setExecuting(true);
     setRequestError(null);
     try {
-      const result = await operationsApi.execute(
-        state.template.id,
-        { ...toOperationInput(state), clientRequestId: state.clientRequestId, lineExtras },
-        financialYear,
-      );
+      const body = { ...toOperationInput(state), clientRequestId: state.clientRequestId, lineExtras, aiTraceId: state.aiTraceId, userSentence: state.userSentence || null };
+      const result = state.source === 'history'
+        ? await historyApi.execute(state.template.id, body, financialYear)
+        : await operationsApi.execute(state.template.id, body, financialYear);
+      // سوابق: اگر سرور اطلاعات تکمیلی ردیف را خواست (`lines[i].extras`) همان دیالوگ ردیف‌ها باز می‌شود.
+      const draft = state.draft;
+      if (!result.success && !lineExtras && draft && result.errors.some((e) => /^lines\[\d+\]\.extras$/.test(e.parameterKey ?? ''))) {
+        const year = gregorianToJalali(draft.voucherDate).slice(0, 4) || financialYear;
+        const requirements = await Promise.all(
+          draft.lines.map((l) => lineExtrasApi.requirements(l.subsidiaryAccountId, l.details.map((d) => d.detailId), year)),
+        );
+        if (extrasDialog?.draft !== draft) setExtrasDialog({ id: Date.now(), draft, requirements });
+        setExtrasDialogOpen(true);
+        return;
+      }
       if (result.success || !lineExtras) {
         setExtrasDialogOpen(false);
         dispatch({ type: result.success ? 'executed' : 'previewResult', result });
@@ -152,15 +177,28 @@ export function AssistantPage() {
   const progress = params.length ? answeredCount / params.length : 0;
 
   return (
-    <Box>
-      <PageHeader
-        eyebrow="حسابیار"
-        icon={<AutoAwesomeOutlinedIcon fontSize="small" />}
-        accentColor="secondary"
-        title="ثبت سند با حسابیار"
-        description="بگویید چه اتفاقی افتاده؛ سند را حسابیار از روی الگوهای ستاد می‌سازد. حسابدار می‌تواند همهٔ فیلدهای سند را ویرایش کند."
-        actions={<Button variant="outlined" onClick={() => navigate('/assistant/templates')}>الگوهای عملیات</Button>}
-      />
+    <Box sx={{ pb: isMobile && state.phase === 'ask' ? 22 : 0 }}>
+      {isMobile ? (
+        <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}><AutoAwesomeOutlinedIcon fontSize="small" /></Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>حسابیار</Typography>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+              {[unitName, financialYear ? toPersianDigits(financialYear) : ''].filter(Boolean).join(' · ')}
+            </Typography>
+          </Box>
+          <Button variant="outlined" size="small" sx={{ minHeight: 44 }} onClick={() => dispatch({ type: 'reset' })}>جدید</Button>
+        </Stack>
+      ) : (
+        <PageHeader
+          eyebrow="حسابیار"
+          icon={<AutoAwesomeOutlinedIcon fontSize="small" />}
+          accentColor="secondary"
+          title="ثبت سند با حسابیار"
+          description="بگویید چه اتفاقی افتاده؛ سند را حسابیار از روی الگوهای ستاد می‌سازد. حسابدار می‌تواند همهٔ فیلدهای سند را ویرایش کند."
+          actions={<Button variant="outlined" onClick={() => navigate('/assistant/templates')}>الگوهای عملیات</Button>}
+        />
+      )}
 
       {requestError != null && <Box sx={{ mb: 2 }}><ErrorBanner error={requestError} /></Box>}
 
@@ -178,42 +216,14 @@ export function AssistantPage() {
       )}
 
       {state.phase === 'done' && state.outcome ? (
-        <Paper variant="outlined" sx={{ p: 4, borderRadius: 3, textAlign: 'center', maxWidth: 560, mx: 'auto' }}>
-          <TaskAltOutlinedIcon color="success" sx={{ fontSize: 56, mb: 1 }} />
-          <Typography variant="h2" component="h2" sx={{ mb: 1 }}>
-            سند {toPersianDigits(state.outcome.voucherNo)} ثبت شد
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            {state.outcome.wasAlreadyExecuted
-              ? 'این درخواست قبلاً ثبت شده بود؛ سند تکراری ساخته نشد.'
-              : 'سند در وضعیت «موقت» است و در کارتابل اسناد برای بررسی حسابدار قرار گرفت.'}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-            <Button variant="contained" onClick={() => { setQuickSaved(false); dispatch({ type: 'reset' }); }}>عملیات جدید</Button>
-            {state.template && !quickSaved && (
-              <Button variant="outlined" color="warning" onClick={() => setSaveQuickOpen(true)}>ذخیره به‌عنوان سند پرتکرار</Button>
-            )}
-            <Button variant="outlined" onClick={() => navigate(`/operation/vouchers/${state.outcome!.voucherId}/view`)}>مشاهدهٔ سند</Button>
-            <Button color="inherit" onClick={() => navigate('/operation/voucher-heads')}>کارتابل اسناد</Button>
-          </Stack>
-          {quickSaved && (
-            <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
-              به سندهای پرتکرار اضافه شد؛ از این به بعد بالای صفحهٔ حسابیار است.
-            </Typography>
-          )}
-          {state.template && saveQuickOpen && (
-            <SaveQuickVoucherDialog
-              open
-              template={state.template}
-              answers={state.answers}
-              onClose={() => setSaveQuickOpen(false)}
-              onSaved={() => {
-                setSaveQuickOpen(false);
-                setQuickSaved(true);
-              }}
-            />
-          )}
-        </Paper>
+        <SubmittedScreen
+          outcome={state.outcome}
+          draft={state.draft}
+          template={state.template}
+          fromHistory={state.source === 'history'}
+          answers={state.answers}
+          onNew={() => dispatch({ type: 'reset' })}
+        />
       ) : state.phase === 'edit' ? (
         <Grid container spacing={2.5}>
           <Grid size={{ xs: 12, lg: 8 }}>
@@ -221,13 +231,20 @@ export function AssistantPage() {
               key={state.clientRequestId}
               seed={state.editorSeed}
               initialDescription={state.manualDescription}
-              sourceTemplateId={state.template?.id ?? null}
+              sourceTemplateId={state.source === 'history' ? null : state.template?.id ?? null}
               clientRequestId={state.clientRequestId}
+              userSentence={state.userSentence || null}
+              answerSources={state.template ? toOperationInput(state).answerSources : undefined}
+              aiConfirmed={state.aiConfirmed}
               onExecuted={(result) => dispatch({ type: 'executed', result })}
               onPreview={setEditorDraft}
               onBack={() => {
                 setEditorDraft(null);
                 dispatch({ type: 'backToConversation' });
+              }}
+              onCancel={() => {
+                setEditorDraft(null);
+                dispatch({ type: 'reset' });
               }}
             />
           </Grid>
@@ -240,8 +257,9 @@ export function AssistantPage() {
         </Grid>
       ) : (
         <>
+        {state.phase === 'pick' && <MyVouchersStrip financialYear={financialYear} />}
         {state.phase === 'pick' && (
-          <QuickVouchersPanel templates={templates.data} financialYear={financialYear} onOpenInConversation={openInConversation} />
+          <QuickVouchersPanel templates={templates.data} financialYear={financialYear} recent={recent.data} onOpenInConversation={openInConversation} />
         )}
         <Grid container spacing={2.5}>
           <Grid size={{ xs: 12, md: 6, lg: 5 }}>
@@ -257,9 +275,31 @@ export function AssistantPage() {
               onExecute={executeTemplate}
             />
           </Grid>
-          <Grid size={{ xs: 12, md: 6, lg: 7 }}>
-            <DraftPreview draft={state.draft} loading={previewLoading} progress={progress} templateTitle={state.template?.title} />
-          </Grid>
+          {isMobile ? (
+            state.phase === 'ask' && (
+              <MobileDraftSheet
+                state={state}
+                dispatch={dispatch}
+                draft={state.draft}
+                info={state.previewInfo}
+                loading={previewLoading}
+                actions={{ onSubmit: () => void executeTemplate(), onEditFull: () => dispatch({ type: 'openEditor' }), submitting: executing }}
+              />
+            )
+          ) : (
+            <Grid size={{ xs: 12, md: 6, lg: 7 }}>
+              <DraftPreview
+                draft={state.draft}
+                loading={previewLoading}
+                progress={progress}
+                templateTitle={state.template?.title}
+                templateId={state.source === 'history' ? undefined : state.template?.id}
+                fromHistory={state.source === 'history'}
+                info={state.previewInfo}
+                actions={{ onSubmit: () => void executeTemplate(), onEditFull: () => dispatch({ type: 'openEditor' }), submitting: executing }}
+              />
+            </Grid>
+          )}
         </Grid>
         </>
       )}

@@ -69,6 +69,8 @@ export interface NavItem {
   setadOnly?: boolean;
   /** فقط نقش مدیر مالی (لاگ تغییرات) — در «دسترسی نقش‌ها» قابل تخصیص نیست، حتی مدیر ستاد بدون نقش نمی‌بیند. */
   auditOnly?: boolean;
+  /** فقط نقش‌های بررسی‌کنندهٔ سند (ستاد، مالی، درمانی، بیمه‌ای) — کارتابل بررسی حسابیار؛ سرور هم کنترل می‌کند. */
+  reviewerOnly?: boolean;
 }
 
 export type NavAccentColor = 'primary' | 'secondary' | 'warning';
@@ -186,6 +188,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <UploadFileOutlinedIcon fontSize="small" />,
       },
       {
+        label: 'کارتابل بررسی حسابیار',
+        description: 'بررسی و تأیید سندهای ثبت‌شده با حسابیار، یا برگرداندن با دلیل به ثبت‌کننده',
+        to: '/assistant/review',
+        icon: <RuleOutlinedIcon fontSize="small" />,
+        reviewerOnly: true,
+      },
+      {
         label: 'سندهای حسابیار',
         description: 'سندهایی که با حسابیار ساخته شده‌اند: با کدام الگو، توسط چه کسی و چه زمانی',
         to: '/assistant/history',
@@ -208,6 +217,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'تعریف عملیات روزمره و سندی که هرکدام می‌سازد (مدیر ستاد)',
         to: '/assistant/templates',
         icon: <DesignServicesOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'کشف الگو از اسناد گذشته',
+        description: 'عملیات تکراری اسناد سال‌های قبل را پیدا کنید و به الگو تبدیل کنید (مدیر ستاد)',
+        to: '/assistant/templates/discover',
+        icon: <ManageSearchOutlinedIcon fontSize="small" />,
       },
     ],
   },

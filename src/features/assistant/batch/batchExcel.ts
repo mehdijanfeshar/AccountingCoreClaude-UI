@@ -17,7 +17,7 @@ export interface BatchColumn {
   header: string;
   /** عنوان یکتای سؤال (برای نام برگه و پیام‌ها). */
   label: string;
-  type: 1 | 2 | 3 | 4;
+  type: 1 | 2 | 3 | 4 | 5;
   parameter: TemplateParameterDto | null;
   required: boolean;
 }
@@ -222,6 +222,15 @@ export async function toBatchRow(
         if (!j) problems.push(`تاریخ «${text}» معتبر نیست (نمونه: ۱۴۰۴/۰۷/۰۱).`);
         else if (c.key === dateKey) voucherDate = j;
         if (j && c.key !== DATE_KEY) values[c.key] = jalaliToGregorian(j);
+        break;
+      }
+      case 5: {
+        // سؤال انتخابی: برچسب یا مقدار گزینه؛ «نمی‌دانم» ⇒ unknown.
+        const t = text.trim();
+        const opt = c.parameter?.options?.find((o) => o.label === t || o.value === t);
+        if (opt) values[c.key] = opt.value;
+        else if (t === 'نمی‌دانم' || t === 'unknown') values[c.key] = 'unknown';
+        else problems.push(`گزینهٔ «${text}» برای «${c.label}» تعریف نشده است.`);
         break;
       }
       default:

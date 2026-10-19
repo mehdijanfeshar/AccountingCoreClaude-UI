@@ -29,7 +29,7 @@ import { createEmptyVoucherLine } from '../vouchers/voucherFormTypes';
 import type { TafsiliLevelDto } from '../../types/tafsili';
 import { operationsApi } from './api';
 import { applyServerErrors, draftToFormValues, formToComposeInput, lineIndexOf } from './draftMapping';
-import type { EngineError, OperationResult, VoucherDraft } from './types';
+import type { AnswerSourceKind, EngineError, OperationResult, VoucherDraft } from './types';
 import { getElementByIdInActiveTab } from '../../components/workspace-tabs/tabActivity';
 
 interface FullVoucherEditorProps {
@@ -38,9 +38,15 @@ interface FullVoucherEditorProps {
   initialDescription?: string;
   sourceTemplateId: string | null;
   clientRequestId: string;
+  /** جملهٔ اصلی کاربر و منبع جواب‌ها (برای ریسک‌سنجی و صف بررسی) وقتی سند از یک الگو آمده. */
+  userSentence?: string | null;
+  answerSources?: Record<string, AnswerSourceKind>;
+  aiConfirmed?: boolean;
   onExecuted: (result: OperationResult) => void;
   onPreview: (draft: VoucherDraft | null) => void;
   onBack: () => void;
+  /** انصراف کامل: کنار گذاشتن سند و برگشت به خانهٔ حسابیار. */
+  onCancel: () => void;
 }
 
 /**
@@ -49,7 +55,7 @@ interface FullVoucherEditorProps {
  * Unlike that form, saving is ONE request (`compose/execute`): header, rows, تفصیلی and چک are
  * re-validated on the server and written in a single transaction.
  */
-export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, clientRequestId, onExecuted, onPreview, onBack }: FullVoucherEditorProps) {
+export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, clientRequestId, userSentence, answerSources, aiConfirmed, onExecuted, onPreview, onBack, onCancel }: FullVoucherEditorProps) {
   const { financialYear } = useSession();
   const activeLevelsRef = useRef<ActiveLevelsByRowKey>({});
   const schema = useMemo(() => buildVoucherEntrySchema(activeLevelsRef), []);
@@ -112,8 +118,11 @@ export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, 
     try {
       const input = formToComposeInput(values, systemTypeId);
       const result = mode === 'save'
-        ? await operationsApi.composeExecute({ ...input, sourceTemplateId, clientRequestId }, financialYear)
-        : await operationsApi.composePreview(input, financialYear);
+        ? await operationsApi.composeExecute(
+          { ...input, sourceTemplateId, clientRequestId, userSentence: userSentence ?? null, answerSources, aiConfirmed: aiConfirmed ?? false, hasAttachment: Boolean(input.apendix) },
+          financialYear,
+        )
+        : await operationsApi.composePreview({ ...input, sourceTemplateId, hasAttachment: Boolean(input.apendix) }, financialYear);
       handleResult(result, mode === 'save');
     } catch (error) {
       setRequestError(error);
@@ -249,6 +258,16 @@ export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, 
           )}
           <Box sx={{ flex: 1 }} />
           {checkedOk && <Chip color="success" variant="outlined" label="سرور سند را تأیید کرد" />}
+          <Button
+            color="inherit"
+            disabled={busy !== null}
+            onClick={() => {
+              if (formState.isDirty && !window.confirm('تغییرات این سند ذخیره نشده است. انصراف می‌دهید؟')) return;
+              onCancel();
+            }}
+          >
+            انصراف
+          </Button>
           <Button
             variant="outlined"
             startIcon={<FactCheckOutlinedIcon />}

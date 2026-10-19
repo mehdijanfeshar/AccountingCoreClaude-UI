@@ -42,6 +42,7 @@ export const ABILITIES = {
 export type Ability = (typeof ABILITIES)[keyof typeof ABILITIES];
 const COUNTRY_ABILITIES: Ability[] = [ABILITIES.ReportsUnitCategory, ABILITIES.FsUnitCategory];
 
+const REVIEWERS: string[] = [ROLES.SetadAdmin, ROLES.MaliAdmin, ROLES.HltAdmin, ROLES.EdkAdmin];
 const OPERATORS: string[] = [ROLES.SetadAdmin, ROLES.MaliAdmin, ROLES.HltAdmin, ROLES.EdkAdmin, ROLES.User, ROLES.It];
 
 export interface RoleState {
@@ -61,6 +62,8 @@ export interface RoleState {
   hasAbility: (ability: Ability) => boolean;
   /** نقش مدیر مالی — لاگ تغییرات. */
   canViewAuditLog: boolean;
+  /** بررسی‌کنندهٔ سندهای حسابیار (ستاد، مالی، درمانی، بیمه‌ای). */
+  canReview: boolean;
 }
 
 export function useRoles(): RoleState {
@@ -71,6 +74,7 @@ export function useRoles(): RoleState {
     roles,
     none: !!me.data && roles.length === 0 && !me.data.canViewAuditLog,
     canViewAuditLog: !!me.data?.canViewAuditLog,
+    canReview: roles.some((r) => REVIEWERS.includes(r)),
     canOperate: roles.some((r) => OPERATORS.includes(r)),
     isSetad: roles.includes(ROLES.SetadAdmin),
     isNational: roles.includes(ROLES.National),
@@ -113,6 +117,7 @@ export function visibleNavGroups(groups: NavGroup[], state: RoleState): NavGroup
       const items = g.items.filter((item) => {
         if (item.auditOnly) return state.canViewAuditLog;
         if (item.setadOnly) return state.isSetad;
+        if (item.reviewerOnly && !state.canReview) return false;
         if (access && item.to && item.to in access) return access[item.to] >= 1;
         return fixed;
       });

@@ -27,6 +27,7 @@ import { useTafsiliLevels } from '../../../components/dynamic-tafsili/useTafsili
 import { accountTafsilGroupLinksApi } from '../../account-tafsil-group-links/api';
 import { toPersianDigits } from '../../../lib/format/numbers';
 import type { TafsiliLevelDto } from '../../../types/tafsili';
+import type { AmountSource } from '../types';
 import { newParam, type DesignLevel, type DesignLine, type DesignParam } from './designerModel';
 import { attributeHint, lineExtrasApi } from '../../vouchers/lineExtras';
 import { useSession } from '../../../lib/session/SessionContext'; // سال مالی جاری برای یادداشت حساب
@@ -52,6 +53,8 @@ interface LineEditorProps {
 export function LineEditor({ line, index, count, params, groupName, onChange, onAddParam, onSetParamGroup, onRemove, onMove }: LineEditorProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const amountParams = params.filter((p) => p.type === 1);
+  const choiceParams = params.filter((p) => p.type === 5);
+  const conditionParam = choiceParams.find((p) => p.key === line.conditionParamKey);
   const set = (patch: Partial<DesignLine>) => onChange({ ...line, ...patch });
 
   function amountChanged(value: string) {
@@ -127,6 +130,51 @@ export function LineEditor({ line, index, count, params, groupName, onChange, on
             helperText={!line.isBalancing && line.percent !== '100' ? 'مثلاً ۹ برای مالیات؛ ردیف تراز‌کننده لازم می‌شود' : undefined}
             slotProps={{ input: { endAdornment: <InputAdornment position="end">٪</InputAdornment> } }}
           />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            select
+            label="منبع مبلغ"
+            fullWidth
+            size="small"
+            disabled={line.isBalancing}
+            value={line.amountSource}
+            onChange={(e) => set({ amountSource: Number(e.target.value) as AmountSource })}
+            helperText={line.amountSource === 2 ? 'مبلغ = مبلغ سؤال × نرخ ارزش افزودهٔ تاریخ سند' : undefined}
+          >
+            <MenuItem value={1}>مبلغ پارامتر</MenuItem>
+            <MenuItem value={2}>ارزش افزوده بر اساس نرخ تاریخ سند</MenuItem>
+          </TextField>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Stack direction="row" spacing={1}>
+            <TextField
+              select
+              label="شرط ردیف: سؤال"
+              fullWidth
+              size="small"
+              value={line.conditionParamKey}
+              disabled={choiceParams.length === 0}
+              onChange={(e) => set({ conditionParamKey: e.target.value, conditionValue: '' })}
+              helperText={choiceParams.length === 0 ? 'سؤال انتخابی ندارید' : 'خالی = ردیف همیشه ساخته شود'}
+              slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+            >
+              <MenuItem value=""><em>بدون شرط</em></MenuItem>
+              {choiceParams.map((p) => <MenuItem key={p.key} value={p.key}>{p.title || p.key}</MenuItem>)}
+            </TextField>
+            <TextField
+              select
+              label="مقدار"
+              fullWidth
+              size="small"
+              value={line.conditionValue}
+              disabled={!conditionParam}
+              error={!!line.conditionParamKey && !line.conditionValue}
+              onChange={(e) => set({ conditionValue: e.target.value })}
+            >
+              {(conditionParam?.options ?? []).map((o) => <MenuItem key={o.value} value={o.value}>{o.label || o.value}</MenuItem>)}
+            </TextField>
+          </Stack>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel

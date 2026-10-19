@@ -38,10 +38,12 @@ import { VoucherViewPage } from '../features/vouchers/VoucherViewPage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { TemplatesListPage } from '../features/assistant/templates/TemplatesListPage';
 import { TemplateDesignerPage } from '../features/assistant/templates/TemplateDesignerPage';
+import { TemplateDiscoverPage } from '../features/assistant/templates/TemplateDiscoverPage';
 import { AssistantErrorBoundary } from '../features/assistant/AssistantErrorBoundary';
 import { AssistantHistoryPage } from '../features/assistant/AssistantHistoryPage';
 import { ReportAssistantPage } from '../features/assistant/reports/ReportAssistantPage';
 import { SavedReportsPage } from '../features/assistant/reports/SavedReportsPage';
+import { ReviewQueuePage } from '../features/assistant/review/ReviewQueuePage';
 import { BatchImportPage } from '../features/assistant/batch/BatchImportPage';
 import { SalesHomePage } from '../features/sales/SalesHomePage';
 import { SalesDocsPage } from '../features/sales/SalesDocsPage';
@@ -168,6 +170,7 @@ export const routes: RouteObject[] = [
   { path: '/assistant', element: <AssistantErrorBoundary><AssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates', element: <AssistantErrorBoundary><TemplatesListPage /></AssistantErrorBoundary> },
   { path: '/assistant/history', element: <AssistantErrorBoundary><AssistantHistoryPage /></AssistantErrorBoundary> },
+  { path: '/assistant/review', element: <AssistantErrorBoundary><ReviewQueuePage /></AssistantErrorBoundary> },
   { path: '/assistant/batch', element: <AssistantErrorBoundary><BatchImportPage /></AssistantErrorBoundary> },
   { path: '/sales', element: <SalesHomePage /> },
   { path: '/sales/docs', element: <SalesDocsPage /> },
@@ -179,6 +182,7 @@ export const routes: RouteObject[] = [
   { path: '/sales/settings', element: <SalesSettingsPage /> },
   { path: '/assistant/reports', element: <AssistantErrorBoundary><ReportAssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/reports/manage', element: <AssistantErrorBoundary><SavedReportsPage /></AssistantErrorBoundary> },
+  { path: '/assistant/templates/discover', element: <AssistantErrorBoundary><TemplateDiscoverPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/new', element: <AssistantErrorBoundary><TemplateDesignerPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/:id/edit', element: <AssistantErrorBoundary key="edit"><TemplateDesignerPage /></AssistantErrorBoundary> },
 

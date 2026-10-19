@@ -30,7 +30,8 @@ import { QuestionInput } from './QuestionInput';
 import { intentSummary, rankTemplates } from './intentMatch';
 import { extractAnswers } from './sentenceExtract';
 import { aiAnswers } from './aiAnswers';
-import { operationsApi } from './api';
+import { historyApi, operationsApi } from './api';
+import { HistorySuggestions } from './HistorySuggestions';
 import { defaultVoucherDate } from './draftMapping';
 import { useSession } from '../../lib/session/SessionContext';
 import { toPersianDigits } from '../../lib/format/numbers';
@@ -44,9 +45,21 @@ import {
   type AssistantAction,
   type AssistantState,
 } from './assistantState';
-import type { InterpretResult, RecentOperation, TemplateParameterDto, TemplateSummaryDto } from './types';
+import type { HistorySuggestion, InterpretResult, RecentOperation, TemplateParameterDto, TemplateSummaryDto } from './types';
 import { latestFor, recentToAnswers } from './recentAnswers';
+import { UnderstandingCard } from './UnderstandingCard';
+import { useIsAccountant } from './roleView';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import Link from '@mui/material/Link';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import { AnswerComposer, ProgressLine } from './ConversationFooter';
+import { RequestOperationDialog } from './RequestOperationDialog';
+import { CATEGORY_LABEL, type TemplateCategory } from './types';
+
+const CATEGORY_ORDER: TemplateCategory[] = [1, 2, 3, 4, 5, 6, 9];
 
 interface ConversationPanelProps {
   state: AssistantState;
@@ -106,11 +119,24 @@ function UserBubble({ children, onEdit }: { children: ReactNode; onEdit?: () => 
 
 function PickOperation({ state, dispatch, templates, templatesLoading, templatesError, recent }: ConversationPanelProps) {
   const { financialYear } = useSession();
-  const [search, setSearch] = useState('');
+  // «عملیات دیگری است» با همان جمله برمی‌گردد: کادر و پاسخ دستیار از جملهٔ قبلی شروع می‌شود.
+  const [search, setSearch] = useState(state.userSentence);
   /** The sentence the user actually sent (Enter) — the assistant replies to this, not to every keystroke. */
-  const [asked, setAsked] = useState('');
+  const [asked, setAsked] = useState(state.userSentence);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [category, setCategory] = useState<TemplateCategory | null>(null);
   const matches = useMemo(() => rankTemplates(templates ?? [], search), [templates, search]);
-  const filtered = search.trim() ? matches.map((m) => m.template) : templates ?? [];
+  const searching = search.trim().length > 0;
+  const allTemplates = templates ?? [];
+  // زبانه‌های دسته: فقط دسته‌های دارای عملیات؛ اگر هیچ الگویی دسته ندارد زبانه‌ای نمی‌آید.
+  const presentCategories = CATEGORY_ORDER.filter((c) => allTemplates.some((t) => (t.category ?? 9) === c));
+  const showTabs = !searching && presentCategories.length > 0 && !(presentCategories.length === 1 && presentCategories[0] === 9);
+  const activeCategory = category !== null && presentCategories.includes(category) ? category : presentCategories[0] ?? null;
+  const filtered = searching
+    ? matches.map((m) => m.template)
+    : showTabs
+      ? allTemplates.filter((t) => (t.category ?? 9) === activeCategory)
+      : allTemplates;
 
   /** پاسخ هوش مصنوعی به آخرین جمله (برای نمایش سؤال روشن‌کننده یا پیام خطا). */
   const [ai, setAi] = useState<InterpretResult | null>(null);
@@ -123,16 +149,49 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
   function select(template: TemplateSummaryDto, sentence?: string, aiResult?: InterpretResult) {
     const date = defaultVoucherDate(financialYear);
     const label = date.isToday ? `امروز — ${formatLegacyJalaliDate(date.value)}` : `پایان سال مالی ${toPersianDigits(financialYear)} — ${formatLegacyJalaliDate(date.value)}`;
-    dispatch({ type: 'selectTemplate', template, today: { value: date.value, label } });
+    dispatch({ type: 'selectTemplate', template, today: { value: date.value, label }, sentence });
     if (sentence) {
       extractAnswers(template, sentence, financialYear)
         .then((answers) => dispatch({ type: 'prefill', templateId: template.id, answers }))
         .catch(() => { /* nothing found ⇒ the questions are simply asked */ });
     }
     if (aiResult?.templateId === template.id) {
+      dispatch({ type: 'aiTrace', templateId: template.id, aiTraceId: aiResult.aiTraceId ?? null });
       aiAnswers(template, aiResult)
         .then((answers) => dispatch({ type: 'prefill', templateId: template.id, answers }))
         .catch(() => { /* the rule-based answers stay */ });
+    }
+  }
+
+  /** پیشنهاد از سوابق: وقتی الگویی نخورده (یا کاربر پیشنهادها را نپذیرفته). خطا/۵۰۳ ⇒ فهرست خالی. */
+  const [hist, setHist] = useState<HistorySuggestion[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histRequested, setHistRequested] = useState(false);
+  async function fetchHistory(sentence: string) {
+    setHistRequested(true);
+    setHistLoading(true);
+    const items = await historyApi.match(sentence);
+    setHist(items);
+    setHistLoading(false);
+  }
+
+  /** «از روی همین بساز»: همان جریان پرسش‌وپاسخ با یک الگوی موقت؛ سند را سرور از سوابق می‌سازد. */
+  function pickHistory(s: HistorySuggestion) {
+    const date = defaultVoucherDate(financialYear);
+    const label = date.isToday ? `امروز — ${formatLegacyJalaliDate(date.value)}` : `پایان سال مالی ${toPersianDigits(financialYear)} — ${formatLegacyJalaliDate(date.value)}`;
+    const template: TemplateSummaryDto = {
+      id: s.patternId,
+      code: 'HISTORY',
+      title: s.plainSummary,
+      description: '',
+      parameters: s.questions,
+      keywords: null,
+    };
+    dispatch({ type: 'selectTemplate', template, today: { value: date.value, label }, sentence: asked, source: 'history' });
+    if (asked) {
+      extractAnswers(template, asked, financialYear)
+        .then((answers) => dispatch({ type: 'prefill', templateId: template.id, answers }))
+        .catch(() => { /* nothing found ⇒ the questions are simply asked */ });
     }
   }
 
@@ -142,6 +201,8 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
     if (!sentence || thinking) return;
     setAsked(sentence);
     setAi(null);
+    setHist([]);
+    setHistRequested(false);
 
     // فاز ۲: اول هوش مصنوعی (اگر در سرور روشن است). همان Action «انتخاب الگو» را می‌فرستد که کاربر می‌فرستد.
     setThinking(true);
@@ -154,12 +215,17 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
         select(chosen, sentence, result);
         return;
       }
-      if (result.succeeded) return; // هوش مصنوعی الگویی نیافت یا سؤال روشن‌کننده دارد ⇒ کارت‌های نزدیک نمایش داده می‌شوند.
+      if (result.succeeded) {
+        // هوش مصنوعی الگویی نیافت یا سؤال روشن‌کننده دارد ⇒ کارت‌های نزدیک نمایش داده می‌شوند؛ اگر هیچ‌کدام نبود، سوابق.
+        if (!result.clarification && rankTemplates(templates ?? [], sentence).length === 0) void fetchHistory(sentence);
+        return;
+      }
     }
 
     // روش قاعده‌ای: One clear winner ⇒ go straight to its questions.
     const ranked = rankTemplates(templates ?? [], sentence);
     if (ranked.length === 1 || (ranked.length > 1 && ranked[0].score > ranked[1].score)) select(ranked[0].template, sentence);
+    else if (ranked.length === 0 && templatesError == null) void fetchHistory(sentence);
   }
 
   const askedMatches = asked ? rankTemplates(templates ?? [], asked) : [];
@@ -207,6 +273,15 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
                 فهرست عملیات‌ها از سرور خوانده نشد، پس نمی‌توانم عملیات آماده پیشنهاد کنم
                 (اگر اسکریپت ۰۶۷ هنوز روی پایگاه داده اجرا نشده، دلیلش همین است). سند را می‌توانید دستی بنویسید:
               </Typography>
+            ) : histLoading ? (
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <CircularProgress size={16} />
+                <Typography variant="body2">در حال جستجوی سند مشابه در سال‌های قبل…</Typography>
+              </Stack>
+            ) : hist.length > 0 ? (
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                برای این مورد هنوز عملیات تعریف نشده، ولی در سال‌های قبل سند مشابه پیدا کردم
+              </Typography>
             ) : askedMatches.length === 0 ? (
               <Typography variant="body2">
                 برای «{asked}» هنوز عملیات آماده‌ای تعریف نشده
@@ -216,11 +291,22 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
             ) : (
               <Typography variant="body2">این عملیات‌ها به درخواست شما نزدیک‌اند؛ یکی را انتخاب کنید یا سند را دستی بنویسید:</Typography>
             )}
-            {!thinking && <Button
+            {!thinking && !histLoading && hist.length > 0 && <HistorySuggestions items={hist} onPick={pickHistory} />}
+            {!thinking && !histLoading && hist.length === 0 && !histRequested && askedMatches.length > 0 && templatesError == null && (
+              <Button size="small" variant="text" sx={{ mt: 1, mr: 1, minHeight: 44 }} onClick={() => void fetchHistory(asked)}>
+                هیچ‌کدام نیست؛ از سوابق بگرد
+              </Button>
+            )}
+            {!thinking && !histLoading && hist.length > 0 && (
+              <Button size="small" variant="outlined" sx={{ mt: 1, ml: 1, minHeight: 44 }} onClick={() => setRequestOpen(true)}>
+                موضوع را برای حسابدار بفرستید
+              </Button>
+            )}
+            {!thinking && !histLoading && <Button
               size="small"
               variant="outlined"
               startIcon={<EditNoteOutlinedIcon />}
-              sx={{ mt: 1 }}
+              sx={{ mt: 1, minHeight: 44 }}
               onClick={() => dispatch({ type: 'startManual', description: manualDescription })}
             >
               سند دستی — «{manualDescription}»
@@ -261,37 +347,50 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
         </Box>
       )}
 
+      {showTabs && (
+        <Tabs
+          value={activeCategory}
+          onChange={(_, v: TemplateCategory) => setCategory(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="دستهٔ عملیات"
+          sx={{ mb: 1.5, minHeight: 44 }}
+        >
+          {presentCategories.map((c) => (
+            <Tab key={c} value={c} label={CATEGORY_LABEL[c]} sx={{ minHeight: 44 }} />
+          ))}
+        </Tabs>
+      )}
+
       <Grid container spacing={1.5}>
         {filtered.map((t) => (
           <Grid key={t.id} size={{ xs: 12, sm: 6 }}>
             <Card variant="outlined" sx={{ height: '100%', borderRadius: 2.5 }}>
-              <CardActionArea onClick={() => select(t, asked || undefined)} sx={{ p: 1.75, height: '100%', alignItems: 'flex-start', display: 'flex', flexDirection: 'column' }}>
+              <CardActionArea onClick={() => select(t, asked || undefined)} sx={{ p: 1.75, minHeight: 44, height: '100%', alignItems: 'flex-start', display: 'flex', flexDirection: 'column' }}>
                 <Typography variant="body1" sx={{ fontWeight: 700, mb: 0.5 }}>{t.title}</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1, flex: 1 }}>{t.description}</Typography>
-                <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-                  {orderedParameters(t).slice(0, 4).map((p) => (
-                    <Chip key={p.key} size="small" variant="outlined" label={p.title} />
-                  ))}
-                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  {toPersianDigits(t.questionCount ?? t.parameters.length)} سؤال
+                  {t.usageCountInUnit !== undefined ? ` · ${toPersianDigits(t.usageCountInUnit)} بار در واحد` : ''}
+                </Typography>
               </CardActionArea>
             </Card>
           </Grid>
         ))}
-
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <Card variant="outlined" sx={{ height: '100%', borderRadius: 2.5, borderStyle: 'dashed' }}>
-            <CardActionArea onClick={() => dispatch({ type: 'startManual' })} sx={{ p: 1.75, height: '100%', alignItems: 'flex-start', display: 'flex', flexDirection: 'column' }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-                <EditNoteOutlinedIcon color="secondary" />
-                <Typography variant="body1" sx={{ fontWeight: 700 }}>سند کامل (دستی)</Typography>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                همهٔ فیلدهای سند: معین، تفصیلی هر سطح، بدهکار/بستانکار، شرح، پیوست و چک.
-              </Typography>
-            </CardActionArea>
-          </Card>
-        </Grid>
       </Grid>
+
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2.5, lineHeight: 2.2 }}>
+        عملیات مورد نظرتان نیست؟{' '}
+        <Link component="button" type="button" variant="body2" onClick={() => setRequestOpen(true)} sx={{ minHeight: 44, verticalAlign: 'baseline' }}>
+          موضوع را برای حسابدار واحد بفرستید
+        </Link>
+        {' · '}
+        حسابداران:{' '}
+        <Link component="button" type="button" variant="body2" onClick={() => dispatch({ type: 'startManual' })} sx={{ minHeight: 44, verticalAlign: 'baseline' }}>
+          سند دستی
+        </Link>
+      </Typography>
+      {requestOpen && <RequestOperationDialog initialSentence={asked || search.trim()} onClose={() => setRequestOpen(false)} />}
 
       {!templatesLoading && !asked && templates && filtered.length === 0 && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
@@ -307,9 +406,13 @@ function PickOperation({ state, dispatch, templates, templatesLoading, templates
 
 function AskQuestions({ state, dispatch, previewLoading, executing, onExecute, recent }: ConversationPanelProps) {
   const [view, setView] = useState<'chat' | 'form'>('chat');
+  const isAccountant = useIsAccountant();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const template = state.template!;
   /** آخرین سندی که کاربر با همین الگو زد — دکمهٔ «مثل دفعهٔ قبل». */
-  const lastTime = latestFor(recent, template.id);
+  const fromHistory = state.source === 'history';
+  const lastTime = fromHistory ? undefined : latestFor(recent, template.id);
   const params = orderedParameters(template);
   const current = currentQuestionKey(state);
   const ready = isReadyForPreview(state);
@@ -332,6 +435,8 @@ function AskQuestions({ state, dispatch, previewLoading, executing, onExecute, r
         // سؤال تاریخ سند: اگر هنوز جوابی نیست، امروز/پایان سال مالی از پیش در کادر است تا فقط تأیید شود.
         initial={state.answers[q.key] ?? (q.key === voucherDateKey(template) ? state.defaultDate ?? undefined : undefined)}
         error={state.paramErrors[q.key]}
+        templateId={fromHistory ? undefined : template.id}
+        composerHandles={view === 'chat'}
         onAnswer={(answer) => dispatch({ type: 'answer', key: q.key, answer })}
         onSkip={q.parameter && !q.parameter.isRequired ? () => dispatch({ type: 'skip', key: q.key }) : undefined}
       />
@@ -351,7 +456,9 @@ function AskQuestions({ state, dispatch, previewLoading, executing, onExecute, r
         </ToggleButtonGroup>
       </Stack>
 
-      <UserBubble onEdit={() => dispatch({ type: 'reset' })}>{template.title}</UserBubble>
+      <UserBubble onEdit={() => dispatch({ type: 'backToPick' })}>{state.userSentence || template.title}</UserBubble>
+
+      <UnderstandingCard state={state} dispatch={dispatch} />
 
       {lastTime && !Object.values(state.answers).some((a) => !a.fromSentence) && (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5, flexWrap: 'wrap', rowGap: 0.5 }}>
@@ -421,16 +528,21 @@ function AskQuestions({ state, dispatch, previewLoading, executing, onExecute, r
                 <Typography variant="body1" sx={{ fontWeight: 600 }}>سند آماده است. پیش‌نویس را کنارش ببینید.</Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                اگر درست است ثبت کنید؛ سند «موقت» ثبت می‌شود و حسابدار آن را بررسی می‌کند. برای تغییر هر فیلد سند (شرح، پیوست، ردیف، چک…) ویرایش کامل را بزنید.
+                اگر درست است ارسال کنید؛ سند «موقت» ثبت می‌شود و حسابدار واحد آن را بررسی می‌کند. برای تغییر هر فیلد سند (شرح، پیوست، ردیف، چک…) ویرایش کامل را بزنید.
               </Typography>
               <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
-                <Button variant="contained" onClick={onExecute} disabled={executing}>
-                  {executing ? 'در حال ثبت…' : 'ثبت سند'}
-                </Button>
-                <Button variant="outlined" startIcon={<EditNoteOutlinedIcon />} onClick={() => dispatch({ type: 'openEditor' })}>
-                  ویرایش کامل سند
-                </Button>
-                <Button color="inherit" onClick={() => dispatch({ type: 'reset' })} disabled={executing}>
+                {/* روی دسکتاپ دکمه‌های ارسال و ویرایش در کارت «پیش‌نویس سند» کنار گفتگو هستند. */}
+                {isMobile && (
+                  <>
+                    <Button variant="contained" sx={{ minHeight: 44 }} onClick={onExecute} disabled={executing}>
+                      {executing ? 'در حال ارسال…' : isAccountant ? 'ثبت سند' : 'ارسال برای بررسی حسابدار'}
+                    </Button>
+                    <Button variant="outlined" sx={{ minHeight: 44 }} startIcon={<EditNoteOutlinedIcon />} onClick={() => dispatch({ type: 'openEditor' })}>
+                      ویرایش کامل
+                    </Button>
+                  </>
+                )}
+                <Button color="inherit" sx={{ minHeight: 44 }} onClick={() => dispatch({ type: 'reset' })} disabled={executing}>
                   انصراف
                 </Button>
               </Stack>
@@ -448,6 +560,14 @@ function AskQuestions({ state, dispatch, previewLoading, executing, onExecute, r
             </Box>
           ) : null}
         </AssistantBubble>
+      )}
+
+      {/* پایین گفتگو (دسکتاپ): پیشرفت + کادر جواب. روی موبایل همین‌ها داخل برگهٔ پایینی هستند. */}
+      {!isMobile && (
+        <Box sx={{ mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+          <ProgressLine state={state} onShowAll={view === 'chat' ? () => setView('form') : () => setView('chat')} />
+          {view === 'chat' && <AnswerComposer state={state} dispatch={dispatch} />}
+        </Box>
       )}
     </Box>
   );

@@ -15,7 +15,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpwardOutlined';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownwardOutlined';
 import { PARAM_TYPE_LABEL, newParam, placementsOf, usagesOf, type DesignModel, type DesignParam } from './designerModel';
-import type { ParameterType } from '../types';
+import type { ParameterOption, ParameterType } from '../types';
 
 interface ParamsEditorProps {
   model: DesignModel;
@@ -53,7 +53,7 @@ export function ParamsEditor({ model, groups, onChange, onRenameKey }: ParamsEdi
                   value={p.type}
                   onChange={(e) => update(i, { type: Number(e.target.value) as ParameterType, detailGroupId: null })}
                 >
-                  {([1, 2, 3, 4] as ParameterType[]).map((t) => <MenuItem key={t} value={t}>{PARAM_TYPE_LABEL[t]}</MenuItem>)}
+                  {([1, 2, 3, 4, 5] as ParameterType[]).map((t) => <MenuItem key={t} value={t}>{PARAM_TYPE_LABEL[t]}</MenuItem>)}
                 </TextField>
               </Grid>
               <Grid size={{ xs: 5, sm: 2 }}>
@@ -106,12 +106,13 @@ export function ParamsEditor({ model, groups, onChange, onRenameKey }: ParamsEdi
                 </Grid>
               )}
             </Grid>
+            {p.type === 5 && <OptionsEditor options={p.options} onChange={(options) => update(i, { options })} />}
             <PlacementLine places={placementsOf(model, p.key)} paramKey={p.key} />
           </Paper>
         );
       })}
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
-        {([1, 2, 3, 4] as ParameterType[]).map((t) => (
+        {([1, 2, 3, 4, 5] as ParameterType[]).map((t) => (
           <Button key={t} size="small" startIcon={<AddCircleOutlineIcon />} onClick={() => onChange([...params, newParam(params, t)])}>
             سؤال {PARAM_TYPE_LABEL[t].split(' ')[0]}
           </Button>
@@ -120,6 +121,44 @@ export function ParamsEditor({ model, groups, onChange, onRenameKey }: ParamsEdi
       <Typography variant="caption" color="text.secondary">
         سؤال‌های تفصیلی را راحت‌تر از داخل ردیف‌ها با «+ سؤال جدید از کاربر» بسازید؛ گروهشان خودکار درست انتخاب می‌شود.
       </Typography>
+    </Box>
+  );
+}
+
+/**
+ * گزینه‌های سؤال انتخابی: «مقدار» (لاتین، همان که شرط ردیف‌ها و سرور می‌بینند) و «برچسب» (آنچه کاربر می‌بیند).
+ * «نمی‌دانم» خودکار اضافه می‌شود و جزو گزینه‌ها نیست.
+ */
+function OptionsEditor({ options, onChange }: { options: ParameterOption[]; onChange: (options: ParameterOption[]) => void }) {
+  const set = (i: number, patch: Partial<ParameterOption>) => onChange(options.map((o, j) => (j === i ? { ...o, ...patch } : o)));
+  return (
+    <Box sx={{ mt: 1.5, borderInlineStartWidth: 3, borderInlineStartStyle: 'solid', borderInlineStartColor: 'divider', paddingInlineStart: 1.5 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+        گزینه‌ها (کاربر «نمی‌دانم» را هم خودکار می‌بیند)
+      </Typography>
+      <Stack spacing={1}>
+        {options.map((o, i) => (
+          <Stack key={i} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <TextField
+              size="small"
+              label="مقدار"
+              value={o.value}
+              onChange={(e) => set(i, { value: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
+              slotProps={{ htmlInput: { dir: 'ltr' } }}
+              sx={{ width: 140 }}
+            />
+            <TextField size="small" label="برچسب" fullWidth value={o.label} onChange={(e) => set(i, { label: e.target.value })} />
+            <IconButton color="error" onClick={() => onChange(options.filter((_, j) => j !== i))} aria-label="حذف گزینه" sx={{ width: 44, height: 44 }}>
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        ))}
+        <Box>
+          <Button size="small" startIcon={<AddCircleOutlineIcon />} onClick={() => onChange([...options, { value: `opt${options.length + 1}`, label: '' }])}>
+            گزینهٔ جدید
+          </Button>
+        </Box>
+      </Stack>
     </Box>
   );
 }

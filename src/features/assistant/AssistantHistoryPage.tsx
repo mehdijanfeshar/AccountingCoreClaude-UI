@@ -24,8 +24,9 @@ import { ErrorBanner } from '../../components/ErrorBanner';
 import { JalaliDateField } from '../../components/JalaliDateField';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { assistantHistoryApi, templateDesignApi } from './api';
+import { FromHistoryChip, isHistoryExecution } from './HistorySuggestions';
 
-const CHANNEL_LABEL: Record<string, string> = { Form: 'از الگو', Compose: 'سند کامل', Agent: 'هوش مصنوعی' };
+const CHANNEL_LABEL: Record<string, string> = { Form: 'از الگو', Compose: 'سند کامل', History: 'از سوابق', Agent: 'هوش مصنوعی' };
 
 /**
  * سندهای حسابیار — چه کسی، کی، با کدام الگو، چه سندی ساخت (از ردپای TB_OP_EXECUTION، واحد جاری).
@@ -84,6 +85,7 @@ export function AssistantHistoryPage() {
               <MenuItem value=""><em>همه</em></MenuItem>
               <MenuItem value="Form">از الگو</MenuItem>
               <MenuItem value="Compose">سند کامل</MenuItem>
+              <MenuItem value="History">از سوابق</MenuItem>
             </TextField>
           </Grid>
           <Grid size={{ xs: 12, md: 2 }}>
@@ -111,7 +113,10 @@ export function AssistantHistoryPage() {
                 <TableRow key={r.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/operation/vouchers/${r.voucherId}/view`)}>
                   <TableCell>{toPersianDigits(new Date(r.createdAtUtc).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }))}</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>{toPersianDigits(r.voucherNo)}</TableCell>
-                  <TableCell>{r.templateTitle ?? (r.templateCode === 'MANUAL' ? 'سند دستی' : r.templateCode)}</TableCell>
+                  <TableCell>
+                    {r.templateTitle ?? (r.templateCode === 'MANUAL' ? 'سند دستی' : r.templateCode)}
+                    {isHistoryExecution(r.templateTitle, r.channel) && <Box component="span" sx={{ mr: 1 }}><FromHistoryChip /></Box>}
+                  </TableCell>
                   <TableCell><Chip size="small" variant="outlined" label={CHANNEL_LABEL[r.channel] ?? r.channel} /></TableCell>
                   <TableCell sx={{ direction: 'ltr', textAlign: 'right' }}>{r.createdBy}</TableCell>
                 </TableRow>

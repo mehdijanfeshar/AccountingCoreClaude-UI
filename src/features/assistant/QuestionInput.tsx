@@ -12,9 +12,12 @@ import { JalaliDateField } from '../../components/JalaliDateField';
 import { TafsiliItemSelect, type TafsiliSelection } from '../../components/dynamic-tafsili/TafsiliItemSelect';
 import { useTafsiliLevels } from '../../components/dynamic-tafsili/useTafsiliLevels';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
-import { formatThousands, normalizeNumericInput } from '../../lib/format/numbers';
+import { useQuery } from '@tanstack/react-query';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import { formatThousands, normalizeNumericInput, toPersianDigits } from '../../lib/format/numbers';
 import { amountInWordsRial } from '../../lib/format/numberToWords';
-import type { Answer } from './assistantState';
+import { UNKNOWN_CHOICE, type Answer } from './assistantState';
+import { operationsApi } from './api';
 import type { TemplateParameterDto } from './types';
 
 interface QuestionInputProps {
@@ -24,17 +27,29 @@ interface QuestionInputProps {
   error?: string;
   onAnswer: (answer: Answer) => void;
   onSkip?: () => void;
+  /** برای چیپ‌های پیشنهاد تفصیلی (`GET templates/{id}/suggestions`). */
+  templateId?: string;
+  /** در گفتگو، سؤال مبلغ/متن با کادر پایین صفحه جواب داده می‌شود؛ این‌جا فقط خطا نشان داده می‌شود. */
+  composerHandles?: boolean;
 }
 
 /** One answer widget. Every widget ends in the same `onAnswer({ value, label })`, whatever its type. */
-export function QuestionInput({ parameter, initial, error, onAnswer, onSkip }: QuestionInputProps) {
+export function QuestionInput({ parameter, initial, error, onAnswer, onSkip, templateId, composerHandles }: QuestionInputProps) {
   const type = parameter?.type ?? 4;
+  const viaComposer = composerHandles && (type === 1 || type === 3);
   return (
     <Box>
-      {type === 1 && <AmountInput initial={initial} onAnswer={onAnswer} />}
-      {type === 2 && parameter && <DetailInput parameter={parameter} initial={initial} onAnswer={onAnswer} />}
-      {type === 3 && <TextInput initial={initial} onAnswer={onAnswer} />}
+      {type === 1 && !viaComposer && <AmountInput initial={initial} onAnswer={onAnswer} />}
+      {type === 2 && parameter && (
+        templateId ? (
+          <SuggestedDetailInput templateId={templateId} parameter={parameter} initial={initial} onAnswer={onAnswer} />
+        ) : (
+          <DetailInput parameter={parameter} initial={initial} onAnswer={onAnswer} />
+        )
+      )}
+      {type === 3 && !viaComposer && <TextInput initial={initial} onAnswer={onAnswer} />}
       {type === 4 && <DateInput label={parameter?.title ?? 'تاریخ سند'} initial={initial} onAnswer={onAnswer} />}
+      {type === 5 && parameter && <ChoiceInput parameter={parameter} initial={initial} onAnswer={onAnswer} />}
       {error && (
         <Alert severity="warning" sx={{ mt: 1 }}>
           {error}
@@ -46,6 +61,86 @@ export function QuestionInput({ parameter, initial, error, onAnswer, onSkip }: Q
         </Button>
       )}
     </Box>
+  );
+}
+
+/**
+ * سؤال انتخابی (نوع ۵): هر گزینه یک دکمهٔ واقعی (حداقل ۴۴px) و «نمی‌دانم». «نمی‌دانم» با مقدار `unknown` به سرور
+ * می‌رود و سند با یادداشت برای حسابدار ثبت می‌شود.
+ */
+function ChoiceInput({ parameter, initial, onAnswer }: { parameter: TemplateParameterDto; initial?: Answer; onAnswer: (a: Answer) => void }) {
+  const options = parameter.options ?? [];
+  return (
+    <Box>
+      {options.length === 0 && <Alert severity="warning">برای این سؤال گزینه‌ای تعریف نشده است؛ «نمی‌دانم» را بزنید یا به حسابدار ستاد خبر دهید.</Alert>}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        {options.map((o) => (
+          <Button
+            key={o.value}
+            variant={initial?.value === o.value ? 'contained' : 'outlined'}
+            sx={{ minHeight: 44, justifyContent: 'center' }}
+            onClick={() => onAnswer({ value: o.value, label: o.label })}
+          >
+            {o.label}
+          </Button>
+        ))}
+        <Button
+          variant={initial?.value === UNKNOWN_CHOICE ? 'contained' : 'text'}
+          color="inherit"
+          sx={{ minHeight: 44 }}
+          onClick={() => onAnswer({ value: UNKNOWN_CHOICE, label: 'نمی‌دانم' })}
+        >
+          نمی‌دانم
+        </Button>
+      </Stack>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+        «نمی‌دانم» اشکالی ندارد؛ سند با یادداشت برای حسابدار می‌رود.
+      </Typography>
+    </Box>
+  );
+}
+
+/**
+ * سؤال تفصیلی با پیشنهاد: چیپ‌های «نام · N بار قبل» از `suggestions` و دکمهٔ «جستجوی … دیگر…» که همان جستجوی
+ * همیشگی تفصیلی را باز می‌کند. بدون پیشنهاد، مستقیم همان جستجو.
+ */
+function SuggestedDetailInput({ templateId, parameter, initial, onAnswer }: {
+  templateId: string; parameter: TemplateParameterDto; initial?: Answer; onAnswer: (a: Answer) => void;
+}) {
+  const [search, setSearch] = useState(false);
+  const suggestions = useQuery({
+    queryKey: ['operation-suggestions', templateId, parameter.key],
+    queryFn: () => operationsApi.suggestions(templateId, parameter.key),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const items = (suggestions.data ?? []).slice(0, 5);
+  if (items.length === 0 || search) {
+    return (
+      <Box>
+        <DetailInput parameter={parameter} initial={initial} onAnswer={onAnswer} />
+        {search && items.length > 0 && (
+          <Button size="small" color="inherit" sx={{ mt: 1, minHeight: 44 }} onClick={() => setSearch(false)}>بازگشت به پیشنهادها</Button>
+        )}
+      </Box>
+    );
+  }
+  return (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+      {items.map((s) => (
+        <Button
+          key={s.detailId}
+          variant="outlined"
+          sx={{ minHeight: 44 }}
+          onClick={() => onAnswer({ value: s.detailId, label: s.title, fromRecent: true })}
+        >
+          {s.title}{s.count > 0 ? ` · ${toPersianDigits(s.count)} بار قبل` : ''}
+        </Button>
+      ))}
+      <Button variant="text" startIcon={<SearchOutlinedIcon />} sx={{ minHeight: 44 }} onClick={() => setSearch(true)}>
+        جستجوی {parameter.title || 'مورد'} دیگر…
+      </Button>
+    </Stack>
   );
 }
 

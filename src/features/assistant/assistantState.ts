@@ -1,5 +1,23 @@
 import { newClientId } from '../../lib/ids';
-import type { EngineError, OperationResult, TemplateParameterDto, TemplateSummaryDto, VoucherDraft } from './types';
+import type {
+  AnswerSourceKind,
+  ControlItem,
+  EngineError,
+  OperationResult,
+  RiskLevel,
+  TemplateParameterDto,
+  TemplateSummaryDto,
+  VoucherDraft,
+} from './types';
+
+/** متن ساده، هشدار، ریسک، کنترل‌ها و مبنای پیش‌نویس — همه از پاسخ preview سرور. */
+export interface PreviewInfo {
+  plainText: string;
+  warnings: string[];
+  risk: { level: RiskLevel; reasons: string[] } | null;
+  controls: ControlItem[];
+  basis: { templateTitle: string; usageCountInUnit: number } | null;
+}
 
 /**
  * حسابیار's whole conversation as one reducer.
@@ -29,6 +47,17 @@ export interface Answer {
   fromRecent?: boolean;
 }
 
+/** منبع جواب برای ریسک‌سنجی سرور (`answerSources`). جواب اصلاح‌شده توسط کاربر پرچم ندارد ⇒ `user`. */
+export function answerSourceKind(a: Answer): AnswerSourceKind {
+  if (a.fromRecent) return 'recent';
+  if (a.fromAi) return 'ai';
+  if (a.fromSentence) return 'sentence';
+  return 'user';
+}
+
+/** «نمی‌دانم» برای سؤال انتخابی — با همین مقدار به سرور می‌رود. */
+export const UNKNOWN_CHOICE = 'unknown';
+
 export interface ExecutionOutcome {
   voucherId: string;
   voucherNo: string;
@@ -56,10 +85,24 @@ export interface AssistantState {
   /** One per conversation — a double click on «ثبت» returns the first voucher, never a second. */
   clientRequestId: string;
   outcome: ExecutionOutcome | null;
+  /** متن ساده و هشدارهای سرور برای همین پیش‌نویس (فاز ۶۱). */
+  previewInfo: PreviewInfo | null;
+  /** ردپای تفسیر هوش مصنوعی از جملهٔ کاربر؛ بی‌تغییر به execute می‌رود. */
+  aiTraceId: string | null;
+  /** جملهٔ اصلی کاربر (≤۱۰۰۰ نویسه) — به execute می‌رود و در صف بررسی «آنچه کاربر گفت» است. */
+  userSentence: string;
+  /** کاربر روی کارت «برداشت من» «درست است» را زده. */
+  aiConfirmed: boolean;
+  /** منبع عملیات: الگوی ستاد، یا الگوی موقتِ ساخته‌شده از سوابق (`api/operations/history`). */
+  source: 'template' | 'history';
 }
 
 export type AssistantAction =
-  | { type: 'selectTemplate'; template: TemplateSummaryDto; today: Answer }
+  | { type: 'selectTemplate'; template: TemplateSummaryDto; today: Answer; sentence?: string; source?: 'template' | 'history' }
+  /** «درست است» روی کارت برداشت. */
+  | { type: 'confirmAi' }
+  /** «عملیات دیگری است»: برگشت به انتخاب عملیات با همان جمله. */
+  | { type: 'backToPick' }
   | { type: 'startManual'; description?: string }
   | { type: 'answer'; key: string; answer: Answer }
   /** Answers read from the request sentence; never overwrites one the user already gave. */
@@ -70,6 +113,7 @@ export type AssistantAction =
   | { type: 'openEditor' }
   | { type: 'backToConversation' }
   | { type: 'executed'; result: OperationResult }
+  | { type: 'aiTrace'; templateId: string; aiTraceId: string | null }
   | { type: 'reset' };
 
 export function initialAssistantState(): AssistantState {
@@ -87,6 +131,11 @@ export function initialAssistantState(): AssistantState {
     defaultDate: null,
     clientRequestId: newClientId(),
     outcome: null,
+    previewInfo: null,
+    aiTraceId: null,
+    userSentence: '',
+    aiConfirmed: false,
+    source: 'template',
   };
 }
 
@@ -124,10 +173,19 @@ export function assistantReducer(state: AssistantState, action: AssistantAction)
         clientRequestId: state.clientRequestId,
         phase: 'ask',
         template: action.template,
+        source: action.source ?? 'template',
         // تاریخ سند همیشه پرسیده می‌شود (مگر از جمله برداشت شود)؛ پیش‌فرض فقط در کادر جواب پیشنهاد می‌شود.
         answers: {},
         defaultDate: action.today,
+        userSentence: (action.sentence ?? state.userSentence).slice(0, 1000),
       };
+
+    case 'confirmAi':
+      // پیش‌نمایش دوباره گرفته می‌شود چون ریسک به تأیید کاربر وابسته است.
+      return { ...state, aiConfirmed: true, draft: null };
+
+    case 'backToPick':
+      return { ...initialAssistantState(), clientRequestId: state.clientRequestId, userSentence: state.userSentence };
 
     case 'startManual':
       return {
@@ -187,7 +245,19 @@ export function assistantReducer(state: AssistantState, action: AssistantAction)
     case 'previewResult': {
       const { result } = action;
       if (result.success) {
-        return { ...state, draft: result.draft, paramErrors: {}, generalErrors: [] };
+        return {
+          ...state,
+          draft: result.draft,
+          previewInfo: {
+            plainText: result.plainText ?? '',
+            warnings: result.warnings ?? [],
+            risk: result.risk ?? null,
+            controls: result.controls ?? [],
+            basis: result.basis ?? null,
+          },
+          paramErrors: {},
+          generalErrors: [],
+        };
       }
       // An error naming one of this template's parameters becomes that question asked again —
       // exactly what the agent will do with the same error in phase 3.
@@ -221,6 +291,10 @@ export function assistantReducer(state: AssistantState, action: AssistantAction)
           wasAlreadyExecuted: action.result.wasAlreadyExecuted,
         },
       };
+
+    case 'aiTrace':
+      if (state.template?.id !== action.templateId) return state;
+      return { ...state, aiTraceId: action.aiTraceId };
 
     case 'reset':
       return initialAssistantState();

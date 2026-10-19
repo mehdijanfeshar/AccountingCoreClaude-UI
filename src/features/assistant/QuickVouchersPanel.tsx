@@ -26,13 +26,15 @@ import { operationsApi, quickVoucherApi } from './api';
 import { orderedParameters, type Answer } from './assistantState';
 import { defaultVoucherDate, gregorianToJalali, jalaliToGregorian } from './draftMapping';
 import { LineExtrasDialog, lineNeedsExtras } from './LineExtrasDialog';
-import { recentToAnswers } from './recentAnswers';
+import { latestFor, recentToAnswers } from './recentAnswers';
 import { lineExtrasApi, type VoucherLineRequirements } from '../vouchers/lineExtras';
-import type { DraftLineExtrasInput, OperationInput, QuickVoucher, TemplateParameterDto, TemplateSummaryDto, VoucherDraft } from './types';
+import type { AnswerSourceKind, DraftLineExtrasInput, OperationInput, QuickVoucher, RecentAnswer, RecentOperation, TemplateParameterDto, TemplateSummaryDto, VoucherDraft } from './types';
 
 interface Props {
   templates: TemplateSummaryDto[] | undefined;
   financialYear: string;
+  /** آخرین اجرای هر الگو — «دفعهٔ قبل: …» به‌جای نمونهٔ مبلغ. */
+  recent?: RecentOperation[];
   /** «ویرایش پیش از ثبت»: همان گفتگو با جواب‌های ثابت پر می‌شود. */
   onOpenInConversation: (template: TemplateSummaryDto, answers: Record<string, Answer>) => void;
 }
@@ -42,7 +44,7 @@ interface Props {
  * و Enter می‌زند. تاریخ سند امروز است (اگر امروز در سال مالی نباشد، آخرین روز سال). سند را همان موتور الگو
  * می‌سازد؛ ردیف‌های بانکی/شناسه‌دار همان فرم تکمیلی گفتگو را باز می‌کنند.
  */
-export function QuickVouchersPanel({ templates, financialYear, onOpenInConversation }: Props) {
+export function QuickVouchersPanel({ templates, financialYear, recent, onOpenInConversation }: Props) {
   const queryClient = useQueryClient();
   const quick = useQuery({ queryKey: ['assistant-quick'], queryFn: quickVoucherApi.list, retry: false });
   const [toDelete, setToDelete] = useState<QuickVoucher | null>(null);
@@ -73,6 +75,7 @@ export function QuickVouchersPanel({ templates, financialYear, onOpenInConversat
             quick={q}
             template={templates!.find((t) => t.id === q.templateId)!}
             financialYear={financialYear}
+            lastTime={latestFor(recent, q.templateId)}
             onDelete={() => setToDelete(q)}
             onOpenInConversation={onOpenInConversation}
           />
@@ -92,10 +95,11 @@ export function QuickVouchersPanel({ templates, financialYear, onOpenInConversat
   );
 }
 
-function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInConversation }: {
+function QuickVoucherRow({ quick, template, financialYear, lastTime, onDelete, onOpenInConversation }: {
   quick: QuickVoucher;
   template: TemplateSummaryDto;
   financialYear: string;
+  lastTime?: RecentOperation;
   onDelete: () => void;
   onOpenInConversation: Props['onOpenInConversation'];
 }) {
@@ -115,9 +119,13 @@ function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInCon
   function input(): OperationInput {
     const date = defaultVoucherDate(financialYear).value;
     const values: Record<string, string | null> = {};
-    for (const [k, a] of Object.entries({ ...fixed, ...entered })) values[k] = a.value;
+    const answerSources: Record<string, AnswerSourceKind> = {};
+    for (const [k, a] of Object.entries({ ...fixed, ...entered })) {
+      values[k] = a.value;
+      answerSources[k] = entered[k] ? 'user' : 'quick';
+    }
     for (const p of template.parameters.filter((x) => x.type === 4)) values[p.key] = jalaliToGregorian(date);
-    return { voucherDate: jalaliToGregorian(date), values };
+    return { voucherDate: jalaliToGregorian(date), values, answerSources, aiConfirmed: false, hasAttachment: false };
   }
 
   async function execute(lineExtras?: DraftLineExtrasInput[]) {
@@ -179,6 +187,7 @@ function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInCon
           <AskedField
             parameter={p}
             autoFocus={i === 0}
+            lastValue={lastTime?.answers.find((a) => a.key === p.key)}
             value={entered[p.key]}
             onChange={(a) => setEntered((prev) => {
               const next = { ...prev };
@@ -240,10 +249,11 @@ function QuickVoucherRow({ quick, template, financialYear, onDelete, onOpenInCon
 const emptyRecent = { executionId: '', templateId: '', templateTitle: '', voucherNo: '', voucherId: '', createdAtUtc: '' };
 
 /** یک سؤال ثابت‌نشده در یک خط (بدون دکمهٔ «تأیید» جدا — Enter کل کارت را ثبت می‌کند). */
-function AskedField({ parameter, value, autoFocus, onChange }: {
+function AskedField({ parameter, value, autoFocus, lastValue, onChange }: {
   parameter: TemplateParameterDto;
   value: Answer | undefined;
   autoFocus: boolean;
+  lastValue?: RecentAnswer;
   onChange: (a: Answer | null) => void;
 }) {
   if (parameter.type === 1) {
@@ -254,6 +264,7 @@ function AskedField({ parameter, value, autoFocus, onChange }: {
         fullWidth
         size="small"
         label={parameter.title}
+        placeholder={lastValue ? `دفعهٔ قبل: ${toPersianDigits(formatThousands(lastValue.value))}` : undefined}
         value={value ? formatThousands(value.value) : ''}
         onChange={(e) => {
           const raw = normalizeNumericInput(e.target.value).replace(/[.-]/g, '');

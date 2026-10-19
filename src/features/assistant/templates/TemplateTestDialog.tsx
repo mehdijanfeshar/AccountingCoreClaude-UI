@@ -45,6 +45,7 @@ export function TemplateTestDialog({ model, onClose }: { model: DesignModel; onC
       sortOrder: i,
       pickerAccountId: binding?.accountId ?? null,
       pickerLevel: binding?.level ?? null,
+      options: p.type === 5 ? p.options.filter((o) => o.value.trim() && o.label.trim()) : undefined,
     };
   });
 
@@ -110,7 +111,18 @@ export function TemplateTestDialog({ model, onClose }: { model: DesignModel; onC
               </Alert>
             )}
             {result?.success && <Alert severity="success" sx={{ mb: 1.5 }}>الگو با این جواب‌ها سند تراز می‌سازد.</Alert>}
-            <DraftPreview draft={result?.draft ?? null} loading={busy} templateTitle={model.title} />
+            <DraftPreview
+              draft={result?.draft ?? null}
+              loading={busy}
+              templateTitle={model.title}
+              info={result?.success ? {
+                plainText: result.plainText ?? '',
+                warnings: result.warnings ?? [],
+                risk: result.risk ?? null,
+                controls: result.controls ?? [],
+                basis: result.basis ?? null,
+              } : null}
+            />
           </Grid>
         </Grid>
       </DialogContent>
