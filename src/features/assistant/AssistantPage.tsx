@@ -33,13 +33,14 @@ import { DraftPreview } from './DraftPreview';
 import { FullVoucherEditor } from './FullVoucherEditor';
 import { defaultVoucherDate, gregorianToJalali, jalaliToGregorian } from './draftMapping';
 import { LineExtrasDialog, lineNeedsExtras } from './LineExtrasDialog';
+import { PendingAttachmentsPicker, uploadPendingAttachments } from './VoucherAttachments';
 import { lineExtrasApi, type VoucherLineRequirements } from '../vouchers/lineExtras';
-import type { AnswerSourceKind, DraftLineExtrasInput, OperationInput, TemplateSummaryDto, VoucherDraft } from './types';
+import type { AnswerSourceKind, DraftLineExtrasInput, OperationInput, OperationResult, TemplateSummaryDto, VoucherDraft } from './types';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import type { Answer } from './assistantState';
 
-function toOperationInput(state: AssistantState): OperationInput {
+function toOperationInput(state: AssistantState, hasAttachment = false): OperationInput {
   const values: Record<string, string | null> = {};
   const answerSources: Record<string, AnswerSourceKind> = {};
   const dateKeys = new Set(orderedParameters(state.template).filter((p) => p.type === 4).map((p) => p.key));
@@ -54,8 +55,8 @@ function toOperationInput(state: AssistantState): OperationInput {
     values,
     answerSources,
     aiConfirmed: state.aiConfirmed,
-    // پیوست بعد از ثبت از روی خود سند اضافه می‌شود؛ در گفتگو هنوز پیوستی نیست.
-    hasAttachment: false,
+    // فایل‌ها پیش از ثبت فقط در مرورگرند و بلافاصله بعد از ساخته‌شدن سند روی آن بارگذاری می‌شوند.
+    hasAttachment,
   };
 }
 
@@ -71,6 +72,23 @@ export function AssistantPage() {
   const [executing, setExecuting] = useState(false);
   const [requestError, setRequestError] = useState<unknown>(null);
   const [editorDraft, setEditorDraft] = useState<VoucherDraft | null>(null);
+  // مدرک انتخاب‌شده پیش از ثبت؛ بعد از ثبت روی سند بارگذاری می‌شود.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadFailed, setUploadFailed] = useState<string[]>([]);
+  useEffect(() => {
+    if (state.phase === 'pick') {
+      setPendingFiles([]);
+      setUploadFailed([]);
+    }
+  }, [state.phase]);
+
+  async function finishExecuted(result: OperationResult) {
+    if (result.success && result.voucherId && !result.wasAlreadyExecuted && pendingFiles.length > 0) {
+      setUploadFailed(await uploadPendingAttachments(result.voucherId, pendingFiles));
+      setPendingFiles([]);
+    }
+    dispatch({ type: 'executed', result });
+  }
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -143,7 +161,7 @@ export function AssistantPage() {
     setExecuting(true);
     setRequestError(null);
     try {
-      const body = { ...toOperationInput(state), clientRequestId: state.clientRequestId, lineExtras, aiTraceId: state.aiTraceId, userSentence: state.userSentence || null };
+      const body = { ...toOperationInput(state, pendingFiles.length > 0), clientRequestId: state.clientRequestId, lineExtras, aiTraceId: state.aiTraceId, userSentence: state.userSentence || null };
       const result = state.source === 'history'
         ? await historyApi.execute(state.template.id, body, financialYear)
         : await operationsApi.execute(state.template.id, body, financialYear);
@@ -160,7 +178,8 @@ export function AssistantPage() {
       }
       if (result.success || !lineExtras) {
         setExtrasDialogOpen(false);
-        dispatch({ type: result.success ? 'executed' : 'previewResult', result });
+        if (result.success) await finishExecuted(result);
+        else dispatch({ type: 'previewResult', result });
       } else {
         // خطای اطلاعات تکمیلی ⇒ دیالوگ باز می‌ماند و پیام سرور بالای صفحه.
         setRequestError(new Error(result.errors.map((e) => e.message).join(' · ')));
@@ -222,6 +241,7 @@ export function AssistantPage() {
           template={state.template}
           fromHistory={state.source === 'history'}
           answers={state.answers}
+          uploadFailed={uploadFailed}
           onNew={() => dispatch({ type: 'reset' })}
         />
       ) : state.phase === 'edit' ? (
@@ -236,7 +256,8 @@ export function AssistantPage() {
               userSentence={state.userSentence || null}
               answerSources={state.template ? toOperationInput(state).answerSources : undefined}
               aiConfirmed={state.aiConfirmed}
-              onExecuted={(result) => dispatch({ type: 'executed', result })}
+              hasPendingAttachment={pendingFiles.length > 0}
+              onExecuted={(result) => void finishExecuted(result)}
               onPreview={setEditorDraft}
               onBack={() => {
                 setEditorDraft(null);
@@ -250,6 +271,7 @@ export function AssistantPage() {
           </Grid>
           <Grid size={{ xs: 12, lg: 4 }}>
             <DraftPreview draft={editorDraft ?? state.editorSeed} />
+            <Box sx={{ mt: 1.5 }}><PendingAttachmentsPicker files={pendingFiles} onChange={setPendingFiles} /></Box>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
               پیش‌نویس بعد از «بررسی سند» از سرور به‌روز می‌شود.
             </Typography>
@@ -275,6 +297,9 @@ export function AssistantPage() {
               onExecute={executeTemplate}
             />
           </Grid>
+          {isMobile && state.phase === 'ask' && state.draft && (
+            <Grid size={12}><PendingAttachmentsPicker files={pendingFiles} onChange={setPendingFiles} disabled={executing} /></Grid>
+          )}
           {isMobile ? (
             state.phase === 'ask' && (
               <MobileDraftSheet
@@ -298,6 +323,9 @@ export function AssistantPage() {
                 info={state.previewInfo}
                 actions={{ onSubmit: () => void executeTemplate(), onEditFull: () => dispatch({ type: 'openEditor' }), submitting: executing }}
               />
+              {state.phase === 'ask' && state.draft && (
+                <Box sx={{ mt: 1.5 }}><PendingAttachmentsPicker files={pendingFiles} onChange={setPendingFiles} disabled={executing} /></Box>
+              )}
             </Grid>
           )}
         </Grid>

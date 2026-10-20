@@ -28,6 +28,7 @@ import type {
   HistoryRebuildResult,
   HistorySuggestion,
   HistoryTemplateDraft,
+  VoucherAttachment,
 } from './types';
 
 /** ردپای حسابیار: اخیرها، تاریخچه، آمار، آزمایش الگو. */
@@ -213,3 +214,33 @@ export const reviewApi = {
   returnToSubmitter: async (executionId: string, payload: ReturnPayload) =>
     (await apiClient.post<{ count: number }>(`/operations/reviews/${executionId}/return`, payload)).data,
 };
+
+/** مدرک پیوست سند حسابیار (روی TB_ATTACH). افزودن/حذف فقط ثبت‌کننده و تا سند «یادداشت» یا «موقت» است. */
+export const voucherAttachmentsApi = {
+  list: async (voucherId: string) =>
+    (await apiClient.get<VoucherAttachment[]>(`/operations/vouchers/${voucherId}/attachments`)).data,
+  upload: async (voucherId: string, file: File, title?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (title) form.append('title', title);
+    return (await apiClient.post<{ id: string }>(`/operations/vouchers/${voucherId}/attachments`, form)).data;
+  },
+  /** با blob و لینک موقت — لینک مستقیم هدر احراز هویت و واحد را ندارد. */
+  download: async (voucherId: string, attachment: VoucherAttachment) => {
+    const response = await apiClient.get<Blob>(`/operations/vouchers/${voucherId}/attachments/${attachment.id}/download`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = attachment.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+  remove: async (voucherId: string, attachmentId: string) => {
+    await apiClient.post(`/operations/vouchers/${voucherId}/attachments/${attachmentId}/delete`);
+  },
+};
+
+export const VOUCHER_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const VOUCHER_ATTACHMENT_MAX_FILES = 10;

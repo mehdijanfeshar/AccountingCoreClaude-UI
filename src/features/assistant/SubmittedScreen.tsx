@@ -17,6 +17,7 @@ import Typography from '@mui/material/Typography';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { formatThousands, toPersianDigits } from '../../lib/format/numbers';
 import { SaveQuickVoucherDialog } from './SaveQuickVoucherDialog';
+import { VoucherAttachmentsPanel } from './VoucherAttachments';
 import { draftCounterparty } from './DraftPreview';
 import type { Answer, ExecutionOutcome } from './assistantState';
 import type { TemplateSummaryDto, VoucherDraft } from './types';
@@ -28,11 +29,13 @@ interface SubmittedScreenProps {
   answers: Record<string, Answer>;
   /** ساخته‌شده از سوابق: الگوی ستاد نیست، پس «سند پرتکرار» ندارد. */
   fromHistory?: boolean;
+  /** نام فایل‌هایی که بعد از ثبت بارگذاری نشدند. */
+  uploadFailed?: string[];
   onNew: () => void;
 }
 
 /** صفحهٔ «ارسال شد»: خط زمانی سه‌مرحله‌ای وضعیت سند + توضیح + عملیات بعدی (طرح UX §۱۲.۲-۳). */
-export function SubmittedScreen({ outcome, draft, template: templateProp, answers, fromHistory, onNew }: SubmittedScreenProps) {
+export function SubmittedScreen({ outcome, draft, template: templateProp, answers, fromHistory, uploadFailed, onNew }: SubmittedScreenProps) {
   const template = fromHistory ? null : templateProp;
   const navigate = useNavigate();
   const [saveQuickOpen, setSaveQuickOpen] = useState(false);
@@ -66,6 +69,15 @@ export function SubmittedScreen({ outcome, draft, template: templateProp, answer
           تا وقتی حسابدار بررسی نکرده، می‌توانید سند را از «سندهای من» ویرایش یا لغو کنید. اگر حسابدار سؤالی داشته باشد،
           سند با پیام او به شما برمی‌گردد و در خانهٔ حسابیار نشان داده می‌شود.
         </Typography>
+      </Box>
+
+      <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, px: 2, py: 1.5, mb: 3 }}>
+        {uploadFailed && uploadFailed.length > 0 && (
+          <Alert severity="error" sx={{ mb: 1, textAlign: 'start' }}>
+            این فایل‌ها بارگذاری نشدند؛ دوباره اضافه کنید: {uploadFailed.join('، ')}
+          </Alert>
+        )}
+        <VoucherAttachmentsPanel voucherId={outcome.voucherId} canEdit />
       </Box>
 
       <ReturnedSample voucherId={outcome.voucherId} />
@@ -155,7 +167,7 @@ function ReturnedSample({ voucherId }: { voucherId: string }) {
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
         <Button variant="outlined" sx={{ minHeight: 44 }} disabled={!real} onClick={() => setReplyOpen(true)}>پاسخ به حسابدار</Button>
         <Button variant="contained" sx={{ minHeight: 44 }} disabled={!real || resubmit.isPending} onClick={() => resubmit.mutate()}>
-          {resubmit.isPending ? 'در حال ارسال…' : 'پیوست و ارسال دوباره'}
+          {resubmit.isPending ? 'در حال ارسال…' : 'ارسال دوباره'}
         </Button>
       </Stack>
       {replyOpen && real && <ReplyDialog executionId={real.executionId} docNum={real.docNum} onClose={() => setReplyOpen(false)} />}

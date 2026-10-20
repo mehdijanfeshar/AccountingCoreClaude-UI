@@ -25,6 +25,7 @@ import { changeVoucherState } from '../vouchers/api';
 import { myVouchersApi } from './api';
 import { RETURN_REASON_LABELS, relativeTimeFa } from './roleView';
 import { ReplyDialog } from './ReplyDialog';
+import { VoucherAttachmentsPanel } from './VoucherAttachments';
 import { FromHistoryChip, isHistoryExecution } from './HistorySuggestions';
 import type { MyVoucherItem, MyVoucherStatus } from './types';
 
@@ -201,13 +202,16 @@ function VoucherRow({ item, onOpen, onEdit, onResubmit, onReply, resubmitting }:
           </Typography>
         </Alert>
       )}
+      {(returned || item.status === 'pending') && (
+        <Box sx={{ mt: 1 }}><VoucherAttachmentsPanel voucherId={item.voucherId} canEdit /></Box>
+      )}
       <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap', rowGap: 1 }}>
         <Button size="small" variant="outlined" sx={{ minHeight: 44 }} onClick={onOpen}>باز کردن سند</Button>
         {returned && <Button size="small" variant="outlined" color="warning" sx={{ minHeight: 44 }} onClick={onEdit}>ویرایش سند</Button>}
         {returned && <Button size="small" variant="outlined" sx={{ minHeight: 44 }} onClick={onReply}>پاسخ به حسابدار</Button>}
         {returned && (
           <Button size="small" variant="contained" sx={{ minHeight: 44 }} disabled={resubmitting} onClick={onResubmit}>
-            {resubmitting ? 'در حال ارسال…' : 'پیوست و ارسال دوباره'}
+            {resubmitting ? 'در حال ارسال…' : 'ارسال دوباره'}
           </Button>
         )}
       </Stack>

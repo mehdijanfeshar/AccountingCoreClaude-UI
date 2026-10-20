@@ -42,6 +42,8 @@ interface FullVoucherEditorProps {
   userSentence?: string | null;
   answerSources?: Record<string, AnswerSourceKind>;
   aiConfirmed?: boolean;
+  /** مدرک انتخاب‌شده که بعد از ثبت روی سند بارگذاری می‌شود (برای ریسک «مدرک الزامی»). */
+  hasPendingAttachment?: boolean;
   onExecuted: (result: OperationResult) => void;
   onPreview: (draft: VoucherDraft | null) => void;
   onBack: () => void;
@@ -55,7 +57,7 @@ interface FullVoucherEditorProps {
  * Unlike that form, saving is ONE request (`compose/execute`): header, rows, تفصیلی and چک are
  * re-validated on the server and written in a single transaction.
  */
-export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, clientRequestId, userSentence, answerSources, aiConfirmed, onExecuted, onPreview, onBack, onCancel }: FullVoucherEditorProps) {
+export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, clientRequestId, userSentence, answerSources, aiConfirmed, hasPendingAttachment, onExecuted, onPreview, onBack, onCancel }: FullVoucherEditorProps) {
   const { financialYear } = useSession();
   const activeLevelsRef = useRef<ActiveLevelsByRowKey>({});
   const schema = useMemo(() => buildVoucherEntrySchema(activeLevelsRef), []);
@@ -119,10 +121,10 @@ export function FullVoucherEditor({ seed, initialDescription, sourceTemplateId, 
       const input = formToComposeInput(values, systemTypeId);
       const result = mode === 'save'
         ? await operationsApi.composeExecute(
-          { ...input, sourceTemplateId, clientRequestId, userSentence: userSentence ?? null, answerSources, aiConfirmed: aiConfirmed ?? false, hasAttachment: Boolean(input.apendix) },
+          { ...input, sourceTemplateId, clientRequestId, userSentence: userSentence ?? null, answerSources, aiConfirmed: aiConfirmed ?? false, hasAttachment: Boolean(input.apendix) || Boolean(hasPendingAttachment) },
           financialYear,
         )
-        : await operationsApi.composePreview({ ...input, sourceTemplateId, hasAttachment: Boolean(input.apendix) }, financialYear);
+        : await operationsApi.composePreview({ ...input, sourceTemplateId, hasAttachment: Boolean(input.apendix) || Boolean(hasPendingAttachment) }, financialYear);
       handleResult(result, mode === 'save');
     } catch (error) {
       setRequestError(error);

@@ -387,6 +387,8 @@ export interface ReviewItem {
   origin?: { templateTitle: string | null; aiFilledKeys: string[]; userConfirmedAll: boolean };
   controls?: ControlItem[];
   latestReply?: { message: string; createdAtUtc: string } | null;
+  /** تعداد پیوست واقعی سند (TB_ATTACH). */
+  attachmentCount?: number;
 }
 
 export interface ReviewPage {
@@ -508,3 +510,13 @@ export const RETURN_REASONS: { code: string; label: string }[] = [
   { code: 'wrong_date', label: 'تاریخ نادرست' },
   { code: 'other', label: 'سایر' },
 ];
+
+/** پیوست سند حسابیار (بدون محتوای فایل). */
+export interface VoucherAttachment {
+  id: string;
+  fileName: string;
+  title: string | null;
+  size: number;
+  createdAt: string | null;
+  addedBy: string | null;
+}

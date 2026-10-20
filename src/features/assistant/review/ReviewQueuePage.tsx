@@ -41,6 +41,7 @@ import { RiskChip } from '../DraftPreview';
 import { operationRequestsApi, operationsApi, reviewApi } from '../api';
 import { RETURN_REASON_LABELS, relativeTimeFa } from '../roleView';
 import { FromHistoryChip, isHistoryExecution } from '../HistorySuggestions';
+import { VoucherAttachmentsPanel } from '../VoucherAttachments';
 import { RETURN_REASONS, type OperationRequestItem, type ReviewItem } from '../types';
 
 const PAGE_SIZE = 20;
@@ -419,6 +420,10 @@ function DetailPane({ item, approving, approveError, onApprove, onReturn, onEdit
           </Paper>
         </Grid>
       </Grid>
+
+      <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, mb: 1.5 }}>
+        <VoucherAttachmentsPanel voucherId={full.voucherId} canEdit={full.isMine} />
+      </Paper>
 
       {reply && (
         <Alert severity="info" sx={{ mb: 1.5 }}>
