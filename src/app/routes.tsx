@@ -39,6 +39,8 @@ import { AssistantPage } from '../features/assistant/AssistantPage';
 import { TemplatesListPage } from '../features/assistant/templates/TemplatesListPage';
 import { TemplateDesignerPage } from '../features/assistant/templates/TemplateDesignerPage';
 import { TemplateDiscoverPage } from '../features/assistant/templates/TemplateDiscoverPage';
+import { AgentChatPage } from '../features/assistant/agent/AgentChatPage';
+import { AiEvalPage } from '../features/assistant/agent/AiEvalPage';
 import { AssistantErrorBoundary } from '../features/assistant/AssistantErrorBoundary';
 import { AssistantHistoryPage } from '../features/assistant/AssistantHistoryPage';
 import { ReportAssistantPage } from '../features/assistant/reports/ReportAssistantPage';
@@ -135,6 +137,10 @@ export const routes: RouteObject[] = [
   { path: '/base/bank/check-books/new', element: <CheckBookFormPage /> },
   { path: '/base/bank/check-books/:id/edit', element: <CheckBookFormPage /> },
 
+  // «تعریف هزینه» (TB_EXPENCE) — از ۲۰۲۶-۱۰-۲۶ زیر «تنخواه و خزانه‌داری»؛ مسیرهای قدیمی `/base/expenses` هم کار می‌کنند.
+  { path: '/treasury/petty-cash/expenses', element: <ExpensesListPage /> },
+  { path: '/treasury/petty-cash/expenses/new', element: <ExpenseFormPage /> },
+  { path: '/treasury/petty-cash/expenses/:id/edit', element: <ExpenseFormPage /> },
   { path: '/base/expenses', element: <ExpensesListPage /> },
   { path: '/base/expenses/new', element: <ExpenseFormPage /> },
   { path: '/base/expenses/:id/edit', element: <ExpenseFormPage /> },
@@ -183,6 +189,8 @@ export const routes: RouteObject[] = [
   { path: '/assistant/reports', element: <AssistantErrorBoundary><ReportAssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/reports/manage', element: <AssistantErrorBoundary><SavedReportsPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/discover', element: <AssistantErrorBoundary><TemplateDiscoverPage /></AssistantErrorBoundary> },
+  { path: '/assistant/chat', element: <AssistantErrorBoundary><AgentChatPage /></AssistantErrorBoundary> },
+  { path: '/assistant/ai-eval', element: <AssistantErrorBoundary><AiEvalPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/new', element: <AssistantErrorBoundary><TemplateDesignerPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/:id/edit', element: <AssistantErrorBoundary key="edit"><TemplateDesignerPage /></AssistantErrorBoundary> },
 

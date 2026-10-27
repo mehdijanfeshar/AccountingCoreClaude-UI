@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -24,6 +24,7 @@ import {
   CHEQUE_FIELDS,
   parseFontSize,
   resolveField,
+  type ChequeFieldBox,
   type ChequeFieldKey,
   type ChequeFieldLayout,
 } from '../cheque-book/chequeLayout';
@@ -47,6 +48,17 @@ const SERVER_ONLY = ['id', 'vahedCode', 'createdDate', 'updatedDate', 'addUserId
 const PX_PER_MM = 3.2;
 
 type Values = Record<string, string>;
+type DragMode = 'move' | 'resize';
+interface DragState {
+  key: ChequeFieldKey;
+  mode: DragMode;
+  startX: number;
+  startY: number;
+  /** جای فیلد در شروع کشیدن (mm). */
+  left: number;
+  top: number;
+  width: number;
+}
 const field = (dto: string, part: Part) => `${dto}${part}`;
 
 function readValues(dto: Record<string, unknown>): Values {
@@ -89,6 +101,7 @@ export function ChequeLayoutDialog({
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [values, setValues] = useState<Values>({});
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   useEffect(() => {
     if (chequeType) setValues(readValues(chequeType));
@@ -124,6 +137,43 @@ export function ChequeLayoutDialog({
     PARTS.some(({ part, max }) => errorOf(values[field(f.dto, part)] ?? '', max)),
   );
   const image = chequeType.chequeImage as string | null | undefined;
+
+  // کشیدن فیلد روی پیش‌نمایش: جابه‌جایی (چپ/بالا) یا تغییر پهنا از لبهٔ راست — به میلی‌متر صحیح، داخل برگ.
+  function startDrag(e: ReactPointerEvent, key: ChequeFieldKey, mode: DragMode, b: ChequeFieldBox) {
+    e.preventDefault();
+    e.stopPropagation();
+    // capture روی جعبهٔ فیلد (نه دستگیرهٔ پهنا) تا move/up همان‌جا برسد.
+    (mode === 'resize' ? (e.currentTarget.parentElement as HTMLElement) : (e.currentTarget as HTMLElement)).setPointerCapture(e.pointerId);
+    setDrag({ key, mode, startX: e.clientX, startY: e.clientY, left: b.left, top: b.top, width: b.width });
+  }
+
+  function moveDrag(e: ReactPointerEvent) {
+    if (!drag) return;
+    const dx = (e.clientX - drag.startX) / PX_PER_MM;
+    const dy = (e.clientY - drag.startY) / PX_PER_MM;
+    const dto = CHEQUE_FIELDS.find((f) => f.key === drag.key)!.dto;
+    const clamp = (v: number, lo: number, hi: number) => String(Math.round(Math.min(Math.max(v, lo), Math.max(lo, hi))));
+    if (drag.mode === 'move') {
+      setValues((prev) => ({
+        ...prev,
+        [field(dto, 'Left')]: clamp(drag.left + dx, 0, w - drag.width),
+        [field(dto, 'Top')]: clamp(drag.top + dy, 0, h - 3),
+        // پهنای پیش‌فرض (خالی) هم ثابت می‌شود تا با جابه‌جایی تغییر نکند.
+        [field(dto, 'Width')]: prev[field(dto, 'Width')] || String(Math.round(drag.width)),
+      }));
+    } else {
+      setValues((prev) => ({
+        ...prev,
+        [field(dto, 'Left')]: prev[field(dto, 'Left')] || String(Math.round(drag.left)),
+        [field(dto, 'Top')]: prev[field(dto, 'Top')] || String(Math.round(drag.top)),
+        [field(dto, 'Width')]: clamp(drag.width + dx, 5, w - drag.left),
+      }));
+    }
+  }
+
+  function endDrag() {
+    setDrag(null);
+  }
 
   return (
     <Dialog open onClose={onClose} maxWidth="lg" fullWidth>
@@ -180,6 +230,10 @@ export function ChequeLayoutDialog({
           </Table>
 
           <Typography variant="subtitle2">پیش‌نمایش</Typography>
+          <Typography variant="body2" color="text.secondary">
+            هر فیلد را با ماوس بکشید تا روی جای درستش در تصویر چک بنشیند؛ با کشیدن نوار لبهٔ راستش پهنا عوض می‌شود.
+            اعداد جدول هم‌زمان به‌روز می‌شوند.
+          </Typography>
           <Box sx={{ overflowX: 'auto' }}>
             <Box
               sx={{
@@ -195,26 +249,40 @@ export function ChequeLayoutDialog({
             >
               {CHEQUE_FIELDS.map((f) => {
                 const b = resolveField(f.key as ChequeFieldKey, layouts, w, h);
+                const active = drag?.key === f.key;
                 return (
                   <Box
                     key={f.key}
+                    title="برای جابه‌جایی بکشید؛ لبهٔ راست برای تغییر پهنا"
+                    onPointerDown={(e) => startDrag(e, f.key, 'move', b)}
+                    onPointerMove={moveDrag}
+                    onPointerUp={endDrag}
+                    onPointerCancel={endDrag}
+                    // left/top/width در `style` نه `sx`: stylis-plugin-rtl هر `left` درون sx را `right` می‌کند.
+                    style={{ left: b.left * PX_PER_MM, top: b.top * PX_PER_MM, width: b.width * PX_PER_MM }}
                     sx={{
                       position: 'absolute',
-                      left: b.left * PX_PER_MM,
-                      top: b.top * PX_PER_MM,
-                      width: b.width * PX_PER_MM,
-                      border: '1px dashed',
+                      border: active ? '2px solid' : '1px dashed',
                       borderColor: 'primary.main',
-                      bgcolor: 'rgba(25, 118, 210, 0.08)',
+                      bgcolor: active ? 'rgba(25, 118, 210, 0.2)' : 'rgba(25, 118, 210, 0.08)',
                       color: 'primary.dark',
                       fontSize: `${b.fontSize * 0.9}pt`,
                       lineHeight: 1.3,
                       px: 0.5,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
+                      cursor: 'move',
+                      userSelect: 'none',
+                      touchAction: 'none',
+                      zIndex: active ? 2 : 1,
                     }}
                   >
                     {f.label}
+                    <Box
+                      onPointerDown={(e) => startDrag(e, f.key, 'resize', b)}
+                      style={{ right: 0 }}
+                      sx={{ position: 'absolute', top: 0, bottom: 0, width: 6, cursor: 'ew-resize', bgcolor: 'primary.main', opacity: 0.5 }}
+                    />
                   </Box>
                 );
               })}

@@ -27,7 +27,7 @@ import { useNotify } from '../../lib/notifications/NotificationProvider';
 import { ApiError } from '../../lib/api/apiError';
 import { toLatinDigits } from '../../lib/format/numbers';
 import { accountCodesApi } from '../chart-of-accounts/api';
-import { expensesApi } from './api';
+import { EXPENSES_PATH, expensesApi } from './api';
 import {
   emptyExpenseFormValues,
   expenseDtoToFormValues,
@@ -37,7 +37,7 @@ import {
 } from './schema';
 import type { AccountCodeDto } from '../../types/accountCode';
 
-/** Handles both `/base/expenses/new` and `/base/expenses/:id/edit`. */
+/** Handles both `{EXPENSES_PATH}/new` and `{EXPENSES_PATH}/:id/edit` (old `/base/expenses/...` too). */
 export function ExpenseFormPage() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = Boolean(id);
@@ -101,7 +101,7 @@ export function ExpenseFormPage() {
       }
       await queryClient.invalidateQueries({ queryKey: ['expenses'] });
       notify(isEdit ? 'هزینه ویرایش شد.' : 'هزینه جدید ذخیره شد.');
-      navigate('/base/expenses');
+      navigate(EXPENSES_PATH);
     } catch (error) {
       setSubmitError(error);
     }
@@ -244,7 +244,7 @@ export function ExpenseFormPage() {
               addUserId={existingQuery.data?.addUserId}
               changeUserId={existingQuery.data?.changeUserId}
             />
-            <FormActions onCancel={() => navigate('/base/expenses')} pending={pending} />
+            <FormActions onCancel={() => navigate(EXPENSES_PATH)} pending={pending} />
           </Grid>
         </Grid>
       </FormCard>
@@ -252,6 +252,7 @@ export function ExpenseFormPage() {
       <AccountCodePickerDialog
         open={pickerOpen}
         title="انتخاب حساب معین"
+        levels={[3]}
         onClose={() => setPickerOpen(false)}
         onSelect={handlePickAccountCode}
       />

@@ -63,11 +63,13 @@ export function ChequePrintPage() {
 
   const w = c.width || BASE_W;
   const h = c.height || BASE_H;
+  // «از چپ» واقعاً از لبهٔ چپ برگ است؛ برای همین `left` در `style` می‌آید نه `sx` — stylis-plugin-rtl
+  // هر `left` درون sx را به `right` برمی‌گرداند و فیلدها قرینه چاپ می‌شدند.
+  const leftOf = (key: ChequeFieldKey) => ({ left: `${resolveField(key, c.fields, w, h).left}mm` });
   const box = (key: ChequeFieldKey) => {
     const f = resolveField(key, c.fields, w, h);
     return {
       position: 'absolute' as const,
-      left: `${f.left}mm`,
       top: `${f.top}mm`,
       width: `${f.width}mm`,
       fontSize: `${f.fontSize}pt`,
@@ -132,14 +134,14 @@ export function ChequePrintPage() {
           '@media print': { margin: 0, transform: `translate(${c.marginLeft ?? 0}mm, ${c.marginTop ?? 0}mm)` },
         }}
       >
-        <Box sx={{ ...box('NDATE'), direction: 'ltr', fontWeight: 700 }}>{toPersianDigits(numericDate)}</Box>
-        <Box sx={box('ADATE')}>{dateInWords(c.chequeDate)}</Box>
-        <Box sx={box('AAMOUNT')}>{`${numberToPersianWords(amount)} ریال`}</Box>
-        <Box sx={box('DESCRIBE1')}>{c.payTo ?? ''}</Box>
-        <Box sx={{ ...box('NAMOUNT'), direction: 'ltr', fontFamily: 'Arial', fontWeight: 700 }}>
+        <Box sx={{ ...box('NDATE'), direction: 'ltr', fontWeight: 700 }} style={leftOf('NDATE')}>{toPersianDigits(numericDate)}</Box>
+        <Box sx={box('ADATE')} style={leftOf('ADATE')}>{dateInWords(c.chequeDate)}</Box>
+        <Box sx={box('AAMOUNT')} style={leftOf('AAMOUNT')}>{`${numberToPersianWords(amount)} ریال`}</Box>
+        <Box sx={box('DESCRIBE1')} style={leftOf('DESCRIBE1')}>{c.payTo ?? ''}</Box>
+        <Box sx={{ ...box('NAMOUNT'), direction: 'ltr', fontFamily: 'Arial', fontWeight: 700 }} style={leftOf('NAMOUNT')}>
           {`Rials ${formatThousands(amount)}/--`}
         </Box>
-        <Box sx={box('DESCRIBE2')}>{c.paperDescription ?? ''}</Box>
+        <Box sx={box('DESCRIBE2')} style={leftOf('DESCRIBE2')}>{c.paperDescription ?? ''}</Box>
       </Box>
     </Box>
   );

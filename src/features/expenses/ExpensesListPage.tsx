@@ -19,7 +19,7 @@ import { ListToolbar } from '../../components/ListToolbar';
 import { MonoCode } from '../../components/MonoCode';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { formatThousands } from '../../lib/format/numbers';
-import { expensesApi } from './api';
+import { EXPENSES_PATH, expensesApi } from './api';
 import type { ExpenseDto } from '../../types/expense';
 
 const PAGE_SIZE = 20;
@@ -76,7 +76,7 @@ export function ExpensesListPage() {
       render: (row) => (
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="ویرایش">
-            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`/base/expenses/${row.id}/edit`}>
+            <IconButton size="small" aria-label="ویرایش" component={RouterLink} to={`${EXPENSES_PATH}/${row.id}/edit`}>
               <EditOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -93,12 +93,12 @@ export function ExpensesListPage() {
   return (
     <section>
       <PageHeader
-        eyebrow="اطلاعات پایه"
+        eyebrow="تنخواه و خزانه‌داری"
         icon={<ReceiptLongOutlinedIcon />}
-        title="هزینه"
+        title="تعریف هزینه"
         description="فهرست انواع هزینه (TB_EXPENCE)"
         actions={
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/expenses/new">
+          <Button variant="contained" startIcon={<AddOutlinedIcon />} component={RouterLink} to={`${EXPENSES_PATH}/new`}>
             افزودن هزینه
           </Button>
         }
@@ -128,7 +128,7 @@ export function ExpensesListPage() {
                   پاک کردن جستجو
                 </Button>
               ) : (
-                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to="/base/expenses/new">
+                <Button size="small" variant="outlined" startIcon={<AddOutlinedIcon />} component={RouterLink} to={`${EXPENSES_PATH}/new`}>
                   افزودن هزینه
                 </Button>
               )

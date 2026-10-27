@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -39,6 +39,7 @@ import type { AnswerSourceKind, DraftLineExtrasInput, OperationInput, OperationR
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import type { Answer } from './assistantState';
+import type { AgentProposal } from './agent/api';
 
 function toOperationInput(state: AssistantState, hasAttachment = false): OperationInput {
   const values: Record<string, string | null> = {};
@@ -60,6 +61,15 @@ function toOperationInput(state: AssistantState, hasAttachment = false): Operati
   };
 }
 
+/** پیشنهاد سند دستیار گفتگو ⇒ جواب‌های گفتگو، با برچسب «برداشت هوش مصنوعی». */
+function proposalAnswers(proposal: AgentProposal): Record<string, Answer> {
+  const mark = { fromSentence: true, fromAi: true } as const;
+  const answers: Record<string, Answer> = {};
+  if (proposal.voucherDate) answers[DATE_KEY] = { value: proposal.voucherDate, label: formatLegacyJalaliDate(proposal.voucherDate), ...mark };
+  for (const a of proposal.answers) answers[a.key] = { value: a.value, label: a.display, ...mark };
+  return answers;
+}
+
 /**
  * حسابیار — Agent-UX ثبت سند. Left: the conversation (or the full editor); right: the voucher as
  * the server builds it. Nothing here computes a voucher: preview and save always go to the engine.
@@ -67,7 +77,12 @@ function toOperationInput(state: AssistantState, hasAttachment = false): Operati
 export function AssistantPage() {
   const navigate = useNavigate();
   const { financialYear, unitName } = useSession();
-  const [state, dispatch] = useReducer(assistantReducer, undefined, initialAssistantState);
+  // «ادامه در ثبت سند با حسابیار» از گفتگو: جملهٔ کاربر از اول در کادر جستجو (کاربر Enter را می‌زند).
+  const location = useLocation();
+  const [state, dispatch] = useReducer(assistantReducer, (location.state as { sentence?: string; agentProposal?: unknown } | null), (seed) => ({
+    ...initialAssistantState(),
+    userSentence: seed?.agentProposal ? '' : (seed?.sentence ?? '').slice(0, 1000),
+  }));
   const [previewLoading, setPreviewLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [requestError, setRequestError] = useState<unknown>(null);
@@ -100,6 +115,22 @@ export function AssistantPage() {
   }
 
   const templates = useQuery({ queryKey: ['operation-templates'], queryFn: operationsApi.listTemplates, retry: false });
+
+  // «بررسی و ثبت» از گفتگو با حسابیار: همان الگو با جواب‌های دستیار (برداشت هوش مصنوعی، قابل تغییر) ⇒ پیش‌نمایش و ثبت همین‌جا.
+  const incoming = useRef((location.state as { agentProposal?: AgentProposal; sentence?: string } | null) ?? null);
+  useEffect(() => {
+    const proposal = incoming.current?.agentProposal;
+    if (!proposal || !templates.data) return;
+    const sentence = incoming.current?.sentence ?? '';
+    incoming.current = null;
+    navigate(location.pathname, { replace: true, state: null });
+    const template = templates.data.find((t) => t.id === proposal.templateId);
+    if (!template) return;
+    const date = defaultVoucherDate(financialYear);
+    dispatch({ type: 'selectTemplate', template, today: { value: date.value, label: formatLegacyJalaliDate(date.value) }, sentence });
+    dispatch({ type: 'aiTrace', templateId: template.id, aiTraceId: proposal.aiTraceId });
+    dispatch({ type: 'prefill', templateId: template.id, answers: proposalAnswers(proposal) });
+  }, [templates.data, financialYear, navigate, location.pathname]);
   // «عملیات‌های اخیر من» — بعد از هر ثبت تازه می‌شود (queryKey در reset/executed دوباره خوانده می‌شود).
   const recent = useQuery({ queryKey: ['assistant-recent', state.outcome?.voucherId ?? ''], queryFn: assistantHistoryApi.recent, retry: false });
 
@@ -107,10 +138,11 @@ export function AssistantPage() {
   // an error that is not about any one question cannot loop the request.
   const lastPreviewed = useRef<string | null>(null);
   const ready = isReadyForPreview(state);
+  const hasFiles = pendingFiles.length > 0;
   useEffect(() => {
     if (!ready) lastPreviewed.current = null; // a question is open again — the next answer must preview, even if unchanged
     if (!ready || !state.template || state.draft) return;
-    const input = toOperationInput(state);
+    const input = toOperationInput(state, hasFiles);
     const signature = `${state.template.id}|${JSON.stringify(input)}`;
     if (lastPreviewed.current === signature) return;
     lastPreviewed.current = signature;
@@ -123,7 +155,21 @@ export function AssistantPage() {
       .then((result) => dispatch({ type: 'previewResult', result }))
       .catch(setRequestError)
       .finally(() => setPreviewLoading(false));
-  }, [ready, state, financialYear]);
+  }, [ready, state, financialYear, hasFiles]);
+
+  // افزودن/برداشتن مدرک پس از پیش‌نمایش ⇒ ریسک و هشدار دوباره از سرور (پیش‌نویس همان می‌ماند).
+  const filesPreviewed = useRef(hasFiles);
+  useEffect(() => {
+    if (filesPreviewed.current === hasFiles) return;
+    filesPreviewed.current = hasFiles;
+    if (!state.template || !state.draft) return;
+    const input = toOperationInput(state, hasFiles);
+    const request = state.source === 'history'
+      ? historyApi.preview(state.template.id, { ...input, userSentence: state.userSentence || null, aiTraceId: state.aiTraceId }, financialYear)
+      : operationsApi.preview(state.template.id, input, financialYear);
+    request.then((result) => dispatch({ type: 'previewInfoRefresh', result })).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- فقط با تغییر «مدرک دارد/ندارد»
+  }, [hasFiles]);
 
   // ردیف‌هایی که حساب بانکی/شناسه‌دار یا ویژگی دارند، پیش از ثبت فرم تکمیلی خودشان را باز می‌کنند.
   const [extrasDialog, setExtrasDialog] = useState<{ id: number; draft: VoucherDraft; requirements: VoucherLineRequirements[] } | null>(null);

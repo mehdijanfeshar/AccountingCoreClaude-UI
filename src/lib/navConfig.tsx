@@ -21,6 +21,7 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import PivotTableChartOutlinedIcon from '@mui/icons-material/PivotTableChartOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
@@ -182,6 +183,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: <AutoAwesomeOutlinedIcon fontSize="small" />,
       },
       {
+        label: 'گفتگو با حسابیار',
+        description: 'کارتان را بگویید؛ حسابیار می‌پرسد، طرف حساب و مانده را پیدا می‌کند و پیش‌نویس سند را آماده می‌کند',
+        to: '/assistant/chat',
+        icon: <ForumOutlinedIcon fontSize="small" />,
+      },
+      {
         label: 'ثبت گروهی از اکسل',
         description: 'فهرست پرداخت‌ها یا دریافت‌ها را در اکسل پر کنید؛ همه با یک الگو بررسی و یکجا ثبت می‌شوند',
         to: '/assistant/batch',
@@ -223,6 +230,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'عملیات تکراری اسناد سال‌های قبل را پیدا کنید و به الگو تبدیل کنید (مدیر ستاد)',
         to: '/assistant/templates/discover',
         icon: <ManageSearchOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'سنجش هوش مصنوعی',
+        description: 'دقت هوش مصنوعی روی نمونه‌های طلایی و جمله‌های اسناد واقعی (اجرای سایه) (مدیر ستاد)',
+        to: '/assistant/ai-eval',
+        icon: <RuleOutlinedIcon fontSize="small" />,
       },
     ],
   },
@@ -426,6 +439,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'تنظیمات هر تنخواه — سقف هر سند، آستانهٔ هشدار، تنخواه‌دار و دورهٔ تسویه',
         to: '/treasury/petty-cash/funds',
         icon: <SettingsSuggestOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'تعریف هزینه',
+        description: 'انواع هزینهٔ واحد (TB_EXPENCE) و حساب معین/تفصیلی هر کدام — فهرست «حساب هزینه» در صورت‌هزینه',
+        to: '/treasury/petty-cash/expenses',
+        icon: <CategoryOutlinedIcon fontSize="small" />,
       },
       {
         label: 'داشبورد خزانه',

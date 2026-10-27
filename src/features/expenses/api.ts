@@ -1,6 +1,9 @@
 import { createResourceApi } from '../../lib/api/createResourceApi';
 import type { ExpenseDto } from '../../types/expense';
 
+/** مسیر صفحهٔ «تعریف هزینه» در منوی «تنخواه و خزانه‌داری». */
+export const EXPENSES_PATH = '/treasury/petty-cash/expenses';
+
 /**
  * Exact wire shape of `CreateExpenseCommand` (create, minus server-assigned `VahedCode`) /
  * `UpdateExpenseRequest` (update).

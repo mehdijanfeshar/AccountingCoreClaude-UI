@@ -38,6 +38,7 @@ export const ABILITIES = {
   FsUnitCategory: 'fs.unit-category',
   TemplatesDefine: 'templates.define',
   SavedReportsDefine: 'saved-reports.define',
+  AiEvaluate: 'ai.evaluate',
 } as const;
 export type Ability = (typeof ABILITIES)[keyof typeof ABILITIES];
 const COUNTRY_ABILITIES: Ability[] = [ABILITIES.ReportsUnitCategory, ABILITIES.FsUnitCategory];

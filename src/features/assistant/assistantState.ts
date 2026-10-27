@@ -110,6 +110,7 @@ export type AssistantAction =
   | { type: 'skip'; key: string }
   | { type: 'reopen'; key: string }
   | { type: 'previewResult'; result: OperationResult }
+  | { type: 'previewInfoRefresh'; result: OperationResult }
   | { type: 'openEditor' }
   | { type: 'backToConversation' }
   | { type: 'executed'; result: OperationResult }
@@ -242,6 +243,21 @@ export function assistantReducer(state: AssistantState, action: AssistantAction)
     case 'reopen':
       return { ...state, reopenedKey: action.key, draft: null };
 
+    case 'previewInfoRefresh': {
+      // فقط ریسک/هشدار/کنترل‌ها (مثلاً پس از افزودن یا برداشتن مدرک)؛ پیش‌نویس و جواب‌ها دست نمی‌خورند.
+      const { result } = action;
+      if (!result.success || !state.draft) return state;
+      return {
+        ...state,
+        previewInfo: {
+          plainText: result.plainText ?? state.previewInfo?.plainText ?? '',
+          warnings: result.warnings ?? [],
+          risk: result.risk ?? null,
+          controls: result.controls ?? [],
+          basis: result.basis ?? null,
+        },
+      };
+    }
     case 'previewResult': {
       const { result } = action;
       if (result.success) {
