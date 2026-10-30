@@ -21,7 +21,6 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import ManageSearchOutlinedIcon from '@mui/icons-material/ManageSearchOutlined';
-import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import PivotTableChartOutlinedIcon from '@mui/icons-material/PivotTableChartOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
@@ -38,6 +37,8 @@ import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import RuleOutlinedIcon from '@mui/icons-material/RuleOutlined';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import StackedBarChartOutlinedIcon from '@mui/icons-material/StackedBarChartOutlined';
 import LinearScaleOutlinedIcon from "@mui/icons-material/LinearScaleOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
@@ -182,12 +183,7 @@ export const NAV_GROUPS: NavGroup[] = [
         to: '/assistant',
         icon: <AutoAwesomeOutlinedIcon fontSize="small" />,
       },
-      {
-        label: 'گفتگو با حسابیار',
-        description: 'کارتان را بگویید؛ حسابیار می‌پرسد، طرف حساب و مانده را پیدا می‌کند و پیش‌نویس سند را آماده می‌کند',
-        to: '/assistant/chat',
-        icon: <ForumOutlinedIcon fontSize="small" />,
-      },
+      // «گفتگو با حسابیار» و «سنجش هوش مصنوعی» فعلاً کنار گذاشته شده‌اند (۲۰۲۶-۱۰-۲۹، کند روی CPU) — routes.tsx هم.
       {
         label: 'ثبت گروهی از اکسل',
         description: 'فهرست پرداخت‌ها یا دریافت‌ها را در اکسل پر کنید؛ همه با یک الگو بررسی و یکجا ثبت می‌شوند',
@@ -230,12 +226,6 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'عملیات تکراری اسناد سال‌های قبل را پیدا کنید و به الگو تبدیل کنید (مدیر ستاد)',
         to: '/assistant/templates/discover',
         icon: <ManageSearchOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: 'سنجش هوش مصنوعی',
-        description: 'دقت هوش مصنوعی روی نمونه‌های طلایی و جمله‌های اسناد واقعی (اجرای سایه) (مدیر ستاد)',
-        to: '/assistant/ai-eval',
-        icon: <RuleOutlinedIcon fontSize="small" />,
       },
     ],
   },
@@ -373,6 +363,24 @@ export const NAV_GROUPS: NavGroup[] = [
         description: 'تقاطع دو بُعد — یکی روی سطر، یکی روی ستون، با بدهکار/بستانکار در هر خانه',
         to: '/reports/matrix',
         icon: <PivotTableChartOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'ارتباط گروه تفصیلی با معین',
+        description: 'سطح و گروه تفصیلی مجاز هر معین — فراگیر روی همهٔ معین‌ها، با فیلتر معین/سطح/گروه/تفصیلی',
+        to: '/reports/tafsil-group-account-links',
+        icon: <LinkOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'هرم سنی',
+        description: 'مانده بدهکار/بستانکار هر معینِ شناسه‌دار به تفکیک شناسه، در بازهٔ شناسهٔ دلخواه',
+        to: '/reports/age-pyramid',
+        icon: <StackedBarChartOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: 'مغایرت افتتاحیه با ماندهٔ سال قبل',
+        description: 'ردیف‌های سند افتتاحیه که با ماندهٔ همان معین/شناسه در سال قبل برابر نیستند',
+        to: '/reports/opening-balance-discrepancy',
+        icon: <CompareArrowsOutlinedIcon fontSize="small" />,
       },
       {
         label: 'لاگ تغییرات',

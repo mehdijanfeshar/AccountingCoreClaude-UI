@@ -1,4 +1,4 @@
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 import { HomePage } from './HomePage';
 import { LoginPage } from '../features/auth/LoginPage';
 import { AccountCodingPage } from './AccountCodingPage';
@@ -39,8 +39,6 @@ import { AssistantPage } from '../features/assistant/AssistantPage';
 import { TemplatesListPage } from '../features/assistant/templates/TemplatesListPage';
 import { TemplateDesignerPage } from '../features/assistant/templates/TemplateDesignerPage';
 import { TemplateDiscoverPage } from '../features/assistant/templates/TemplateDiscoverPage';
-import { AgentChatPage } from '../features/assistant/agent/AgentChatPage';
-import { AiEvalPage } from '../features/assistant/agent/AiEvalPage';
 import { AssistantErrorBoundary } from '../features/assistant/AssistantErrorBoundary';
 import { AssistantHistoryPage } from '../features/assistant/AssistantHistoryPage';
 import { ReportAssistantPage } from '../features/assistant/reports/ReportAssistantPage';
@@ -71,6 +69,9 @@ import { ElamFormPage } from "../features/elams/ElamFormPage";
 import { AttributeAccountReconciliationPage } from '../features/reports/attribute-accounts/AttributeAccountReconciliationPage';
 import { GeneralLedgerPage } from '../features/reports/general-ledger/GeneralLedgerPage';
 import { AccountJournalPage } from '../features/reports/account-journal/AccountJournalPage';
+import { TafsilGroupAccountLinksPage } from '../features/reports/tafsil-group-account-links/TafsilGroupAccountLinksPage';
+import { AgePyramidPage } from '../features/reports/age-pyramid/AgePyramidPage';
+import { OpeningBalanceDiscrepancyPage } from '../features/reports/opening-balance-discrepancy/OpeningBalanceDiscrepancyPage';
 import { PettyCashFundsListPage } from '../features/petty-cash/PettyCashFundsListPage';
 import { PettyCashCartablePage } from '../features/petty-cash/PettyCashCartablePage';
 import { ExpenseDocFormPage } from '../features/petty-cash/ExpenseDocFormPage';
@@ -189,8 +190,9 @@ export const routes: RouteObject[] = [
   { path: '/assistant/reports', element: <AssistantErrorBoundary><ReportAssistantPage /></AssistantErrorBoundary> },
   { path: '/assistant/reports/manage', element: <AssistantErrorBoundary><SavedReportsPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/discover', element: <AssistantErrorBoundary><TemplateDiscoverPage /></AssistantErrorBoundary> },
-  { path: '/assistant/chat', element: <AssistantErrorBoundary><AgentChatPage /></AssistantErrorBoundary> },
-  { path: '/assistant/ai-eval', element: <AssistantErrorBoundary><AiEvalPage /></AssistantErrorBoundary> },
+  // گفتگو و سنجش هوش مصنوعی فعلاً کنار گذاشته شده‌اند (۲۰۲۶-۱۰-۲۹)؛ نشانی قدیمی به ثبت سند با حسابیار می‌رود.
+  { path: '/assistant/chat', element: <Navigate to="/assistant" replace /> },
+  { path: '/assistant/ai-eval', element: <Navigate to="/assistant" replace /> },
   { path: '/assistant/templates/new', element: <AssistantErrorBoundary><TemplateDesignerPage /></AssistantErrorBoundary> },
   { path: '/assistant/templates/:id/edit', element: <AssistantErrorBoundary key="edit"><TemplateDesignerPage /></AssistantErrorBoundary> },
 
@@ -226,6 +228,9 @@ export const routes: RouteObject[] = [
   { path: '/reports/attribute-accounts', element: <AttributeAccountReconciliationPage /> },
   { path: '/reports/account-journal', element: <AccountJournalPage /> },
   { path: '/reports/general-ledger', element: <GeneralLedgerPage /> },
+  { path: '/reports/tafsil-group-account-links', element: <TafsilGroupAccountLinksPage /> },
+  { path: '/reports/age-pyramid', element: <AgePyramidPage /> },
+  { path: '/reports/opening-balance-discrepancy', element: <OpeningBalanceDiscrepancyPage /> },
 
   // تنخواه و خزانه‌داری — بخش ۱ («تعریف تنخواه»، «ثبت صورت‌هزینه»، «کارتابل تنخواه») + بخش ۳-الف
   // (داشبورد، شارژ و ترمیم، گزارش گردش). «تسویه دوره» در `navConfig.tsx` عمداً بدون `to` مانده تا
