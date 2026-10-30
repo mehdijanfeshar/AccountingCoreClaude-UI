@@ -135,8 +135,10 @@ export const historyApi = {
   /** حذف گروهی پیشنهادهای بدون الگو با فیلتر فعلی؛ ۴۰۹/۵۰۳ با ProblemDetails. */
   removeUncovered: async (filters: Pick<HistoryPatternFilters, 'fromYear' | 'toYear' | 'vahedType' | 'minCount' | 'search'>) =>
     (await apiClient.post<{ count: number; skippedCovered: number }>('/operations/history/patterns/delete-uncovered', filters)).data,
-  toTemplate: async (id: string) =>
-    (await apiClient.post<HistoryTemplateDraft>(`/operations/history/patterns/${id}/to-template`)).data,
+  /** `meaning` ⇒ پیش‌نویس از یک معنای الگوی چندمعنایی (عنوان و کلمه‌ها از همان معنا). */
+  toTemplate: async (id: string, meaning?: number) =>
+    (await apiClient.post<HistoryTemplateDraft>(`/operations/history/patterns/${id}/to-template`, undefined,
+      { params: meaning === undefined ? undefined : { meaning } })).data,
 };
 
 /** 422 from create/update carries `errors: string[]` — returned as a result, not thrown. */

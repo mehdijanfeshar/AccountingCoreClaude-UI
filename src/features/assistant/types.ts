@@ -471,6 +471,18 @@ export interface HistoryPattern {
   keywords: { word: string; count: number }[];
   sampleDescriptions: string[];
   coveredByTemplate: { id: string; title: string } | null;
+  /** فقط الگوی چندمعنایی: حساب‌ها یکی‌اند ولی شرح‌ها چند کار متفاوت‌اند (گروه‌بندی معنایی، DDL 089). */
+  meanings?: HistoryMeaning[] | null;
+}
+
+export interface HistoryMeaning {
+  index: number;
+  /** نماینده‌ترین شرح (بدون نام طرف حساب و رقم). */
+  title: string;
+  /** درصد از نمونه‌شرح‌های الگو. */
+  share: number;
+  samples: string[];
+  keywords: { word: string; count: number }[];
 }
 
 export interface HistoryPatternPage {

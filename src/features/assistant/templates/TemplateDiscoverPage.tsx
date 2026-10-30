@@ -97,9 +97,10 @@ export function TemplateDiscoverPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['history-patterns'] }),
   });
   const convert = useMutation({
-    mutationFn: (p: HistoryPattern) => historyApi.toTemplate(p.id),
-    onSuccess: (historyDraft, p) => navigate('/assistant/templates/new', { state: { historyDraft, accountLabels: accountLabels(p) } }),
+    mutationFn: ({ p, meaning }: { p: HistoryPattern; meaning?: number }) => historyApi.toTemplate(p.id, meaning),
+    onSuccess: (historyDraft, { p }) => navigate('/assistant/templates/new', { state: { historyDraft, accountLabels: accountLabels(p) } }),
   });
+  const convertingKey = convert.isPending && convert.variables ? `${convert.variables.p.id}:${convert.variables.meaning ?? ''}` : null;
 
   const [toDelete, setToDelete] = useState<HistoryPattern | null>(null);
   const remove = useMutation({
@@ -245,8 +246,8 @@ export function TemplateDiscoverPage() {
 
       <Stack spacing={1.5}>
         {items.map((p) => (
-          <PatternCard key={p.id} pattern={p} readOnly={readOnly} converting={convert.isPending && convert.variables?.id === p.id}
-            busy={convert.isPending} onConvert={() => convert.mutate(p)} onDelete={() => { remove.reset(); setToDelete(p); }} onOpenTemplate={(id) => navigate(`/assistant/templates/${id}/edit`)} />
+          <PatternCard key={p.id} pattern={p} readOnly={readOnly} convertingKey={convertingKey}
+            busy={convert.isPending} onConvert={(meaning) => convert.mutate({ p, meaning })} onDelete={() => { remove.reset(); setToDelete(p); }} onOpenTemplate={(id) => navigate(`/assistant/templates/${id}/edit`)} />
         ))}
       </Stack>
 
@@ -291,10 +292,12 @@ export function TemplateDiscoverPage() {
   );
 }
 
-function PatternCard({ pattern: p, readOnly, converting, busy, onConvert, onDelete, onOpenTemplate }: {
-  pattern: HistoryPattern; readOnly: boolean; converting: boolean; busy: boolean; onConvert: () => void; onDelete: () => void; onOpenTemplate: (id: string) => void;
+function PatternCard({ pattern: p, readOnly, convertingKey, busy, onConvert, onDelete, onOpenTemplate }: {
+  pattern: HistoryPattern; readOnly: boolean; convertingKey: string | null; busy: boolean; onConvert: (meaning?: number) => void; onDelete: () => void; onOpenTemplate: (id: string) => void;
 }) {
   const last = p.lastDate ? new Date(p.lastDate) : null;
+  const converting = convertingKey === `${p.id}:`;
+  const meanings = p.meanings ?? [];
   return (
     <Card variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
       <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75, mb: 1.25 }}>
@@ -344,6 +347,35 @@ function PatternCard({ pattern: p, readOnly, converting, busy, onConvert, onDele
         </Box>
       )}
 
+      {meanings.length > 1 && (
+        <Box sx={{ mt: 1.5 }}>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            این حساب‌ها برای {toPersianDigits(meanings.length)} کار متفاوت استفاده شده‌اند. بهتر است برای هر کار یک الگوی جدا بسازید.
+          </Alert>
+          <Stack spacing={1}>
+            {meanings.map((m) => (
+              <Paper key={m.index} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {m.title} <Typography component="span" variant="caption" color="text.secondary">· حدود {toPersianDigits(Math.round(m.share))}٪ اسناد</Typography>
+                    </Typography>
+                    {m.samples.filter((s) => s !== m.title).slice(0, 2).map((s, i) => (
+                      <Typography key={i} variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic' }}>«{s}»</Typography>
+                    ))}
+                  </Box>
+                  {!readOnly && (
+                    <Button variant="outlined" sx={{ minHeight: 44, flexShrink: 0 }} disabled={busy} onClick={() => onConvert(m.index)}>
+                      {convertingKey === `${p.id}:${m.index}` ? 'در حال آماده‌سازی…' : 'تبدیل این کار به الگو'}
+                    </Button>
+                  )}
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
       <Stack direction="row" spacing={1} sx={{ mt: 1.5, justifyContent: 'flex-end' }}>
         {!p.coveredByTemplate && !readOnly && (
           <Button variant="outlined" color="error" sx={{ minHeight: 44 }} disabled={busy} onClick={onDelete}>حذف</Button>
@@ -357,8 +389,8 @@ function PatternCard({ pattern: p, readOnly, converting, busy, onConvert, onDele
             sx={{ minHeight: 44, borderRadius: 22 }}
           />
         ) : (
-          <Button variant="contained" sx={{ minHeight: 44 }} disabled={readOnly || busy} onClick={onConvert}>
-            {converting ? 'در حال آماده‌سازی…' : 'تبدیل به الگو'}
+          <Button variant={meanings.length > 1 ? 'outlined' : 'contained'} sx={{ minHeight: 44 }} disabled={readOnly || busy} onClick={() => onConvert()}>
+            {converting ? 'در حال آماده‌سازی…' : meanings.length > 1 ? 'همه در یک الگو' : 'تبدیل به الگو'}
           </Button>
         )}
       </Stack>
