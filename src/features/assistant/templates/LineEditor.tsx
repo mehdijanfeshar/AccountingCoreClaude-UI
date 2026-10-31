@@ -21,6 +21,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpwardOutlined';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownwardOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import EventRepeatOutlinedIcon from '@mui/icons-material/EventRepeatOutlined';
 import { AccountCodePickerDialog } from '../../../components/AccountCodePickerDialog';
 import { TafsiliItemSelect } from '../../../components/dynamic-tafsili/TafsiliItemSelect';
 import { useTafsiliLevels } from '../../../components/dynamic-tafsili/useTafsiliLevels';
@@ -48,9 +49,11 @@ interface LineEditorProps {
   onSetParamGroup: (key: string, groupId: string) => void;
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
+  /** فاز ۶۶: الگو «تقسیم روی چند ماه» دارد ⇒ ردیف می‌تواند «سهم ماهانه» باشد. */
+  scheduleEnabled?: boolean;
 }
 
-export function LineEditor({ line, index, count, params, groupName, onChange, onAddParam, onSetParamGroup, onRemove, onMove }: LineEditorProps) {
+export function LineEditor({ line, index, count, params, groupName, onChange, onAddParam, onSetParamGroup, onRemove, onMove, scheduleEnabled = false }: LineEditorProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const amountParams = params.filter((p) => p.type === 1);
   const choiceParams = params.filter((p) => p.type === 5);
@@ -76,6 +79,9 @@ export function LineEditor({ line, index, count, params, groupName, onChange, on
           <ToggleButton value={1}>بدهکار</ToggleButton>
           <ToggleButton value={2}>بستانکار</ToggleButton>
         </ToggleButtonGroup>
+        {line.isScheduleLine && (
+          <Chip size="small" color="secondary" variant="outlined" icon={<EventRepeatOutlinedIcon fontSize="small" />} label="سهم ماهانه — در سند اصلی نیست" />
+        )}
         <Box sx={{ flex: 1 }} />
         <IconButton size="small" disabled={index === 0} onClick={() => onMove(-1)} aria-label="بالا"><ArrowUpwardIcon fontSize="small" /></IconButton>
         <IconButton size="small" disabled={index === count - 1} onClick={() => onMove(1)} aria-label="پایین"><ArrowDownwardIcon fontSize="small" /></IconButton>
@@ -178,9 +184,16 @@ export function LineEditor({ line, index, count, params, groupName, onChange, on
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <FormControlLabel
-            control={<Checkbox checked={line.isBalancing} onChange={(e) => set({ isBalancing: e.target.checked })} />}
+            control={<Checkbox checked={line.isBalancing} disabled={line.isScheduleLine} onChange={(e) => set({ isBalancing: e.target.checked })} />}
             label="ردیف تراز‌کننده (اختلاف گرد کردن و کسورات را جذب می‌کند)"
           />
+          {(scheduleEnabled || line.isScheduleLine) && (
+            <FormControlLabel
+              control={<Checkbox checked={line.isScheduleLine}
+                onChange={(e) => set({ isScheduleLine: e.target.checked, isBalancing: false, percent: '100', amountSource: 1, conditionParamKey: '', conditionValue: '' })} />}
+              label="ردیف سهم ماهانه (هر ماه با این حساب ثبت می‌شود، نه در سند اصلی)"
+            />
+          )}
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField

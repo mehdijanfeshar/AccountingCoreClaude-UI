@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import ManageHistoryOutlinedIcon from '@mui/icons-material/ManageHistoryOutlined';
@@ -241,6 +242,17 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'مشتریان', description: 'پروفایل فروش روی تفصیلی: سقف اعتبار، مهلت پرداخت و اطلاعات مودیان', to: '/sales/customers', icon: <GroupsOutlinedIcon fontSize="small" /> },
       { label: 'کالا و خدمات', description: 'قیمت، بهای استاندارد، شناسهٔ مودیان و موجودی ساده', to: '/sales/items', icon: <Inventory2OutlinedIcon fontSize="small" /> },
       { label: 'تنظیمات فروش', description: 'قواعد کنترلی، حساب‌های سند حسابداری، نرخ ارزش افزوده و نقش‌ها', to: '/sales/settings', icon: <TuneOutlinedIcon fontSize="small" /> },
+    ],
+  },
+  {
+    // حسابداری تعهدی، فاز ۶۶ — ثبت سند تعهدی در حسابیار است؛ اینجا پیگیری و کنترل (MenuCatalog سرور: ماژول Accrual).
+    title: 'حسابداری تعهدی',
+    access: 'operate',
+    icon: <EventRepeatOutlinedIcon fontSize="small" />,
+    color: 'primary',
+    items: [
+      { label: 'میز کار تعهدی', description: 'اقلام سررسیدشده و اجرانشده، اقدام سریع', to: '/accrual', icon: <EventRepeatOutlinedIcon fontSize="small" /> },
+      { label: 'زمان‌بندی‌ها', description: 'برگشت برآوردها و سهم ماهانهٔ پیش‌پرداخت و درآمد انتقالی', to: '/accrual/schedules', icon: <ScheduleOutlinedIcon fontSize="small" /> },
     ],
   },
   {

@@ -16,10 +16,16 @@ export interface ParameterOption {
 export type RiskBase = 1 | 2 | 3;
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-/** دستهٔ عملیات: 1 هزینه · 2 پرداخت · 3 دریافت · 4 خرید · 5 تنخواه · 6 فروش · 9 سایر. */
-export type TemplateCategory = 1 | 2 | 3 | 4 | 5 | 6 | 9;
-export const CATEGORY_LABEL: Record<TemplateCategory, string> = { 1: 'هزینه', 2: 'پرداخت', 3: 'دریافت', 4: 'خرید', 5: 'تنخواه', 6: 'فروش', 9: 'سایر' };
+/** دستهٔ عملیات: 1 هزینه · 2 پرداخت · 3 دریافت · 4 خرید · 5 تنخواه · 6 فروش · 7 تعهدی · 9 سایر. */
+export type TemplateCategory = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 9;
+export const CATEGORY_LABEL: Record<TemplateCategory, string> = { 1: 'هزینه', 2: 'پرداخت', 3: 'دریافت', 4: 'خرید', 5: 'تنخواه', 6: 'فروش', 7: 'تعهدی', 9: 'سایر' };
 export const RISK_BASE_LABEL: Record<RiskBase, string> = { 1: 'کم', 2: 'متوسط', 3: 'زیاد' };
+
+/** تقسیم چندماهه (فاز ۶۶): 2 پیش‌پرداخت · 3 درآمد انتقالی. */
+export type AccrualScheduleKindValue = 2 | 3;
+
+/** پارامتر الزامی تعداد ماه در الگوی تقسیم چندماهه (همان ثابت سرور). */
+export const ACCRUAL_MONTHS_KEY = 'months';
 
 /** سیاست الگو (فاز ۶۲) — در پاسخ‌های قدیمی نیست. */
 export interface TemplatePolicy {
@@ -28,6 +34,10 @@ export interface TemplatePolicy {
   riskBase?: RiskBase | null;
   category?: TemplateCategory | null;
   plainPattern?: string | null;
+  /** فاز ۶۶: سند اول ماه بعد خودکار برگردانده شود (برآورد). */
+  autoReverse?: boolean;
+  /** فاز ۶۶: تقسیم روی چند ماه؛ null = ندارد. */
+  scheduleKind?: AccrualScheduleKindValue | null;
 }
 
 export interface TemplateParameterDto {
@@ -193,6 +203,8 @@ export interface TemplateLineDefinitionDto {
   conditionValue?: string | null;
   /** 1 مبلغ پارامتر · 2 ارزش افزوده بر اساس نرخ تاریخ سند */
   amountSource?: AmountSource;
+  /** فاز ۶۶: ردیف «سهم ماهانه» الگوی تقسیم چندماهه — در سند اصلی ساخته نمی‌شود. */
+  isScheduleLine?: boolean;
 }
 
 export type AmountSource = 1 | 2;
@@ -234,6 +246,7 @@ export interface TemplateWritePayload extends TemplatePolicy {
     conditionParamKey: string | null;
     conditionValue: string | null;
     amountSource: AmountSource;
+    isScheduleLine?: boolean;
   }[];
 }
 

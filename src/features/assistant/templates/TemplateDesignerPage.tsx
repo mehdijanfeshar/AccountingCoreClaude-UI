@@ -27,7 +27,7 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import { formatThousands, normalizeNumericInput } from '../../../lib/format/numbers';
-import { CATEGORY_LABEL, RISK_BASE_LABEL, type HistoryTemplateDraft, type RiskBase, type TemplateCategory } from '../types';
+import { ACCRUAL_MONTHS_KEY, CATEGORY_LABEL, RISK_BASE_LABEL, type AccrualScheduleKindValue, type HistoryTemplateDraft, type RiskBase, type TemplateCategory } from '../types';
 import { templateDesignApi } from '../api';
 import { vahedTypesApi } from '../../coding-permissions/api';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
@@ -38,6 +38,7 @@ import {
   PARAM_TYPE_LABEL,
   STARTER_TEMPLATES,
   emptyModel,
+  ensureMonthsParam,
   fromStarter,
   fromDefinition,
   fromTemplatePayload,
@@ -332,6 +333,9 @@ export function TemplateDesignerPage() {
                 />
               </Grid>
               <Grid size={12}>
+                <AccrualPolicyFields model={model} onChange={(patch) => setModel((m) => ({ ...m, ...patch }))} />
+              </Grid>
+              <Grid size={12}>
                 <TextField
                   label="الگوی متن ساده (به زبان ساده برای کاربر)"
                   fullWidth
@@ -367,6 +371,7 @@ export function TemplateDesignerPage() {
                 onAddParam={(p) => setModel((m) => ({ ...m, params: [...m.params, p] }))}
                 onSetParamGroup={(key, groupId) =>
                   setModel((m) => ({ ...m, params: m.params.map((p) => (p.key === key ? { ...p, detailGroupId: groupId } : p)) }))}
+                scheduleEnabled={model.scheduleKind !== ''}
                 onRemove={() => update({ lines: model.lines.filter((_, j) => j !== i) })}
                 onMove={(d) => {
                   const next = [...model.lines];
@@ -382,6 +387,14 @@ export function TemplateDesignerPage() {
               <Button startIcon={<AddCircleOutlineIcon />} onClick={() => update({ lines: [...model.lines, newLine(2, model.params.find((p) => p.type === 1)?.key ?? '')] })}>
                 ردیف بستانکار
               </Button>
+              {model.scheduleKind !== '' && !model.lines.some((l) => l.isScheduleLine) && (
+                <Button startIcon={<AddCircleOutlineIcon />} color="secondary" onClick={() => {
+                  const amountKey = model.params.find((p) => p.type === 1)?.key ?? '';
+                  update({ lines: [...model.lines, { ...newLine(1, amountKey), isScheduleLine: true }, { ...newLine(2, amountKey), isScheduleLine: true }] });
+                }}>
+                  دو ردیف سهم ماهانه
+                </Button>
+              )}
             </Stack>
           </Section>
 
@@ -494,5 +507,59 @@ function Bubble({ children, user }: { children: React.ReactNode; user?: boolean 
         {children}
       </Box>
     </Stack>
+  );
+}
+
+/**
+ * حسابداری تعهدی (فاز ۶۶): برگشت خودکار برآورد یا تقسیم چندماهه — با هم ممنوع (همان قاعدهٔ سرور).
+ * انتخاب تقسیم، سؤال «تعداد ماه» را با کلید ثابت سرور اضافه می‌کند.
+ */
+function AccrualPolicyFields({ model, onChange }: { model: DesignModel; onChange: (patch: Partial<DesignModel>) => void }) {
+  const both = model.autoReverse && model.scheduleKind !== '';
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>حسابداری تعهدی (اختیاری)</Typography>
+      <Grid container spacing={1.5}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <FormControlLabel
+            sx={{ minHeight: 44 }}
+            control={<Switch checked={model.autoReverse} onChange={(e) => onChange({ autoReverse: e.target.checked })} />}
+            label="اول ماه بعد خودکار برگردانده شود"
+          />
+          <Typography variant="caption" color="text.secondary" component="div">
+            برای برآورد هزینه‌ای که هنوز فاکتورش نیامده. برآورد اسفند برگشت خودکار ندارد.
+          </Typography>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            select
+            label="تقسیم روی چند ماه"
+            fullWidth
+            size="small"
+            value={model.scheduleKind}
+            error={both}
+            helperText={both ? 'با «برگشت خودکار» با هم ممکن نیست؛ یکی را انتخاب کنید.' : 'هر ماه سهم همان ماه خودکار ثبت می‌شود.'}
+            onChange={(e) => {
+              const kind: AccrualScheduleKindValue | '' = e.target.value === '' ? '' : (Number(e.target.value) as AccrualScheduleKindValue);
+              const next = { ...model, scheduleKind: kind };
+              onChange(kind === '' ? { scheduleKind: kind } : { scheduleKind: kind, params: ensureMonthsParam(next).params });
+            }}
+            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+          >
+            <MenuItem value=""><em>هیچ</em></MenuItem>
+            <MenuItem value={2}>پیش‌پرداخت (سهم ماهانهٔ هزینه)</MenuItem>
+            <MenuItem value={3}>درآمد انتقالی (سهم ماهانهٔ درآمد)</MenuItem>
+          </TextField>
+        </Grid>
+        {model.scheduleKind !== '' && (
+          <Grid size={12}>
+            <Alert severity="info" variant="outlined">
+              الگو باید سؤال الزامی «تعداد ماه» (کلید <bdi>{ACCRUAL_MONTHS_KEY}</bdi>) و دو ردیف «سهم ماهانه» داشته باشد: یک بدهکار و یک
+              بستانکار، هر دو ۱۰۰٪ همان مبلغ. تقسیم از ماه تاریخ سند شروع می‌شود و سند هر ماه آخر همان ماه ساخته می‌شود.
+            </Alert>
+          </Grid>
+        )}
+      </Grid>
+    </Paper>
   );
 }

@@ -88,6 +88,11 @@ export function SubmittedScreen({ outcome, draft, template: templateProp, answer
           <Button variant="outlined" color="warning" sx={{ minHeight: 44 }} onClick={() => setSaveQuickOpen(true)}>ذخیره به‌عنوان سند پرتکرار</Button>
         )}
         <Button variant="outlined" sx={{ minHeight: 44 }} onClick={() => navigate(`/operation/vouchers/${outcome.voucherId}/view`)}>مشاهدهٔ سند</Button>
+        {/* فاز ۶۶: الگوی تعهدی ⇒ کشوی زمان‌بندی همین سند */}
+        {template && (template.autoReverse || template.scheduleKind) && (
+          <Button variant="outlined" color="secondary" sx={{ minHeight: 44 }}
+            onClick={() => navigate(`/accrual/schedules?voucher=${outcome.voucherId}`)}>مشاهدهٔ زمان‌بندی</Button>
+        )}
         <Button color="inherit" sx={{ minHeight: 44 }} onClick={() => navigate('/operation/voucher-heads')}>کارتابل اسناد</Button>
       </Stack>
       {quickSaved && (

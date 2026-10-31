@@ -13,6 +13,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { formatThousands, toPersianDigits } from '../../lib/format/numbers';
 import { AnswerComposer, questionProgress } from './ConversationFooter';
 import { DraftPreview, RiskChip, draftAmount, type DraftInfo } from './DraftPreview';
+import { accrualPreviewOf } from './AccrualPreview';
 import { orderedParameters, type AssistantAction, type AssistantState } from './assistantState';
 import type { VoucherDraft } from './types';
 
@@ -102,6 +103,7 @@ export function MobileDraftSheet({ state, dispatch, draft, info, loading, action
           loading={loading}
           embedded
           templateTitle={state.template?.title}
+          accrual={state.source === 'history' ? null : accrualPreviewOf(state.template, state.answers)}
           templateId={state.source === 'history' ? undefined : state.template?.id}
           fromHistory={state.source === 'history'}
           actions={actions && { ...actions, onSubmit: () => { setOpen(false); actions.onSubmit(); } }}

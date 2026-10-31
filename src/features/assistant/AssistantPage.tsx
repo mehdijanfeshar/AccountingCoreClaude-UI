@@ -30,6 +30,7 @@ import { MobileDraftSheet } from './MobileDraftSheet';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { toPersianDigits } from '../../lib/format/numbers';
 import { DraftPreview } from './DraftPreview';
+import { accrualPreviewOf } from './AccrualPreview';
 import { FullVoucherEditor } from './FullVoucherEditor';
 import { defaultVoucherDate, gregorianToJalali, jalaliToGregorian } from './draftMapping';
 import { LineExtrasDialog, lineNeedsExtras } from './LineExtrasDialog';
@@ -364,6 +365,7 @@ export function AssistantPage() {
                 loading={previewLoading}
                 progress={progress}
                 templateTitle={state.template?.title}
+                accrual={state.source === 'history' ? null : accrualPreviewOf(state.template, state.answers)}
                 templateId={state.source === 'history' ? undefined : state.template?.id}
                 fromHistory={state.source === 'history'}
                 info={state.previewInfo}

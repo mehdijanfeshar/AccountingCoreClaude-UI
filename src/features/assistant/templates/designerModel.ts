@@ -1,5 +1,5 @@
 import { newClientId } from '../../../lib/ids';
-import type { AmountSource, LineSide, ParameterOption, ParameterType, RiskBase, TemplateCategory, TemplateDefinitionDto, TemplateWritePayload } from '../types';
+import { ACCRUAL_MONTHS_KEY, type AccrualScheduleKindValue, type AmountSource, type LineSide, type ParameterOption, type ParameterType, type RiskBase, type TemplateCategory, type TemplateDefinitionDto, type TemplateWritePayload } from '../types';
 
 /**
  * Editable shape of a template in the designer. Plain objects + pure helpers (no form library):
@@ -41,6 +41,8 @@ export interface DesignLine {
   conditionValue: string;
   /** 1 مبلغ پارامتر · 2 ارزش افزوده بر اساس نرخ تاریخ سند */
   amountSource: AmountSource;
+  /** فاز ۶۶: ردیف «سهم ماهانه» الگوی تقسیم چندماهه — در سند اصلی ساخته نمی‌شود، فقط حساب سهم هر ماه. */
+  isScheduleLine: boolean;
   /** راهنمای انتخاب معین (از نمونهٔ آماده)، مثلاً «بانک / صندوق». */
   hint?: string;
   /** Only levels the user has bound; levels of the معین without an entry are "not set yet". */
@@ -66,6 +68,9 @@ export interface DesignModel {
   riskBase: RiskBase | '';
   category: TemplateCategory | '';
   plainPattern: string;
+  /** فاز ۶۶ حسابداری تعهدی: برگشت خودکار اول ماه بعد، یا تقسیم روی چند ماه (با هم ممنوع). */
+  autoReverse: boolean;
+  scheduleKind: AccrualScheduleKindValue | '';
   params: DesignParam[];
   lines: DesignLine[];
 }
@@ -115,6 +120,7 @@ export function newLine(side: LineSide, amountKey: string): DesignLine {
     conditionParamKey: '',
     conditionValue: '',
     amountSource: 1,
+    isScheduleLine: false,
     details: [],
   };
 }
@@ -138,6 +144,8 @@ export function emptyModel(): DesignModel {
     riskBase: '',
     category: '',
     plainPattern: '',
+    autoReverse: false,
+    scheduleKind: '',
     params: [amount, note],
     lines: [newLine(1, amount.key), newLine(2, amount.key)],
   };
@@ -159,6 +167,8 @@ export function fromDefinition(def: TemplateDefinitionDto): DesignModel {
     riskBase: def.riskBase ?? '',
     category: def.category ?? '',
     plainPattern: def.plainPattern ?? '',
+    autoReverse: def.autoReverse ?? false,
+    scheduleKind: def.scheduleKind ?? '',
     params: def.parameters.map((p) => ({
       uid: newClientId(),
       key: p.key,
@@ -181,6 +191,7 @@ export function fromDefinition(def: TemplateDefinitionDto): DesignModel {
       conditionParamKey: l.conditionParamKey ?? '',
       conditionValue: l.conditionValue ?? '',
       amountSource: l.amountSource ?? 1,
+      isScheduleLine: l.isScheduleLine ?? false,
       details: l.details.map((d) => ({
         level: d.level,
         source: d.fixedDetailId ? 'fixed' : 'param',
@@ -212,6 +223,8 @@ export function fromTemplatePayload(p: TemplateWritePayload, labels: Record<stri
     riskBase: p.riskBase ?? '',
     category: p.category ?? '',
     plainPattern: p.plainPattern ?? '',
+    autoReverse: p.autoReverse ?? false,
+    scheduleKind: p.scheduleKind ?? '',
     params: (p.parameters ?? []).map((q) => ({
       uid: newClientId(),
       key: q.key,
@@ -234,6 +247,7 @@ export function fromTemplatePayload(p: TemplateWritePayload, labels: Record<stri
       conditionParamKey: l.conditionParamKey ?? '',
       conditionValue: l.conditionValue ?? '',
       amountSource: l.amountSource ?? 1,
+      isScheduleLine: l.isScheduleLine ?? false,
       details: (l.details ?? []).map((d) => ({
         level: d.level,
         source: d.fixedDetailId ? 'fixed' : 'param',
@@ -259,6 +273,8 @@ export function toPayload(m: DesignModel): TemplateWritePayload {
     riskBase: m.riskBase === '' ? null : m.riskBase,
     category: m.category === '' ? null : m.category,
     plainPattern: m.plainPattern.trim() || null,
+    autoReverse: m.autoReverse,
+    scheduleKind: m.scheduleKind === '' ? null : m.scheduleKind,
     parameters: m.params.map((p, i) => ({
       key: p.key.trim(),
       title: p.title.trim(),
@@ -280,6 +296,7 @@ export function toPayload(m: DesignModel): TemplateWritePayload {
       conditionParamKey: l.conditionParamKey && l.conditionValue ? l.conditionParamKey : null,
       conditionValue: l.conditionParamKey && l.conditionValue ? l.conditionValue : null,
       amountSource: l.amountSource,
+      isScheduleLine: l.isScheduleLine,
       details: l.details
         .filter((d) => (d.source === 'param' ? !!d.parameterKey : !!d.fixedDetailId))
         .map((d) => ({
@@ -343,7 +360,9 @@ export function quickChecks(m: DesignModel): string[] {
   if (!/^[A-Z][A-Z0-9_]{2,49}$/.test(m.code.trim().toUpperCase())) out.push('کد لاتین الگو (مثل BUY_GOODS) را بنویسید.');
   if (!m.description.trim()) out.push('توضیح «چه وقت این عملیات انتخاب شود» را بنویسید.');
   if (!m.voucherDescriptionPattern.trim()) out.push('شرح سند را بنویسید.');
-  if (!m.lines.some((l) => l.side === 1) || !m.lines.some((l) => l.side === 2)) out.push('حداقل یک ردیف بدهکار و یک ردیف بستانکار لازم است.');
+  const voucherLines = m.lines.filter((l) => !l.isScheduleLine);
+  if (!voucherLines.some((l) => l.side === 1) || !voucherLines.some((l) => l.side === 2)) out.push('حداقل یک ردیف بدهکار و یک ردیف بستانکار لازم است.');
+  out.push(...accrualChecks(m));
   m.lines.forEach((l, i) => {
     if (!l.accountId) out.push(`ردیف ${i + 1}: حساب معین را انتخاب کنید.`);
     if (!l.isBalancing && !l.amountParameterKey) out.push(`ردیف ${i + 1}: مبلغ ردیف از کدام سؤال بیاید؟`);
@@ -354,6 +373,8 @@ export function quickChecks(m: DesignModel): string[] {
     if (!p.title.trim()) out.push(`سؤال «${p.key}»: عنوان ندارد.`);
     if (!p.askPrompt.trim()) out.push(`سؤال «${p.title || p.key}»: متن سؤال ندارد.`);
     if (p.type === 2 && !p.detailGroupId) out.push(`سؤال «${p.title || p.key}»: گروه تفصیلی را انتخاب کنید.`);
+    // تعداد ماه تقسیم را سرور مصرف می‌کند، نه ردیف یا شرح.
+    if (m.scheduleKind !== '' && p.key === ACCRUAL_MONTHS_KEY) return;
     // An amount/تفصیلی answer no row consumes is a question the user answers for nothing.
     if ((p.type === 1 || p.type === 2) && usagesOf(m, p.key) === 0)
       out.push(`سؤال «${p.title || p.key}» در هیچ ردیفی استفاده نشده؛ حذفش کنید یا به ردیفی وصلش کنید.`);
@@ -373,6 +394,35 @@ export function quickChecks(m: DesignModel): string[] {
   return out;
 }
 
+/** قواعد الگوی تعهدی (فاز ۶۶) — همان AccrualTemplateRules سرور، برای راهنمایی کنار فرم. */
+export function accrualChecks(m: DesignModel): string[] {
+  const out: string[] = [];
+  const schedule = m.lines.filter((l) => l.isScheduleLine);
+  if (m.autoReverse && m.scheduleKind !== '')
+    out.push('«برگشت خودکار اول ماه بعد» و «تقسیم روی چند ماه» با هم ممکن نیست؛ یکی را انتخاب کنید.');
+  if (m.scheduleKind === '') {
+    if (schedule.length > 0) out.push('ردیف «سهم ماهانه» فقط وقتی معنا دارد که «تقسیم روی چند ماه» انتخاب شده باشد.');
+    return out;
+  }
+  const months = m.params.find((p) => p.key === ACCRUAL_MONTHS_KEY);
+  if (!months || (months.type !== 1 && months.type !== 3) || !months.isRequired)
+    out.push(`الگوی تقسیم روی چند ماه به سؤال الزامی «تعداد ماه» با کلید «${ACCRUAL_MONTHS_KEY}» نیاز دارد.`);
+  if (schedule.length !== 2 || schedule.filter((l) => l.side === 1).length !== 1)
+    out.push('دقیقاً دو ردیف «سهم ماهانه» لازم است: یک بدهکار و یک بستانکار (مثلاً هزینه / پیش‌پرداخت).');
+  else if (schedule.some((l) => l.isBalancing || l.percent !== '100' || l.amountSource !== 1) || schedule[0].amountParameterKey !== schedule[1].amountParameterKey)
+    out.push('دو ردیف «سهم ماهانه» باید هر دو ۱۰۰٪ از یک سؤال مبلغ باشند و تراز‌کننده نباشند.');
+  return out;
+}
+
+/** سؤال «تعداد ماه» با کلید ثابت سرور؛ اگر هست تغییری نمی‌دهد. */
+export function ensureMonthsParam(m: DesignModel): DesignModel {
+  if (m.params.some((p) => p.key === ACCRUAL_MONTHS_KEY)) return m;
+  return {
+    ...m,
+    params: [...m.params, newParam(m.params, 3, { key: ACCRUAL_MONTHS_KEY, title: 'تعداد ماه', askPrompt: 'روی چند ماه تقسیم شود؟', isRequired: true })],
+  };
+}
+
 // ───────────── نمونه‌های آماده (فقط ساختار؛ معین‌ها را حسابدار انتخاب می‌کند) ─────────────
 
 export interface StarterTemplate {
@@ -383,8 +433,12 @@ export interface StarterTemplate {
   voucherDescriptionPattern: string;
   /** Questions besides the default «مبلغ» (key `amount`) and «توضیح» (key `note1`). */
   extra: { key: string; title: string; askPrompt: string }[];
-  lines: { side: LineSide; hint: string }[];
+  /** `schedule` = ردیف «سهم ماهانه» (فقط الگوی تقسیم چندماهه). */
+  lines: { side: LineSide; hint: string; schedule?: boolean }[];
   category: TemplateCategory;
+  /** فاز ۶۶: نمونه‌های تعهدی. */
+  autoReverse?: boolean;
+  scheduleKind?: AccrualScheduleKindValue;
 }
 
 export const STARTER_TEMPLATES: StarterTemplate[] = [
@@ -459,13 +513,69 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
     ],
     category: 1,
   },
+  {
+    title: 'برآورد هزینه (فاکتور نیامده)',
+    code: 'ACCRUE_EXPENSE',
+    keywords: `برآورد
+فاکتورش نیامده
+هزینه معوق
+هزینه پرداختنی
+ذخیره هزینه`,
+    description: 'وقتی خدمتی در این ماه انجام شده (مثلاً نظافت، نگهبانی، برق) ولی فاکتورش هنوز نیامده؛ هزینه برآوردی ثبت و اول ماه بعد خودکار برگردانده می‌شود.',
+    voucherDescriptionPattern: 'برآورد هزینهٔ {note1}',
+    extra: [],
+    lines: [
+      { side: 1, hint: 'هزینه' },
+      { side: 2, hint: 'هزینه‌های پرداختنی (معوق)' },
+    ],
+    category: 7,
+    autoReverse: true,
+  },
+  {
+    title: 'پیش‌پرداخت چندماهه',
+    code: 'PREPAID_EXPENSE',
+    keywords: `پیش پرداخت
+اجاره سالانه
+بیمه سالانه
+قرارداد یک ساله`,
+    description: 'وقتی هزینهٔ چند ماه (مثلاً اجاره یا بیمهٔ یک‌ساله) یک‌جا پرداخت شده؛ هر ماه سهم همان ماه خودکار به هزینه می‌رود.',
+    voucherDescriptionPattern: 'پیش‌پرداخت {note1}',
+    extra: [],
+    lines: [
+      { side: 1, hint: 'پیش‌پرداخت‌ها' },
+      { side: 2, hint: 'بانک' },
+      { side: 1, hint: 'هزینهٔ همان مورد (سهم هر ماه)', schedule: true },
+      { side: 2, hint: 'پیش‌پرداخت‌ها (همان معین ردیف ۱)', schedule: true },
+    ],
+    category: 7,
+    scheduleKind: 2,
+  },
+  {
+    title: 'درآمد پیش‌دریافت چندماهه',
+    code: 'DEFERRED_REVENUE',
+    keywords: `پیش دریافت
+درآمد انتقالی
+قرارداد سالانه
+اشتراک سالانه`,
+    description: 'وقتی وجه چند ماه خدمت یک‌جا دریافت شده؛ هر ماه سهم همان ماه خودکار به درآمد می‌رود.',
+    voucherDescriptionPattern: 'پیش‌دریافت {note1}',
+    extra: [],
+    lines: [
+      { side: 1, hint: 'بانک' },
+      { side: 2, hint: 'پیش‌دریافت‌ها (درآمد انتقالی)' },
+      { side: 1, hint: 'پیش‌دریافت‌ها (همان معین ردیف ۲)', schedule: true },
+      { side: 2, hint: 'درآمد (سهم هر ماه)', schedule: true },
+    ],
+    category: 7,
+    scheduleKind: 3,
+  },
 ];
 
 /** A starter as a design model: questions and row sides filled, معین left for the accountant. */
 export function fromStarter(s: StarterTemplate): DesignModel {
   const base = emptyModel();
   const extra = s.extra.map((e) => newParam(base.params, 2, { key: e.key, title: e.title, askPrompt: e.askPrompt }));
-  return {
+  const model: DesignModel = {
     ...base,
     title: s.title,
     code: s.code,
@@ -473,7 +583,10 @@ export function fromStarter(s: StarterTemplate): DesignModel {
     description: s.description,
     voucherDescriptionPattern: s.voucherDescriptionPattern,
     category: s.category,
+    autoReverse: s.autoReverse ?? false,
+    scheduleKind: s.scheduleKind ?? '',
     params: [base.params[0], ...extra, base.params[1]],
-    lines: s.lines.map((l) => ({ ...newLine(l.side, 'amount'), accountLabel: '', descriptionPattern: '', hint: l.hint })),
+    lines: s.lines.map((l) => ({ ...newLine(l.side, 'amount'), accountLabel: '', descriptionPattern: '', hint: l.hint, isScheduleLine: !!l.schedule })),
   };
+  return s.scheduleKind ? ensureMonthsParam(model) : model;
 }

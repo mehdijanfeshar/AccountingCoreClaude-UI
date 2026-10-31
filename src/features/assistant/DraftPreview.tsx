@@ -23,6 +23,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import { formatLegacyJalaliDate } from '../../lib/format/dates';
 import { formatThousands, toPersianDigits } from '../../lib/format/numbers';
 import { gregorianToJalali } from './draftMapping';
+import { AccrualNotice, type AccrualPreviewInput } from './AccrualPreview';
 import { amountInWordsRial } from '../../lib/format/numberToWords';
 import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
@@ -79,6 +80,8 @@ interface DraftPreviewProps {
   fromHistory?: boolean;
   /** دکمه‌های انتهای کارت: ارسال و ویرایش کامل. */
   actions?: { onSubmit: () => void; onEditFull: () => void; submitting: boolean };
+  /** فاز ۶۶: الگوی تعهدی — خط برگشت خودکار یا جدول تقسیم ماهانه (`accrualPreviewOf`). */
+  accrual?: AccrualPreviewInput | null;
 }
 
 const STEPS = [
@@ -119,7 +122,7 @@ function Steps({ current }: { current: number }) {
 }
 
 /** The voucher as the accountant will see it in the کارتابل — built by the server, never by the browser. */
-export function DraftPreview({ draft, loading, progress = 0, templateTitle, info, embedded, templateId, fromHistory, actions }: DraftPreviewProps) {
+export function DraftPreview({ draft, loading, progress = 0, templateTitle, info, embedded, templateId, fromHistory, actions, accrual }: DraftPreviewProps) {
   const accountant = useIsAccountant();
   return (
     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, ...(embedded ? { border: 0, p: 0 } : { position: 'sticky', top: 16 }) }}>
@@ -153,6 +156,7 @@ export function DraftPreview({ draft, loading, progress = 0, templateTitle, info
               این سند حتماً باید حسابدار و مدیر مالی بررسی کنند.
             </Alert>
           )}
+          {accrual && <AccrualNotice accrual={accrual} jalaliDate={gregorianToJalali(draft.voucherDate)} amount={draft.totalDebit} />}
           <DraftBody draft={draft} info={info ?? null} templateId={templateId} />
           {actions && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>

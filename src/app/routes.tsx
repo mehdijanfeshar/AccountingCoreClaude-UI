@@ -52,6 +52,8 @@ import { SalesDocEditorPage } from '../features/sales/SalesDocEditorPage';
 import { SalesCustomersPage } from '../features/sales/SalesCustomersPage';
 import { SalesItemsPage } from '../features/sales/SalesItemsPage';
 import { SalesSettingsPage } from '../features/sales/SalesSettingsPage';
+import { AccrualDeskPage } from '../features/accrual/AccrualDeskPage';
+import { AccrualSchedulesPage } from '../features/accrual/AccrualSchedulesPage';
 import { PayReciveHeadsListPage } from '../features/pay-recive-heads/PayReciveHeadsListPage';
 import { PayReciveHeadFormPage } from '../features/pay-recive-heads/PayReciveHeadFormPage';
 import { CheckBookFormPage } from '../features/check-books/CheckBookFormPage';
@@ -179,6 +181,8 @@ export const routes: RouteObject[] = [
   { path: '/assistant/history', element: <AssistantErrorBoundary><AssistantHistoryPage /></AssistantErrorBoundary> },
   { path: '/assistant/review', element: <AssistantErrorBoundary><ReviewQueuePage /></AssistantErrorBoundary> },
   { path: '/assistant/batch', element: <AssistantErrorBoundary><BatchImportPage /></AssistantErrorBoundary> },
+  { path: '/accrual', element: <AccrualDeskPage /> },
+  { path: '/accrual/schedules', element: <AccrualSchedulesPage /> },
   { path: '/sales', element: <SalesHomePage /> },
   { path: '/sales/docs', element: <SalesDocsPage /> },
   { path: '/sales/docs/new', element: <SalesDocEditorPage key="new" /> },
